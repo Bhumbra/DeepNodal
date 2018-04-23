@@ -21,6 +21,18 @@ def tf_max_norm_regularizer(clip_norm, axes = 1., name = "max_norm", collection 
   return maxnorm
 
 #-------------------------------------------------------------------------------
+def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))
+
+#-------------------------------------------------------------------------------
+def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
+  func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
+               tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
+
+#-------------------------------------------------------------------------------
 # TensorFlow has a different interfaces for different pooling layers 
 
 def tf_pool2d(*args, **kwds):
