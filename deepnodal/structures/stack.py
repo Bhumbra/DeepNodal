@@ -30,7 +30,7 @@ class stack (stem):
   def __init__(self, name = None, dev = None):
     stem.__init__(name, dev)
     self.set_arch() # defaults to an identity
-    self.setup():
+    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_arch(self, arch = None):
@@ -238,12 +238,14 @@ class stack (stem):
             if self.skc[i][j] is not None:
               func = self.skc_kwds['coalescence_fn']
               kwds = self.kwc_kwds.pop('coalescence_fn')
-              self.skip_coal[i][j] = Creation(func)(inp[j], *self.skc_args, **kwds
-                                     name = self.name + "/skip_" + func + "_" + str(i))
+              self.skip_coal[i][j] = Creation(func)(inp[j], *self.skc_args, 
+                                     name = self.name + "/skip_" + func + "_" + str(i), **kwds)
               Inp[j] = self.skip_coal[i][j]
         inp = tuple(Inp)
     self.arch_out = self.subobjects[-1].arch_out
     self.out = inp
+    self.setup_outputs() # concatenate output list of dictionaries
+    return self.ret_out()
 
 #-------------------------------------------------------------------------------
 

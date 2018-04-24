@@ -5,8 +5,8 @@ Plan module for Tensorflow.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.function import function
-from deepnodal.creations.google_tensorflow import *
+from deepnodal.concepts.function import *
+from deepnodal.calls.google_tensorflow import *
 
 #-------------------------------------------------------------------------------
 class plan (function):

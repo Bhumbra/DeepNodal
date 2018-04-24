@@ -22,14 +22,19 @@ class trainer (function):
 
   """
   def_name = 'trainer'
-  gst = None                    # global_step
-  ist = None                    # is training flag
-  opt = None                    # optimiser specification
-  trainee = None                # network instance to train
-  regimens = None               # list of training_regimens
-  train_regimen = None          # Python index of currently active regimen index
-  regimen_index = None          # graph object of currently active regimen index
-  learning_rate = None          # graph object currently active learning rate
+  gst = None                       # global_step
+  ist = None                       # is training flag
+  opt = None                       # optimiser specification
+  trainee = None                   # network instance to train
+  regimens = None                  # list of training_regimens
+  regimen_index = None             # graph object of currently active regimen index
+  learning_rate = None             # graph object currently active learning rate
+  params = None                    # parameters of trainee as list of dictionaries
+  using_regimen = None             # Python index of currently active regimen
+  variables = None                 # entire list of parameter variables
+  variable_names = None            # list of variable names          
+  regimen_var_lists = None         # lists of variables for each regimen
+  regimen_ind_lists = None         # compiled list of regimen parameter indices
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -40,6 +45,7 @@ class trainer (function):
     self.set_optimiser()
     self.set_regimens()
     self.setup()
+    self.use_regimen()
 
 #-------------------------------------------------------------------------------
   def set_dev(self, dev = None):
@@ -64,7 +70,7 @@ class trainer (function):
     self.trainee = trainee
     if self.trainee is None: return
     if not isinstance(self.trainee, network):
-      raise(TypeError("Only suitable trainee is a network.")
+      raise TypeError("Only suitable trainee is a network.")
 
 #-------------------------------------------------------------------------------
   def set_optimiser(self, opt = None, *opt_args, **opt_kwds):
@@ -73,11 +79,7 @@ class trainer (function):
     self.opt_kwds = dict(opt_kwds)
     if 'name' not in self.opt_kwds:
       self.opt_kwds = self.opt_kwds.update({'name':self.name + "/optimiser"})
-
-#-------------------------------------------------------------------------------
-  def set_train_regimen(self, train_regimen = None, *args):
-    self.train_regimen = train_regimen
-    return self.train_regimen
+    self.opt_name = self.opt_kwds['name']
 
 #-------------------------------------------------------------------------------
   def set_regimens(self, regimens = None):
@@ -91,13 +93,25 @@ class trainer (function):
     self.regimens.append(regimen(self.name + "/regimen_" + str(i), self.dev))
     self.regimens[-1].set_learning_rate(lrate, *lrate_args, **lrate_kwargs)
     self.n_regimens = len(self.regimens)
-    return self.set_train_regimen(self.n_regimens - 1)
 
 #-------------------------------------------------------------------------------
   def set_regimen_spec(self, train_regimen = None, dspec = None, pspec = None):
     self.set_train_regimen(train_regimen)
     self.regimen[self.train_regimen].set_dropout_spec(dspec)
     self.regimen[self.train_regimen].set_parameter_spec(pspec)
+
+#-------------------------------------------------------------------------------
+  def use_regimen(self, session = None, using_regimen = -1): # this updates regimen index and learning rate
+    if session is None:
+      self.using_regimen = using_regimen
+      return
+    if self.using_regimen != using_regimen:
+      self.using_regimen = using_regimen
+      op = self.regimen_index.assign(self.using_regimen)
+      session.run(op)
+    op = self.learning_rate.assign(self.regimen[self.using_regimen].learning_rate)
+    session.run(op)
+    return
 
 #-------------------------------------------------------------------------------
   def setup(self, gst = None, ist = None, **kwds):
@@ -109,8 +123,9 @@ class trainer (function):
     self._setup_learning(gst)
     self._setup_optimiser(ist)
 
-    # Then set up the trainee (i.e. the entire network)
-    self.trainee.setup(**kwds)
+    # Setup the trainee
+    self._setup_variables()
+    self._setup_outputs()
 
 #-------------------------------------------------------------------------------
   def _setup_learning(self, gst = None): # this sets up batch_size, regimen index, and learning_rate
@@ -121,13 +136,13 @@ class trainer (function):
     if self.dev is None:
       self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
       self.batch_size_op = self.batch_size.assign(Shape(self.trainee.inputs)[0])
-      self.regimen_index = Creation('var')(0 , trainable=False, name=self.name+"/regimen_index")
+      self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimen_index")
       self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
     else:
       with Device(self.dev):
         self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
         self.batch_size_op = self.batch_size.assign(Shape(self.trainee.inputs)[0])
-        self.regimen_index = Creation('var')(0 , trainable=False, name=self.name+"/regimen_index")
+        self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimen_index")
         self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
 
 #-------------------------------------------------------------------------------
@@ -155,6 +170,44 @@ class trainer (function):
     else:
       with Device(self.dev):
         self.ist = Creation('var')(Dtype('bool'), trainable=False, name=self.name+"/is_training")
+
+#-------------------------------------------------------------------------------
+  def _setup_variables(self):
+    """
+    self.params is list of dictionaries in the form:
+    self.param[i] = {self.variable_names[i]: self.variables}
+
+    """
+    # Access to variable objects requires first setting up the trainee (i.e. the entire network)
+    self.trainee.setup(**kwds)
+
+    # Set up variables
+    self.params = self.trainee.ret_params()
+    self.n_params = len(self.n_params)
+    self.variable_names = [None] * self.n_params
+    self.variables = [None] * self.n_params
+
+    for i, param_dict in enumerate(self.params):
+      self.variable_names[i] = list(param_dict)[0]
+      self.variables = param_dict[self.variable_names[i]]
+
+    self.regimen_ind_lists = [None] * self.n_regimens
+    self.regimen_var_lists = [None] * self.n_regimens
+
+    for i, _regimen in enumerate(self.regimens):
+      self.regimen_var_lists[i], 
+      self.regimen_ind_lists[i] = self.trainee.ret_params(_regimen.pspec, True)
+    return self.variables
+
+#-------------------------------------------------------------------------------
+  def _setup_outputs(self):
+    self.n_outputs = len(self.trainee.outputs)
+    self.output_names = [None] * self.n_outputs
+    self.outputs = [None] * self.n_outputs
+    for i, output_dict in enumerate(self.trainee.outputs):
+      self.output_names[i] = list(output_dict)[0]
+      self.outputs[i] = output_dict[self.outputs_names[i]]
+    return self.outputs
 
 #-------------------------------------------------------------------------------
   @abstractmethod

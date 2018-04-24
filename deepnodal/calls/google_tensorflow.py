@@ -4,10 +4,10 @@
 
 #-------------------------------------------------------------------------------
 import tensorflow as tf
-from tensorflow.contrib.layers import variance_scale_initializer, l1_regularizer, l2_regularizer
+from tensorflow.contrib.layers import variance_scaling_initializer, l1_regularizer, l2_regularizer
 from tensorflow import name_scope, variable_scope
 from tensorflow.contrib.framework import arg_scope
-from tf_extended import *
+from deepnodal.calls.tf_extended import *
 
 #-------------------------------------------------------------------------------
 try:
@@ -43,8 +43,8 @@ creation_dict = {'identity': tf.identity,
                  'softmax': tf.nn.softmax,
                  'var': tf.Variable,
                  'tensor': tf.placeholder,
-                 'vsi': tf.variance_scale_initializer,
-                 'zoi': tf.zero_initializer,
+                 'vsi': tf.variance_scaling_initializer,
+                 'zoi': tf.zeros_initializer,
                  'lvi': tf.local_variables_initializer,
                  'gvi': tf.global_variables_initializer,
                  'sgd': tf.train.GradientDescentOptimizer,
@@ -68,7 +68,7 @@ def Creation(*args):
 #-------------------------------------------------------------------------------
 # Dtype dictionary
 
-dtype_dict = {None, None,
+dtype_dict = {None: None,
               'bool': tf.bool,
               'int32': tf.int32,
               'int64': tf.int64,

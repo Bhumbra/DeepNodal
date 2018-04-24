@@ -37,7 +37,6 @@ class network (stem):
   n_subnets = None
   outnets = None
   n_outnets = None
-  outputs = None
   type_inputs = None
 
 #-------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ class network (stem):
       elif isinstance(subnet, stakcj):
         self.type_nets[i] = 'stack'
       else:
-        raise TypeError("Unknown subnet type: ": str(subnet))
+        raise TypeError("Unknown subnet type: " + str(subnet))
     self.set_outnets()
     return self.type_subnets
     
@@ -72,7 +71,7 @@ class network (stem):
   def set_outnets(self, indices = None): # for now we will only have one output
     self.outnets = None
     self.n_outnets = 0
-    if self.subnets is None return self.outnets
+    if self.subnets is None: return self.outnets
     if indices is None: 
       indices = list(range(self.n_subnets))
     elif type(indices) is int: 
@@ -125,7 +124,7 @@ class network (stem):
       else:
         kwargs = dict(kwds)
         if 'dtype' not in kwargs:
-          kwargs = kwargs.update('dtype':Dtype(DEFAULT_INPUT_DATA_TYPE))
+          kwargs = kwargs.update({'dtype':Dtype(DEFAULT_INPUT_DATA_TYPEl)})
         inp_dim = [None]
         for dim in self.inputs[i]:
           inp_dim.append(dim)
@@ -145,10 +144,10 @@ class network (stem):
     # Collate architectural parameters
     self.setup_params()
 
-    # List specified outputs
-    self.outputs = [outnet.ret_out() for subnet in self.outnets]
+    # Collate list of outputs
+    self.setup_outputs()
 
-    return self.outputs
+    return self.ret_out()
 
 #-------------------------------------------------------------------------------
 

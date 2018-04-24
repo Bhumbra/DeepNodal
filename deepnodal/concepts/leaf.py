@@ -5,7 +5,7 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.structure import structure
+from deepnodal.concepts.structure import *
 
 #-------------------------------------------------------------------------------
 
@@ -28,6 +28,7 @@ class leaf (structure):
     self.set_name(name)
     self.set_dev(dev)
     self.set_params()
+    self.set_outputs()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -57,7 +58,7 @@ class leaf (structure):
     self.params = params
     if self.params is None: self.params = []
     self.n_params = len(self.params)
-    if n_params:
+    if self.n_params:
       for param_dict in self.params:
         if type(param_dict) is not dict:
           raise TypeError("Only dictionaries are accepted parameters.")

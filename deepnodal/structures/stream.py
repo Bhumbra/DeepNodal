@@ -84,17 +84,19 @@ class stream (chain):
     elif type(self.arch) is not list:
       raise ValueError("Unknown architecture specification")
     else:
-      if not(len(arch)):
+      if len(arch) == 0:
         self.type_arch = 'identity'
         self.type_adim = self.type_arch
-      elif len(self.arch) < 2 or len(self.arch) > 3:
+      if len(self.arch) == 1:
+        raise ValueError("List length of 1 reserved (for recurrent architectures)")
+      elif len(self.arch) > 3:
         raise ValueError("Unknown architecture specification")
       else:
         if type(self.arch[1]) is not list:
           raise ValueError("Unknown architecture specification")
         self.type_arch = 'pool' if type(self.arch[0]) is list else 'conv'
         self.type_adim = self.type_arch + str(len(self.arch[1])) + "d"
-        if self.type_arch == 'conv' and len(self.arch) == 2:
+        if self.type_arch == 'conv' and len(self.arch) == 2: # default to unit stride
           self.arch = [self.arch[0], self.arch[1], [1]*len(self.arch[1])]
     return self.type_arch
 
@@ -111,7 +113,7 @@ class stream (chain):
     order = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
     if order is None:
-      order = 'a' if self.type_arch is 'identity' else: DEFAULT_STREAM_ORDER
+      order = 'a' if self.type_arch is 'identity' else DEFAULT_STREAM_ORDER
     self.order = order
 
 #-------------------------------------------------------------------------------
@@ -156,7 +158,7 @@ class stream (chain):
     if dro is not None and not(len(dro_args)):
       raise ValueError("Unknown dropout specification")
 
-    self.dro = dro if type(dro) is not str else Creation(dro) # note this can be `identity'
+    self.dro = dro if type(dro) is not str else Creation(dro) # note this can be an `identity'
     self.dro_args = dro_args
     self.dro_kwds = dict(dro_kwds)
     if 'trainable' not in self.dro_kwds:
@@ -262,6 +264,9 @@ class stream (chain):
     # Collate architectural parameters
     self.set_params()
 
+    # Set outputs dictionary
+    self.set_outputs()
+
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
@@ -352,6 +357,16 @@ class stream (chain):
     self.n_params = len(self.params)
     if self.arch_link is None: return self.params
     return self.arch_link.set_params()
+
+#-------------------------------------------------------------------------------
+  def set_outputs(self): 
+    # a chain should really have only one output so is more leaf-like here
+    self.outputs = []
+    self.n_outputs = len(self.outputs)
+    if self.out is None: return self.outputs
+    self.outputs = [{self.name + "/output": self.out}]
+    self.n_outputs = len(self.outputs)
+    return self.outputs
 
 #-------------------------------------------------------------------------------
 

@@ -19,7 +19,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
   """
 
   def_name = 'stem'                # default name
-  def_subobject = subobject        # default subobject class
+  def_subobject = leaf             # default subobject class
   def_subobject_name = 'subobject' # default subobject name
   subobjects = None                # subobject instances which may be leaves or stems
   n_subobjects = None              # number of subobjects
@@ -30,6 +30,8 @@ class stem (structure): # we inherit structure because a stem is never a leaf
   out = None                       # output
   params = None                    # parameters - collated from subobjects
   n_params = None                  # len(parameters)
+  outputs = None                   # parameters - collated from subobjects
+  n_outputs = None                 # len(parameters)
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -130,20 +132,67 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     return self.params
 
 #-------------------------------------------------------------------------------
-  def ret_params(self, param_spec = None):
+  def ret_params(self, param_spec = None, ret_indices = False):
     if param_spec is None:
-      return self.params
+      if not ret_indices:
+        return self.params
+      else:
+        return self.params, list(range(len(self.params)))
 
     params = []
+    indices = []
     if type(param_spec) is bool:
       if param_spec:
         params = self.params
+        indices = list(range(len(self.params)))
     elif len(param_spec) != self.n_subobjects:
       raise ValueError("Parameter specification incommensurate with hierarchical structure")
     else:
       for i, spec in enumerate(param_spec):
-        params += spec.subobject[i].ret_params(_spec)
-    return params
+        params += spec.subobject[i].ret_params(spec)
+      for param in params:
+        param_name = list(param)[0]
+        param_object = param[param_name]
+        for i, _param in enumerate(self.params):
+          _param_name = list(_param)[0]
+          if _param[_param_name] == param_object:
+            indices.append(i)
+    if not ret_indices:
+      return params
+    else:
+      return params, indices
+
+#-------------------------------------------------------------------------------
+  def setup_outputs(self):
+    """
+    Collates lists of output dictionaries to a single list self.outputs.
+    Classes inheriting from stemes do not possess autonomous outputs lists
+    but must collate their lists from subobjects, until eventually reaching leaf-derived
+    classes each of which may posses an autonomous output list associated with
+    a single TensorFlow call.
+
+    """
+    self.outputs = []
+    for subobject in self.subobjects:
+      self.outputs += subobject.outputs
+    self.n_outputs = len(self.outputs)
+    return self.ret_outputs()
+
+#-------------------------------------------------------------------------------
+  def ret_outputs(self, outputs_spec = None):
+    if outputs_spec is None:
+      return self.outputs
+
+    outputs = []
+    if type(outputs_spec) is bool:
+      if outputs_spec:
+        outputs = self.outputs
+    elif len(outputs_spec) != self.n_subobjects:
+      raise ValueError("Outputs specification incommensurate with hierarchical structure")
+    else:
+      for i, spec in enumerate(outputs_spec):
+        outputs += spec.subobject[i].ret_params(spec)
+    return outputs
 
 #-------------------------------------------------------------------------------
 

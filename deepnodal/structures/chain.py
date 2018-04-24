@@ -13,6 +13,9 @@ class chain (stem):
   A chain is a `stem' structure with of one or many links in series.
   While chain is not abstract, it is not intended to instantiated directly
   since it has no parameter collation facility: see stream.
+
+  A chain is the simplest class exhibiting a self.outputs list of dictionaries
+  containing the single mapping of [{output_name: output.object}]
   """
   def_name = 'chain'
   def_subobject_name = 'link'
@@ -54,6 +57,7 @@ class chain (stem):
     for _link in self.links:
       inp = _link.setup(inp)
     self.out = inp
+    self.set_outputs([{self.name + "/output", self.out}])
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

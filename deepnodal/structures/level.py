@@ -130,8 +130,9 @@ class level (stem):
     spec = None: No dropout
     spec = 0.: Full dropout (i.e. useless)
     spec = 0.4: dropout with keep probability of 0.6
-    """
+    """ 
     return self.broadcast(self.subobject.set_dropout, spec, *args, **kwds)
+
 #-------------------------------------------------------------------------------
   def set_transfn(self, spec = None, *args, **kwds):
     """
@@ -140,7 +141,7 @@ class level (stem):
     other options: 'softmax', and 'sigmoid'
     """
     argout = self.broadcast(self.subobject.set_transfn, spec, *args, **kwds)
-    for i, subobj in enumerate self.subobjects:
+    for i, subobj in enumerate(self.subobjects):
       if not(i):
         self.trans_fn = self.subobjects[i].tfn
       elif self.subobjects[i].tfn != self.trans_fn:
@@ -217,11 +218,11 @@ class level (stem):
 #-------------------------------------------------------------------------------
   def setup(inp = None):
     inp = self._setup_input(inp)  # does not touch self.subobjects
-    for _inp, subobject for zip(list(inp), self.subobjects):
+    for _inp, subobject in zip(list(inp), self.subobjects):
       subobject.setup(_inp)
-    Out = [subobject.ret_out() for subobject in self.subobjects)]
+    Out = [subobject.ret_out() for subobject in self.subobjects]
     self.arch_out = None if not self.unit_subobject else self.subobject.arch_out
-    return self._setup_output(tuple(Out)) # does not touch self.subobjects
+    self._setup_output(tuple(Out)) # does not touch self.subobjects
 
 #-------------------------------------------------------------------------------
   def _setup_input(inp = None):
@@ -250,8 +251,8 @@ class level (stem):
       inp = [self.inp[j] for j in ipc]
       func = self.ipc_kwds['coalescence_fn']
       kwds = self.ipc_kwds.pop('coalescence_fn')
-      Inp[i] = Creation(func)(inp, *self.ipc_args, **kwds,
-               name = self.name + "/input_" + func + "_" + str(i))
+      Inp[i] = Creation(func)(inp, *self.ipc_args,
+               name = self.name + "/input_" + func + "_" + str(i), **kwds)
     self.Inp = tuple(Inp)
     return self.Inp
 
@@ -276,9 +277,10 @@ class level (stem):
       Out = [self.Out[j] for j in opc]
       func = self.opc_kwds['coalescence_fn']
       kwds = self.opc_kwds.pop('coalescence_fn')
-      out[i] = Creation(func)(inp, *self.opc_args, **kwds,
-               name = self.name + "/output_" + func + "_" + str(i))
+      out[i] = Creation(func)(inp, *self.opc_args,
+               name = self.name + "/output_" + func + "_" + str(i), **kwds)
     self.out = tuple(out)
+    self.setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

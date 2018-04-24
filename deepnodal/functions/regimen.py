@@ -56,10 +56,10 @@ class regimen (plan):
             self.learning_rate = self.lrate(*self.lrate_args, **self.lrate_kwds)
       else:
         if self.dev is None:
-          self.learning_rate = self.lrate(*self.lrate_args, self.gstep, **self.lrate_kwds)
+          self.learning_rate = self.lrate(*self.lrate_args, global_step = self.gstep, **self.lrate_kwds)
         else:
           with Device(self.dev):
-            self.learning_rate = self.lrate(*self.lrate_args, self.gstep, **self.lrate_kwds)
+            self.learning_rate = self.lrate(*self.lrate_args, global_step = self.gstep, **self.lrate_kwds)
 
 #-------------------------------------------------------------------------------
 
