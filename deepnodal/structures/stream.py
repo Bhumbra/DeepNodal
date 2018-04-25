@@ -52,6 +52,7 @@ class stream (chain):
   pfn = None          # Pooling function
   pin = None          # Parameter initialisation
   nor = None          # Normalisation
+  dropout_quotient = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = 'stream', dev = None):
@@ -148,8 +149,12 @@ class stream (chain):
     dro = 0.4: dropout with keep probability of 0.6
     """
     if type(dro) is Creation('session'):
-      if len(dro_args) == 1 and not(len(dro_kwds)) and type(self.dro) is Creation('var'):
-        op = self.dro.assign(dro_args[0])
+      if len(dro_args) == 1 and not(len(dro_kwds)):
+        if dro_args[0] is None:
+          return
+        elif self.dropout_quotient is None:
+          return
+        op = self.dropout_quotient.assign(dro_args[0])
         return dro.run(op)
       else:
         raise ValueError("Unknown dropout change specification")
@@ -275,7 +280,7 @@ class stream (chain):
     self.inp = inp
     self.out = None
     if self.inp is None: return self.inp
-    if type(self.inp) is not tf.Tensor:
+    if type(self.inp) is not Dtype('tensor'):
       raise TypeError("Input type must be a tensor.")
 
     # but will claim ownership over any needed flattening operation

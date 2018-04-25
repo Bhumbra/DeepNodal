@@ -110,6 +110,16 @@ class network (stem):
       subnet.set_is_training(ist)
 
 #-------------------------------------------------------------------------------
+  def set_dropout(self, spec = None, *args, **kwds):
+    """
+    We support this specifically to allow updates mid-session.
+    """
+    if type(spec) is not list: spec = [spec] * self.n_subnets
+    if type(args) is not list: args = [args] * self.n_subnets
+    if type(kwds) is not list: kwds = [kwds] * self.n_subnets
+    return [subnet.set_dropout(spec[i], *args[i], **kwds[i]) for i, subnet in enumerate(self.subnets)]
+
+#-------------------------------------------------------------------------------
   def setup(self, inputs = None, **kwds):
     self.inp = [None] * self.n_subnets
     if inputs is not None: 

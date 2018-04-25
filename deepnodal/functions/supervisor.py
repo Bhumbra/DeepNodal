@@ -251,47 +251,124 @@ class supervisor (trainer):
     return self.delta_ops
 
 #-------------------------------------------------------------------------------
-  def _setup_scalars(self, scalars = None, train_scalars = None, test_scalars = None):
-    if scalars is None:
-      scalars = [Summary('scalar')(self.name+"/BATCH_SIZE", self.batch_size),
-                 Summary('scalar')(self.name+"/REGIMEN", self.regimen_index),
-                 Summary('scalar')(self.name+"/LEARNING_RATE", self.learning_rate)]
+  def _setup_scalars(self, scalars = None, scalar_names = None,
+                           train_scalars = None, train_scalar_names = None, 
+                           test_scalars = None, test_scalar_names = None):
+    trainer._setup_scalars(self, scalars, scalar_names)
     if train_scalars is None:
-      train_scalars = [Summary('scalar')(self.name+"/COST_TRAIN", self.cost),
-                       Summary('scalar')(self.name+"/LOSS_TRAIN", self.loss)]
+      train_scalars = [self.cost, self.loss]
+      if self.errors is not None:
+        train_scalars += self.errors
+    if train_scalar_names is None:
+      train_scalar_names = [self.name+"/COST_TRAIN", self.name+"/LOSS_TRAIN"]
       if self.errors is not None:
         if self.erq != "in_top_k_error":
-          train_scalars.append(Summary('scalar')(self.name+"ERRQ_TRAIN"))
+          train_scalar_names.append(self.name+"/ERRQ_TRAIN")
         else:
           for i, err in enumerate(self.errors):
-            train_scalars.append(Summary('scalar')(self.name+"ERRQ_TRAIN_K="+str(self.erq_args[0][i])))
-
+            train_scalars_names.append(self.name+"/ERRQ_TRAIN_K="+str(self.erq_args[0][i]))
     if test_scalars is None:
-      test_scalars = [Summary('scalar')(self.name+"/COST_TEST", self.cost),
-                      Summary('scalar')(self.name+"/LOSS_TEST", self.loss)]
+      test_scalars = [self.cost, self.loss]
+      if self.errors is not None:
+        test_scalars += self.errors
+    if test_scalar_names is None:
+      test_scalar_names = [self.name+"/COST_TEST", self.name+"/LOSS_TEST"]
       if self.errors is not None:
         if self.erq != "in_top_k_error":
-          test_scalars.append(Summary('scalar')(self.name+"ERRQ_TEST"))
+          test_scalar_names.append(self.name+"/ERRQ_TEST")
         else:
           for i, err in enumerate(self.errors):
-            test_scalars.append(Summary('scalar')(self.name+"ERRQ_TEST_K="+str(self.erq_args[0][i])))
-    return scalars
+            test_scalars_names.append(self.name+"/ERRQ_TEST_K="+str(self.erq_args[0][i]))
+    self.train_scalars, self.train_scalar_names = train_scalars, train_scalar_names
+    self.test_scalars, self.test_scalar_names = test_scalars, test_scalar_names
+    self.train_scalar_logs = []
+    for scalar, scalar_name in zip(self.train_scalars, self.train_scalar_names):
+      if scalar is not None:
+        self.train_scalar_logs.append(Summary('scalar')(scalar_name, scalar))
+    for scalar, scalar_name in zip(self.test_scalars, self.test_scalar_names):
+      if scalar is not None:
+        self.test_scalar_logs.append(Summary('scalar')(scalar_name, scalar))
+    self.scalars_summary = [None] * (len(self.scalars) + len(self.test_scalars))
+    return self.scalars
 
 #-------------------------------------------------------------------------------
-  def _setup_distros(self, distros = None, distro_names = None):
-    if distros is None:
-      distros = self.outputs + self.variables + self.gradients 
-    if distro_names is None:
-      distro_names = self.output_names + self.variable_names + self.gradient_names
-    self.distros = []
-    for distro, distro_name in zip(distros, distro_names):
-      if distro is not None:
-        self.distros.append(Summary('distro')(distro_name, distro))
-    return self.distro
+  def set_feed_dict(self, is_training = False, feed_inputs = None, feed_labels = None):
+
+    # Ideal point to confirm whether self.gvi has been setup and run
+    if self.session is not None and self.gvi is None: self.init_variables()
+    
+    # This feed_dictionary supports inputs and labels
+    feed_dict = {self.ist: is_training, self.inputs: feed_inputs, self.labels: feed_labels}
+
+    # If training, update batch_size and learning_rate
+    if is_training: 
+      self.feed_dict = feed_dict
+      if self.session is not None:
+        if self.using_regimen is None: self.use_regimen(0)
+        self.session.run(self.batch_size_op)
+        op = self.learning_rate.assign(self.regimen[self.using_regimen].learning_rate)
+        self.session.run(op)
+        self.progress[0] += 1                # one batch-update
+        self.progress[1] += len(feed_inputs) # sum(batch_sizes)
+
+    return feed_dict
 
 #-------------------------------------------------------------------------------
-  def train(self, *args, **kwds):
-    pass
+  def train(self, *args):
+    """
+    Call using: self.train(inputs_data, labels_data)
+    """
+    if self.session is None:
+      raise AttributeError("Cannot train without first invoking new_session")
+    feed_dict = self.set_feed_dict(True, args[0], args[1])
+    self.session.run(self.delta_ops[self.using_regimen], feed_dict = feed_dict)
+    self.scalars_train = self.summarise()
+    self.scalars_train = self.scalars_train[:len(self.scalars)]
+    save_session = self.writer_intervals[2]
+    save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
+    if save_session and self.write_dir is not None:
+      self.save(self.write_dir + "/" + self.name)
+    return self.scalars_train
+
+#-------------------------------------------------------------------------------
+  def summarise(self): # only relevent for training sets
+    """
+    Outputs numeric scalars
+    """
+
+    # Scalars 
+    calc_scalars = self.write_intervals[0]
+    calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
+    if calc_scalars:
+      scalars_num_log = self.session.run(self.scalars + self.train_scalars + self.scalar_logs + self.train_scalar_logs, 
+                                         feed_dict = self.feed_dict)
+      n_scalars = len(self.scalars) + len(self.train_scalars)
+      scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
+      self.scalars_summary[:len(self.scalars)] = scalars_num[:len(self.scalars)]
+      self.add_logs(scalars_logs)
+
+    # Distros
+    calc_distros = self.write_intervals[1]
+    calc_distros = calc_distros if type(calc_distros) is bool else not(self.progress[0] % calc_distros)
+    if calc_distros:
+      distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
+      self.add_logs(distros_log)
+    return scalars_num
+
+#-------------------------------------------------------------------------------
+  def test(self, *args):
+    """
+    Call using: self.test(inputs_data, labels_data)
+    """
+    if self.session is None:
+      raise AttributeError("Cannot test without first invoking new_session")
+    feed_dict = self.set_feed_dict(False, args[0], args[1])
+    scalars_num_log = self.session.run(self.test_scalars + self.test_scalar_logs, feed_dict = feed_dict)
+    n_scalars = len(self.test_scalars)
+    scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
+    self.add_logs(scalars_log)
+    self.scalar_summary[len(self.scalars):] = scalars_num
+    return self.scalar_summary
 
 #-------------------------------------------------------------------------------
 

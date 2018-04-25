@@ -55,6 +55,9 @@ creation_dict = {'identity': tf.identity,
                  'mean_squared_error': tf.losses.mean_squared_error,
                  'in_top_k_error': tf_in_top_k_error,
                  'mce': tf_mean_cross_entropy,
+                 'logger': tf.summary.FileWriter,
+                 'saver': tf.train.Saver,
+                 'defaults': tf.get_default_graph,
                  'session': tf.Session}
 
 #-------------------------------------------------------------------------------
@@ -73,7 +76,8 @@ dtype_dict = {None: None,
               'int32': tf.int32,
               'int64': tf.int64,
               'float32': tf.float32,
-              'float64': tf.float64}
+              'float64': tf.float64,
+              'tensor': tf.Tensor}
 
 #-------------------------------------------------------------------------------
 def Dtype(arg):
@@ -115,8 +119,8 @@ def Flag(arg):
 summary_dict = {'scalar': tf.summary.scalar, 'distribution': tf.summary.histogram}
 
 #-------------------------------------------------------------------------------
-def Flag(arg):
-  return flag_dict[arg]
+def Summary(arg):
+  return summary_dict[arg]
 
 #-------------------------------------------------------------------------------
 # Parameters list
@@ -131,9 +135,18 @@ Logits_List = [tf.nn.sparse_softmax_cross_entropy_with_logits, tf.nn.sigmoid_cro
 #flags = {'reuse', tf.REUSE}
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-# Shape list
+# Shape function as list
 
 def Shape(X):
-  S = list(X.shape)
+  XS = list(X.shape)
+  S = [None] * len(XS)
+  for i, xs in enumerate(XS):
+    try:
+      s = int(xs)
+      S[i] = s
+    except TypeError:
+      pass
   return S
+
+#-------------------------------------------------------------------------------
 
