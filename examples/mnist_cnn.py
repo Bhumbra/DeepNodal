@@ -1,5 +1,5 @@
 """
-An example of a multilayer perceptron with SGD back-prop on MNIST data.
+An example of a convolutional network with SGD back-prop on MNIST data.
 """
 
 import deepnodal as dn
