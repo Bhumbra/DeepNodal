@@ -9,8 +9,8 @@ be specified directly since they do not recognise hierarchical structures.
 DEFAULT_INPUT_DATA_TYPE = 'float32'
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.stem import stem
-from deepnodal.structures.stack import *
+from deepnodal.python.concepts.stem import stem
+from deepnodal.python.structures.stack import *
 
 #-------------------------------------------------------------------------------
 class network (stem):
@@ -37,11 +37,12 @@ class network (stem):
   n_subnets = None
   outnets = None
   n_outnets = None
+  inputs = None
   type_inputs = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    branch.__init__(name, dev)
+    stem.__init__(self, name, dev)
     self.set_subnets() # defaults to nothing
     self.setup()
 
@@ -57,11 +58,11 @@ class network (stem):
     self.type_subnets = [None] * self.n_subnets
     for i, subnet in enumerate(self.subnets):
       if isinstance(subnet, stream):
-        self.type_nets[i] = 'stream'
+        self.type_subnets[i] = 'stream'
       elif isinstance(subnet, level):
-        self.type_nets[i] = 'level'
-      elif isinstance(subnet, stakcj):
-        self.type_nets[i] = 'stack'
+        self.type_subnets[i] = 'level'
+      elif isinstance(subnet, stack):
+        self.type_subnets[i] = 'stack'
       else:
         raise TypeError("Unknown subnet type: " + str(subnet))
     self.set_outnets()
@@ -90,6 +91,9 @@ class network (stem):
     if self.inputs is None: return
     if type(self.inputs) is not list:
       self.inputs = [self.inputs] * self.n_subnets
+    elif len(self.inputs):
+      if type(self.inputs[0]) is int: # in case of a single input specification
+        self.inputs = [self.inputs]
     if len(self.inputs) != self.n_subnets:
       raise ValueError("Number of inputs must match number of subnets")
     self.type_inputs = ['arch'] * self.n_subnets
@@ -98,7 +102,7 @@ class network (stem):
         self.type_inputs[i] = 'stream'
       elif isinstance(inp, level):
         self.type_inputs[i] = 'level'
-      elif isinstance(inp, stakcj):
+      elif isinstance(inp, stack):
         self.type_inputs[i] = 'stack'
     return self.type_inputs
 
@@ -120,12 +124,11 @@ class network (stem):
     return [subnet.set_dropout(spec[i], *args[i], **kwds[i]) for i, subnet in enumerate(self.subnets)]
 
 #-------------------------------------------------------------------------------
-  def setup(self, inputs = None, **kwds):
+  def setup(self, ist = None, **kwds):
+    if self.inputs is None:
+      return
+    self.set_is_training(ist)
     self.inp = [None] * self.n_subnets
-    if inputs is not None: 
-      self.set_inputs(inputs)
-    elif self.inputs is None:
-      return self.set_inputs(inputs)
     for i in range(self.n_subnets):
       if self.type_inputs[i] != 'arch':
         self.inp[i] = self.inputs[i].ret_out()
@@ -134,7 +137,7 @@ class network (stem):
       else:
         kwargs = dict(kwds)
         if 'dtype' not in kwargs:
-          kwargs = kwargs.update({'dtype':Dtype(DEFAULT_INPUT_DATA_TYPEl)})
+          kwargs.update({'dtype':Dtype(DEFAULT_INPUT_DATA_TYPE)})
         inp_dim = [None]
         for dim in self.inputs[i]:
           inp_dim.append(dim)

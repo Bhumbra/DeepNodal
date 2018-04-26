@@ -6,8 +6,8 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.stem import stem
-from deepnodal.structures.stream import *
+from deepnodal.python.concepts.stem import stem
+from deepnodal.python.structures.stream import *
 
 #-------------------------------------------------------------------------------
 class level (stem):
@@ -21,8 +21,8 @@ class level (stem):
   def_subobject = stream
   arch = None              # architecture
   type_arch = None         # architecture if all stream archectures are the same
-  arch_out = None          # architecture output if identical for all streams
-  trans_fn = None          # transfer function  if identical for all streams
+  arch_out = None          # architecture output for a single stream
+  trans_fn = None          # transfer function if identical for all streams
   ipc = None               # Input coalescence specification (across streams)
   opc = None               # Output coalescence specification (across streams)
   Inp = None               # post_coalescence input (a tuple)
@@ -30,7 +30,7 @@ class level (stem):
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    stem.__init__(name, dev)
+    stem.__init__(self, name, dev)
     self.set_arch() # defaults to an identity
     self.setup()
 
@@ -92,9 +92,9 @@ class level (stem):
       if len(self.ipc) != self.n_subobjects:
         raise TypeError('List length for set_input_coal specification must match number of streams')
     if not(len(self.ipc_kwds)):
-      self.ipc_kwds = self.ipc_kwds.update({'coalescence_fn': 'con'})
+      self.ipc_kwds.update({'coalescence_fn': 'con'})
     if 'axis' not in self.ipc_kwds:
-      self.ipc_kwds = self.ipc_kwds.update({'axis': -1})
+      self.ipc_kwds.update({'axis': -1})
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
@@ -211,21 +211,22 @@ class level (stem):
     else:
       raise TypeError('Specification must either be boolean or a list of lists')
     if not(len(self.opc_kwds)):
-      self.opc_kwds = self.opc_kwds.update({'coalescence_fn': 'con'})
+      self.opc_kwds.update({'coalescence_fn': 'con'})
     if 'axis' not in self.opc_kwds:
-      self.opc_kwds = self.opc_kwds.update({'axis': -1})
+      self.opc_kwds.update({'axis': -1})
 
 #-------------------------------------------------------------------------------
-  def setup(inp = None):
+  def setup(self, inp = None):
     inp = self._setup_input(inp)  # does not touch self.subobjects
+    if self.inp is None: return self.inp # nothing in, nothing out
     for _inp, subobject in zip(list(inp), self.subobjects):
       subobject.setup(_inp)
     Out = [subobject.ret_out() for subobject in self.subobjects]
-    self.arch_out = None if not self.unit_subobject else self.subobject.arch_out
-    self._setup_output(tuple(Out)) # does not touch self.subobjects
+    self.arch_out = None if not self.unit_subobject else self.subobjects[0].arch_out
+    return self._setup_output(tuple(Out)) # does not touch self.subobjects
 
 #-------------------------------------------------------------------------------
-  def _setup_input(inp = None):
+  def _setup_input(self, inp = None):
     # inp may either be a level or a tuple of inputs.
     # self.inp -> coalescence (if specified) -> self.Inp
     if self.ipc is None: self.set_input_coal()
@@ -241,7 +242,7 @@ class level (stem):
       inp = tuple([subobject.inp for subobject in self.inp])
       self.inp = inp
     elif type(self.inp) is not tuple: # give the benefit of the doubt here
-      self.inp = tuple(self.inp)
+      self.inp = self.inp,
     self.Inp = self.inp
     if self.ipc is None: return self.Inp
 
@@ -257,7 +258,7 @@ class level (stem):
     return self.Inp
 
 #-------------------------------------------------------------------------------
-  def _setup_output(Out = None):
+  def _setup_output(self, Out = None):
     # Out is expected to be tuple of size self.n_streams. Optionally it may be
     # a single graph object for single stream levels.
     if self.opc is None: self.set_output_coal()

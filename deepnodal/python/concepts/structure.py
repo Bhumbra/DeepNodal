@@ -6,17 +6,18 @@
 from abc import ABC, abstractmethod
 
 #-------------------------------------------------------------------------------
-class function (ABC):
-  name = "function"
+class structure (ABC):
+  name = "structure"
   dev = None
 #-------------------------------------------------------------------------------
   @abstractmethod
   def set_name(self):
-    pass
+    self.name = name
+
 #-------------------------------------------------------------------------------
   @abstractmethod
   def set_dev(self):
-    pass
+    self.dev = dev
 
 #-------------------------------------------------------------------------------
 

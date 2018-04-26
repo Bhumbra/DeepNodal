@@ -5,8 +5,8 @@ Plan module for Tensorflow.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.function import *
-from deepnodal.calls.google_tensorflow import *
+from deepnodal.python.concepts.function import *
+from deepnodal.python.calls.google_tensorflow import *
 
 #-------------------------------------------------------------------------------
 class plan (function):
@@ -21,7 +21,8 @@ class plan (function):
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    function.__init__(name, dev)
+    self.set_name(name)
+    self.set_dev(dev)
     self.set_learning_rate()
 
 #-------------------------------------------------------------------------------

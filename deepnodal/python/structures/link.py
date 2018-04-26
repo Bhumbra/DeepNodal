@@ -11,8 +11,8 @@ which is not created until link.setup() is invoked.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.leaf import leaf
-from deepnodal.calls.google_tensorflow import *
+from deepnodal.python.concepts.leaf import leaf
+from deepnodal.python.calls.google_tensorflow import *
 
 #-------------------------------------------------------------------------------
 class link (leaf):
@@ -25,6 +25,7 @@ class link (leaf):
   creation = None
   args = None
   kwds = None
+  var_scope = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -34,14 +35,32 @@ class link (leaf):
 
 #-------------------------------------------------------------------------------
   def set_creation(self, creation = None, *args, **kwds):
-    self.creation = Creation[creation]
+    self.creation = Creation(creation)
     self.args = args
-    self.kwds = kwds
+    self.kwds = dict(kwds)
 
 #-------------------------------------------------------------------------------
   def setup(self, inp = None):
     inp = self.set_inp(inp)
-    if self.inp is not None and self.creation is not None:
+    kwds = dict(self.kwds)
+    self.var_scope = None
+    if 'var_scope' in kwds:
+      self.var_scope = kwds['var_scope']
+      kwds.pop('var_scope')
+    elif 'name' in kwds:
+      self.var_scope = self.kwds['name']
+    elif 'scope' in self.kwds:
+      self.var_scope = self.kwds['scope']
+    if self.inp is None or self.creation is None: return self.ret_out()
+    if 'var_scope' in self.kwds:
+      if self.dev is None:
+        with Scope('var', self.var_scope, reuse=Flag('auto_reuse')):
+          self.out = self.creation(self.inp, *self.args, **kwds)
+      else:
+        with Device(self.dev):
+          with Scope('var', self.var_scope, reuse=Flag('auto_reuse')):
+            self.out = self.creation(self.inp, *self.args, **kwds)
+    else:
       if self.dev is None:
         self.out = self.creation(self.inp, *self.args, **self.kwds)
       else:
@@ -50,16 +69,18 @@ class link (leaf):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def set_params(self):
+  def setup_params(self):
     self.params = []
-    with Scope('var', self.name, reuse=True):
-      for Param in Param_List:
+    self.n_params = 0
+    if self.var_scope is None: return self.params
+    for Param in list(Param_Dict):
+      with Scope('var', self.var_scope, reuse=True):
         try:
           param = tf.get_variable(Param)
         except ValueError:
           param = None
-      if param is not None:
-        self.add_param({Param: param})
+        if param is not None:
+          self.add_param({self.var_scope+"/"+Param_Dict[Param]: param})
     self.n_params = len(self.params)
     return self.params
 

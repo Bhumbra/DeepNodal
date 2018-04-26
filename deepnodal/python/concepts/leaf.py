@@ -5,7 +5,7 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.structure import *
+from deepnodal.python.concepts.structure import *
 
 #-------------------------------------------------------------------------------
 
@@ -27,8 +27,7 @@ class leaf (structure):
   def __init__(self, name = None, dev = None):
     self.set_name(name)
     self.set_dev(dev)
-    self.set_params()
-    self.set_outputs()
+    self.setup_params()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -54,7 +53,7 @@ class leaf (structure):
     return self.out
 
 #-------------------------------------------------------------------------------
-  def set_params(self, params = None):
+  def setup_params(self, params = None):
     self.params = params
     if self.params is None: self.params = []
     self.n_params = len(self.params)
@@ -65,16 +64,16 @@ class leaf (structure):
     return ret_params()
 
 #-------------------------------------------------------------------------------
-  def ret_params(self):
-    return self.params
-
-#-------------------------------------------------------------------------------
   def add_param(self, param_dict):
     if type(param_dict) is not dict:
       raise TypeError("Only dictionaries are accepted parameters.")
     self.params.append(param_dict)
     self.n_params = len(self.params)
     return self.ret_params()
+
+#-------------------------------------------------------------------------------
+  def ret_params(self):
+    return self.params
 
 #-------------------------------------------------------------------------------
 

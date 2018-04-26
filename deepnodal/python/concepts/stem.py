@@ -1,4 +1,4 @@
-# Stem module for Tensorflow. A stem is a structure that contains one or more
+#Stem module for Tensorflow. A stem is a structure that contains one or more
 # substructures called subobjects. These subobjects may be classes that inherit from stem
 # or from leaf. Note it is up to inheriting classes whether the subobjects are arranged
 # in series, in parallel, or a combination.
@@ -6,7 +6,7 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.leaf import *
+from deepnodal.python.concepts.leaf import *
 
 #-------------------------------------------------------------------------------
 class stem (structure): # we inherit structure because a stem is never a leaf
@@ -74,15 +74,16 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       pass
     elif type(subobjects) is int:
       self.n_subobjects = subobjects
-      self.unit_subobject = self.subobjects == 1
+      self.unit_subobject = self.n_subobjects == 1
       self.subobjects = [None] * self.n_subobjects
       for i in range(subobjects):
+        # no point re-naming subobjects if unit_subobject is true 
         subobject_name = self.name if self.unit_subobject else self.name + "/" + self.subobject_name + "_" + str(i)
-        self.subobjects[i] = self.subobject(self.subobject_name, self.dev)
+        self.subobjects[i] = self.subobject(subobject_name, self.dev) # no point renaming 
     else:
       raise TypeError("Unrecognised subobjects specification.")
     self.n_subobjects = len(self.subobjects)
-    self.unit_subobject = self.subobjects == 1
+    self.unit_subobject = self.n_subobjects == 1
     return self.subobjects
 
 #-------------------------------------------------------------------------------
@@ -127,6 +128,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     """
     self.params = []
     for subobject in self.subobjects:
+      subobject.setup_params()
       self.params += subobject.params
     self.n_params = len(self.params)
     return self.params
@@ -137,7 +139,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       if not ret_indices:
         return self.params
       else:
-        return self.params, list(range(len(self.params)))
+        return list(range(len(self.params)))
 
     params = []
     indices = []
@@ -160,7 +162,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     if not ret_indices:
       return params
     else:
-      return params, indices
+      return indices
 
 #-------------------------------------------------------------------------------
   def setup_outputs(self):
@@ -174,6 +176,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     """
     self.outputs = []
     for subobject in self.subobjects:
+      subobject.setup_outputs()
       self.outputs += subobject.outputs
     self.n_outputs = len(self.outputs)
     return self.ret_outputs()
@@ -191,7 +194,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       raise ValueError("Outputs specification incommensurate with hierarchical structure")
     else:
       for i, spec in enumerate(outputs_spec):
-        outputs += spec.subobject[i].ret_params(spec)
+        outputs += spec.subobject[i].ret_outputs(spec)
     return outputs
 
 #-------------------------------------------------------------------------------

@@ -6,9 +6,9 @@ abstract method which must be defined by inheriting classes for instantiation.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.function import function
-from deepnodal.functions.regimen import *
-from deepnodal.structures.network import *
+from deepnodal.python.concepts.function import function
+from deepnodal.python.functions.regimen import *
+from deepnodal.python.structures.network import *
 
 #-------------------------------------------------------------------------------
 class trainer (function):
@@ -36,8 +36,7 @@ class trainer (function):
   using_regimen = None             # Python index of currently active regimen
   variables = None                 # entire list of parameter variables
   variable_names = None            # list of variable names          
-  regimen_var_lists = None         # lists of variables for each regimen
-  regimen_ind_lists = None         # compiled list of regimen parameter indices
+  regimen_param_indices = None     # compiled list of regimen parameter indices
   scalars = None                   # list of summary scalars
   distros = None                   # list of summary distributions
   progress = None                  # two-element list to allow save-model renewal
@@ -50,7 +49,8 @@ class trainer (function):
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    function.__init__(name, dev)
+    self.set_name(name)
+    self.set_dev(dev)
     self.set_global_step()
     self.set_is_training()
     self.set_trainee()
@@ -60,6 +60,10 @@ class trainer (function):
     self.set_write_intervals()
     self.setup()
     self.use_regimen() # this initialises using_regimen to -1
+
+#-------------------------------------------------------------------------------
+  def set_name(self, name = None):
+    self.name = name if name is not None else self.def_name
 
 #-------------------------------------------------------------------------------
   def set_dev(self, dev = None):
@@ -88,11 +92,11 @@ class trainer (function):
 
 #-------------------------------------------------------------------------------
   def set_optimiser(self, opt = None, *opt_args, **opt_kwds):
-    self.opt = Creation(optim)
+    self.opt = Creation(opt)
     self.opt_args = opt_args
     self.opt_kwds = dict(opt_kwds)
     if 'name' not in self.opt_kwds:
-      self.opt_kwds = self.opt_kwds.update({'name':self.name + "/optimiser"})
+      self.opt_kwds.update({'name':self.name + "/optimiser"})
     self.opt_name = self.opt_kwds['name']
 
 #-------------------------------------------------------------------------------
@@ -115,7 +119,7 @@ class trainer (function):
     New regimen is created on the basis on learning rate specifications.
     The index of the new regimen is returned.
     """
-    self.regimens.append(regimen(self.name + "/regimen_" + str(i), self.dev))
+    self.regimens.append(regimen(self.name + "/regimens/regimen_" + str(len(self.regimens)), self.dev))
     self.regimens[-1].set_learning_rate(lrate, *lrate_args, **lrate_kwargs)
     self.n_regimens = len(self.regimens)
     return self.n_regimens - 1
@@ -142,46 +146,37 @@ class trainer (function):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def setup(self, gst = None, ist = None):
+  def setup(self, ist = None, gst = None, skip_summaries = False):
     if self.trainee is None: return 
 
-    # Setup the trainer
-    self._setup_learning(gst)
-    self._setup_optimiser(ist)
+    # Setup is_training first
+    if self.ist is None: 
+      if ist is None:
+        self._setup_is_training()
+      else:
+        self.set_is_training(ist)
 
     # Setup the trainee
+    self.trainee.setup(self.ist)
     self._setup_variables()
     self._setup_outputs()
 
+    # Setup the trainer
+    self._setup_regimens(gst)
+    self._setup_learning()
+    self._setup_optimiser()
+
+    if skip_summaries: return
+
     # Setup the scalar and distribution summaries
-    self._setup.scalars()
+    self._setup_scalars()
     self._setup_distros()
 
 #-------------------------------------------------------------------------------
-  def _setup_learning(self, gst = None): # this sets up batch_size, regimen index, and learning_rate
+  def _setup_regimens(self, gst = None): # this sets up the regimen learning rate graph objects
     if self.gst is None: self.set_global_step(gst)
     if self.gst is None: self._setup_global_step()
-
-    # Here we set up the graph objects for basic learning parameters: batch_size, learning_rate, and regimen
-
-    if self.trainee.inputs is None:
-      raise AttributeError("Cannot setup trainer without network inputs specified.")
-    if len(self.trainee.inp) != 1:
-      raise ValueError("Current only single network input supported.")
-    self.inputs = self.trainee.inp[0]
-
-    # The learning_rate update-op must be done manually during the session
-    if self.dev is None:
-      self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
-      self.batch_size_op = self.batch_size.assign(Shape(self.inputs)[0])
-      self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
-      self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimen_index")
-    else:
-      with Device(self.dev):
-        self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
-        self.batch_size_op = self.batch_size.assign(Shape(self.inputs)[0])
-        self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
-        self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimen_index")
+    return [_regimen.setup(self.gst) for _regimen in self.regimens]
 
 #-------------------------------------------------------------------------------
   def _setup_global_step(self): # global_step is not device dependent
@@ -189,25 +184,48 @@ class trainer (function):
     self.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
-  def _setup_optimiser(self, ist = None):
-    if self.ist is None: self.set_is_training(ist)
-    if self.ist is None: self._setup_is_training()
-    self.trainee.set_is_training(self.ist)
+  def _setup_learning(self): # this sets up batch_size, regimen index, and learning_rate
+
+    # Setup the graph objects for basic learning parameters: batch_size, learning_rate, and regimen
+    if self.trainee.inputs is None:
+      raise AttributeError("Cannot setup trainer without network inputs specified.")
+    if len(self.trainee.inp) != 1:
+      raise ValueError("Current only single network input supported.")
+    self.inputs = self.trainee.inp[0]
+
+    # The learning_rate update-op must be performed manually during the session
     if self.dev is None:
-      with Scope('var', self.name, reuse=Creation('auto_reuse')):
-        self.optimiser = self.optim(*self.opt_args, learning_rate=self.learning_rate, **self.opt_kwds)
+      self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
+      with Scope('var', self.name+"/batch_size/update", reuse=False):
+        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs)[0])
+      self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
+      self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimens/index")
     else:
       with Device(self.dev):
-        with Scope('var', self.name, reuse=Creation('auto_reuse')):
-          self.optimiser = self.optim(*self.opt_args, learning_rate=self.learning_rate, **self.opt_kwds)
+        self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch_size")
+        with Scope('var', self.name+"/batch_size/update", reuse=False):
+          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs)[0])
+        self.learning_rate = Creation('var')(0., trainable=False, name=self.name+"/learning_rate")
+        self.regimen_index = Creation('var')(self.using_regimen, trainable=False, name=self.name+"/regimens/index")
 
 #-------------------------------------------------------------------------------
   def _setup_is_training(self):
     if self.dev is None:
-      self.ist = Creation('var')(Dtype('bool'), trainable=False, name=self.name+"/is_training")
+      self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/is_training")
     else:
       with Device(self.dev):
-        self.ist = Creation('var')(Dtype('bool'), trainable=False, name=self.name+"/is_training")
+        self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/is_training")
+
+#-------------------------------------------------------------------------------
+  def _setup_optimiser(self, ist = None):
+    if self.dev is None:
+      with Scope('var', self.name, reuse=Flag('auto_reuse')):
+        self.optimiser = Creation(self.opt)(*self.opt_args, learning_rate=self.learning_rate, **self.opt_kwds)
+    else:
+      with Device(self.dev):
+        with Scope('var', self.name, reuse=Flag('auto_reuse')):
+          self.optimiser = Creation(self.opt)(*self.opt_args, learning_rate=self.learning_rate, **self.opt_kwds)
+
 
 #-------------------------------------------------------------------------------
   def _setup_variables(self):
@@ -216,25 +234,22 @@ class trainer (function):
     self.param[i] = {self.variable_names[i]: self.variables}
 
     """
-    # Access to variable objects requires first setting up the trainee (i.e. the entire network)
-    self.trainee.setup(**kwds)
 
     # Set up variables
     self.params = self.trainee.ret_params()
-    self.n_params = len(self.n_params)
+    self.n_params = len(self.params)
     self.variable_names = [None] * self.n_params
     self.variables = [None] * self.n_params
 
     for i, param_dict in enumerate(self.params):
       self.variable_names[i] = list(param_dict)[0]
-      self.variables = param_dict[self.variable_names[i]]
+      self.variables[i] = param_dict[self.variable_names[i]]
 
-    self.regimen_ind_lists = [None] * self.n_regimens
-    self.regimen_var_lists = [None] * self.n_regimens
+    self.regimen_param_indices = [None] * self.n_regimens
 
     for i, _regimen in enumerate(self.regimens):
-      self.regimen_var_lists[i], 
-      self.regimen_ind_lists[i] = self.trainee.ret_params(_regimen.pspec, True)
+      self.regimen_param_indices[i] = self.trainee.ret_params(_regimen.pspec, True)
+
     return self.variables
 
 #-------------------------------------------------------------------------------
@@ -244,7 +259,7 @@ class trainer (function):
     self.outputs = [None] * self.n_outputs
     for i, output_dict in enumerate(self.trainee.outputs):
       self.output_names[i] = list(output_dict)[0]
-      self.outputs[i] = output_dict[self.outputs_names[i]]
+      self.outputs[i] = output_dict[self.output_names[i]]
     return self.outputs
 
 #-------------------------------------------------------------------------------
@@ -268,7 +283,7 @@ class trainer (function):
       distros = self.outputs + self.variables + self.gradients 
     if distro_names is None:
       distro_names = self.output_names + self.variable_names + self.gradient_names
-    self.distros, self.disto_names = distros, distro_names
+    self.distros, self.distro_names = distros, distro_names
     self.distro_logs = []
     for distro, distro_name in zip(self.distros, self.distro_names):
       if distro is not None:
@@ -284,13 +299,17 @@ class trainer (function):
     self._setup_logger()
     self._setup_saver()
     self.session = Creation('session')(*args, **kwds)
+
+    # Ideal point to confirm whether self.gvi has been setup and run
+    if self.session is not None and self.gvi is None: self.init_variables()
+
     return self.session
 
 #-------------------------------------------------------------------------------
   def init_variables(self, restorepoint = None):
     if self.session is None:
       raise AttributeError("Cannot initialise variables before calling new_session")
-    with Scope('name'):
+    with Scope('name', self.name):
       self.gvi = Creation('gvi')()
     self.session.run(self.gvi)
     if restorepoint is not None:
@@ -354,9 +373,6 @@ class trainer (function):
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None):
-
-    # Ideal point to confirm whether self.gvi has been setup and run
-    if self.session is not None and self.gvi is None: self.init_variables()
     
     # This feed_dictionary supports only inputs
     feed_dict = {self.ist: is_training, self.inputs: feed_inputs}
@@ -365,10 +381,8 @@ class trainer (function):
     if is_training: 
       self.feed_dict = feed_dict
       if self.session is not None:
-        if self.using_regimen is None: self.use_regimen(0)
-        self.session.run(self.batch_size_op)
-        op = self.learning_rate.assign(self.regimen[self.using_regimen].learning_rate)
-        self.session.run(op)
+        if self.using_regimen is None: self.using_regimen = -1
+        if self.using_regimen < 0: self.use_regimen(0)
         self.progress[0] += 1                # one batch-update
         self.progress[1] += len(feed_inputs) # sum(batch_sizes)
 
@@ -386,7 +400,7 @@ class trainer (function):
   def _setup_logger(self):
     self.logger = None
     if self.write_dir is None: return self.logger
-    self.logger = Creation('logger')(self.write_dir, Creation('defaults')(), name = self.name + "/logger")
+    self.logger = Creation('logger')(self.write_dir, Creation('defaults')())
 
 #-------------------------------------------------------------------------------
   def _setup_saver(self, saver = 'saver'):
@@ -401,21 +415,23 @@ class trainer (function):
 
 #-------------------------------------------------------------------------------
   def use_regimen(self, using_regimen = -1): # this updates regimen index and learning rate
+    # Returns whether the regimen must be updated online
     if self.session is None:
       self.using_regimen = using_regimen
-      return self.using_regimen
+      return False
+
+    update_regimen = self.using_regimen != using_regimen
 
     # Update regimen_index if necessary
-    if self.using_regimen != using_regimen:
+    if update_regimen:
       self.using_regimen = using_regimen
-      op = self.regimen_index.assign(self.using_regimen)
-      self.session.run(op)
-
-    # The batch-size and learning_rate is updated by the self.set_feed_dict.
-    # The parameter list must be updated by inheriting classes.
-    # That leaves dropout.
-    self.trainee.set_dropout(self.session, self.regimen[self.using_regimen].dspec)
-    return self.using_regimen
+      with Scope('var', self.name+"/regimen_updates", reuse=True):
+        op = self.regimen_index.assign(self.using_regimen)
+        self.session.run(op)
+        op = self.learning_rate.assign(self.regimens[self.using_regimen].learning_rate)
+        self.session.run(op)
+      self.trainee.set_dropout(self.session, self.regimens[self.using_regimen].dspec)
+    return update_regimen
     
 #-------------------------------------------------------------------------------
 

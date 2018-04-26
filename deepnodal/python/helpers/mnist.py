@@ -1,4 +1,4 @@
-from deepnodal.helpers.imager import *
+from deepnodal.python.helpers.imager import *
 import os
 import urllib
 import struct

@@ -4,8 +4,8 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.stem import stem
-from deepnodal.structures.link import *
+from deepnodal.python.concepts.stem import *
+from deepnodal.python.structures.link import *
 
 #-------------------------------------------------------------------------------
 class chain (stem):
@@ -27,7 +27,7 @@ class chain (stem):
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    stem.__init__(name, dev)
+    stem.__init__(self, name, dev)
 
 #-------------------------------------------------------------------------------
   def add_link(self, creation = None, *args, **kwds):
@@ -54,10 +54,10 @@ class chain (stem):
   def setup(self, inp = None):
     self.inp = inp
     self.out = None
+    if self.links is None: return
     for _link in self.links:
       inp = _link.setup(inp)
     self.out = inp
-    self.set_outputs([{self.name + "/output", self.out}])
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

@@ -9,8 +9,8 @@ specifications where 'None' denotes only an `identity'.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.concepts.stem import stem
-from deepnodal.structures.level import *
+from deepnodal.python.concepts.stem import stem
+from deepnodal.python.structures.level import *
 
 #-------------------------------------------------------------------------------
 class stack (stem):
@@ -23,12 +23,13 @@ class stack (stem):
   def_subobject = level
   arch = None             # architecture
   type_arch = None        # level architectures if all stream types are the same
+  trans_fn = None         # transfer function of last level if identical for all streams
   arch_out = None         # archecture output of last level if unit_stream
   skc = None              # Skip coalescence specification (across levels)
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    stem.__init__(name, dev)
+    stem.__init__(self, name, dev)
     self.set_arch() # defaults to an identity
     self.setup()
 
@@ -130,9 +131,9 @@ class stack (stem):
         skci[j] = skcij
       self.skc[i] = tuple(skci)
     if not(len(self.skc_kwds)):
-      self.skc_kwds = self.skc_kwds.update({'coalescence_fn': 'con'})
+      self.skc_kwds.update({'coalescence_fn': 'con'})
     if 'axis' not in self.skc_kwds:
-      self.skc_kwds = self.skc_kwds.update({'axis': -1})
+      self.skc_kwds.update({'axis': -1})
 
 #-------------------------------------------------------------------------------
   def set_input_coal(self, spec = None, *args, **kwds):
@@ -222,11 +223,12 @@ class stack (stem):
     return self.broadcast(self.subobject.set_input_coal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def setup(inp = None):
+  def setup(self, inp = None):
     # stack really doesn't care about nursemaiding inputs and outputs
     # because that's the job of levels. But we have to deal with skip
     # coalescences.
     self.inp = inp
+    if self.inp is None: return self.inp # nothing in, nothing out
     self.skip_coal = [None] * self.n_subobjects
     for i in range(self.n_subobjects):
       inp = self.subobjects[i].setup(inp)
@@ -241,8 +243,9 @@ class stack (stem):
               self.skip_coal[i][j] = Creation(func)(inp[j], *self.skc_args, 
                                      name = self.name + "/skip_" + func + "_" + str(i), **kwds)
               Inp[j] = self.skip_coal[i][j]
-        inp = tuple(Inp)
+          inp = tuple(Inp)
     self.arch_out = self.subobjects[-1].arch_out
+    self.trans_fn = self.subobjects[-1].trans_fn
     self.out = inp
     self.setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()

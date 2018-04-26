@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.contrib.layers import variance_scaling_initializer, l1_regularizer, l2_regularizer
 from tensorflow import name_scope, variable_scope
 from tensorflow.contrib.framework import arg_scope
-from deepnodal.calls.tf_extended import *
+from deepnodal.python.calls.tf_extended import *
 
 #-------------------------------------------------------------------------------
 try:
@@ -24,6 +24,7 @@ creation_dict = {'identity': tf.identity,
                  'add_ewise': tf.add_n,
                  'subtract': tf.subtract,
                  'multiply': tf.multiply,
+                 'shape': tf.shape,
                  'sum': tf.reduce_sum,
                  'con': tf.concat,
                  'mean': tf.reduce_mean,
@@ -52,8 +53,8 @@ creation_dict = {'identity': tf.identity,
                  'adagrad': tf.train.AdagradOptimizer,
                  'rmsprop': tf.train.RMSPropOptimizer,
                  'adam': tf.train.AdamOptimizer,
-                 'mean_squared_error': tf.losses.mean_squared_error,
                  'in_top_k_error': tf_in_top_k_error,
+                 'mse': tf.losses.mean_squared_error,
                  'mce': tf_mean_cross_entropy,
                  'logger': tf.summary.FileWriter,
                  'saver': tf.train.Saver,
@@ -116,7 +117,7 @@ def Flag(arg):
 
 #-------------------------------------------------------------------------------
 # Summary dictionary
-summary_dict = {'scalar': tf.summary.scalar, 'distribution': tf.summary.histogram}
+summary_dict = {'scalar': tf.summary.scalar, 'distro': tf.summary.histogram}
 
 #-------------------------------------------------------------------------------
 def Summary(arg):
@@ -125,12 +126,12 @@ def Summary(arg):
 #-------------------------------------------------------------------------------
 # Parameters list
 
-Param_List = ['weights', 'biases']
+Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
 
 #-------------------------------------------------------------------------------
 # Logits list
 
-Logits_List = [tf.nn.sparse_softmax_cross_entropy_with_logits, tf.nn.sigmoid_cross_entropy_with_logits]
+Logits_List = [tf.nn.softmax, tf.nn.sigmoid]
 
 #flags = {'reuse', tf.REUSE}
 #-------------------------------------------------------------------------------

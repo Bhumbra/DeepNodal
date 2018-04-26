@@ -1,4 +1,4 @@
-from deepnodal.helpers.imager import *
+from deepnodal.python.helpers.imager import *
 
 #-------------------------------------------------------------------------------
 CIFAR10_DIRECTORY = "/tmp/cifar-10-batches-py/"

@@ -3,7 +3,9 @@
 # Gary Bhumbra.
 
 #--------------------------------------------------------------------------------
-from deepnodal.helpers.scalers import *
+from deepnodal.python.helpers.scalers import *
+import numpy as np
+import pickle
 
 #--------------------------------------------------------------------------------
 def global_middle_scale(data, middle = True, scale = True, batch_axis = None, depth_axis = None, 

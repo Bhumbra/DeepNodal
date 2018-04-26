@@ -5,11 +5,12 @@
 
 #-------------------------------------------------------------------------------
 import numpy as np
-from deepnodal.structures.chain import *
+from deepnodal.python.structures.chain import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for identity architectures.
 DEFAULT_USE_BIAS = True
+DEFAULT_TRANSFER_FUNCTION = None
 DEFAULT_POOLING_FUNCTION = 'max'
 DEFAULT_TRANSFER_FUCNTION = None
 DEFAULT_PADDING_WINDOW = 'same'
@@ -52,11 +53,12 @@ class stream (chain):
   pfn = None          # Pooling function
   pin = None          # Parameter initialisation
   nor = None          # Normalisation
+  trans_fn = None     
   dropout_quotient = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = 'stream', dev = None):
-    chain.__init__(name, dev)
+    chain.__init__(self, name, dev)
     self.set_arch() # defaults to an identity
     self.setup()
 
@@ -99,6 +101,13 @@ class stream (chain):
         self.type_adim = self.type_arch + str(len(self.arch[1])) + "d"
         if self.type_arch == 'conv' and len(self.arch) == 2: # default to unit stride
           self.arch = [self.arch[0], self.arch[1], [1]*len(self.arch[1])]
+
+    # Default bare essentials
+    self.set_order()
+    self.set_usebias()
+    self.set_transfn()
+    self.set_padwin()
+    self.set_poolfn()
     return self.type_arch
 
 #-------------------------------------------------------------------------------
@@ -167,7 +176,7 @@ class stream (chain):
     self.dro_args = dro_args
     self.dro_kwds = dict(dro_kwds)
     if 'trainable' not in self.dro_kwds:
-      self.dro_kwds = self.dro_kwds.update({'trainable':False})
+      self.dro_kwds.update({'trainable':False})
 
 #-------------------------------------------------------------------------------
   def set_transfn(self, tfn = None, *tfn_args, **tfn_kwds):
@@ -179,7 +188,11 @@ class stream (chain):
     if tfn is None: tfn = DEFAULT_TRANSFER_FUNCTION
     self.tfn = Creation(tfn)
     self.tfn_args = tfn_args
-    self_tfn_kwds = tfn_kwds
+    self.tfn_kwds = dict(tfn_kwds)
+    self.trans_fn = self.tfn
+    if tfn is None: return
+    if 'var_scope' not in self.tfn_kwds:
+      self.tfn_kwds.update({'var_scope': self.name})
 
 #-------------------------------------------------------------------------------
   def set_padwin(self, win = None, *win_args, **win_kwds):
@@ -189,7 +202,7 @@ class stream (chain):
     self.win = win
     self.win_args = win_args
     self_win_kwds = win_kwds
-    if type_arch != 'conv' or type_arch != 'pool': return
+    if self.type_arch != 'conv' or self.type_arch != 'pool': return
     if self.win is None: self.win = DEFAULT_PADDING_WINDOW
 
 #-------------------------------------------------------------------------------
@@ -209,17 +222,17 @@ class stream (chain):
     pin = 'vsi' (variance scale initialiser) and/or 'zoi' (zero offset initialiser)
     """
     self.pin = pin if type(pin) is list else [pin]
-    self.pin = [_Creation(_pin) for _pin in self.pin]
+    self.pin = [Creation(_pin) for _pin in self.pin]
     self.pin_args = pin_args
     self.pin_kwds = dict(pin_kwds)
     call_vsi = Creation('vsi')
     if call_vsi in self.pin:
       if 'weights_initializer' not in self.pin_kwds:
-        self.pin_kwds = self.pin_kwds.update({'weights_initializer', call_vsi})
+        self.pin_kwds.update({'weights_initializer', call_vsi})
     call_zoi = Creation('zoi')
     if call_zoi in self.pin:
       if 'bias_initializer' not in self.pin_kwds:
-        self.pin_kwds = self.pin_kwds.update({'bias_regularizer', call_zoi})
+        self.pin_kwds.update({'bias_regularizer', call_zoi})
 
 #-------------------------------------------------------------------------------
   def set_normal(self, nor = None, *nor_args, **nor_kwds):
@@ -267,10 +280,10 @@ class stream (chain):
     if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
 
     # Collate architectural parameters
-    self.set_params()
+    self.setup_params()
 
     # Set outputs dictionary
-    self.set_outputs()
+    self.setup_outputs()
 
     return self.ret_out()
 
@@ -285,7 +298,7 @@ class stream (chain):
 
     # but will claim ownership over any needed flattening operation
     if len(Shape(self.inp)) > 2 and self.type_arch == 'dense':
-      self.add_link(Creation('flatten'), scope = self.name+"/input_flatten")
+      self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
     return inp
 
 #-------------------------------------------------------------------------------
@@ -314,37 +327,37 @@ class stream (chain):
       if self.reg is None: self.set_reguln()
       if self.ubi is None: self.set_usebias()
       if self.pin is None: self.set_parinit()
-    kwds = {name: self.name + "/" + self.type_adim}
+    kwds = {'name': self.name + "/" + self.type_adim}
     if self.type_arch == 'dense':
-      kwds = kwds.update({'units': self.arch})
-      kwds = kwds.update({'activation': None})
-      kwds = kwds.update(self.ubi_kwds)
-      kwds = kwds.update(self.reg_kwds)
-      kwds = kwds.update(self.pin_kwds)
+      kwds.update({'units': self.arch})
+      kwds.update({'activation': None})
+      kwds.update(self.ubi_kwds)
+      kwds.update(self.reg_kwds)
+      kwds.update(self.pin_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'conv':
-      kwds = kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
-      kwds = kwds.update({'activation': None})
-      kwds = kwds.update(self.ubi_kwds)
-      kwds = kwds.update(self.reg_kwds)
-      kwds = kwds.update(self.pin_kwds)
-      kwds = kwds.update(self.win_kwds)
+      kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
+      kwds.update({'activation': None})
+      kwds.update(self.ubi_kwds)
+      kwds.update(self.reg_kwds)
+      kwds.update(self.pin_kwds)
+      kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'pool':
-      kwds = kwds.update({'pool_size': self.arch[0], 'strides': self.arch[2]})
-      kwds = kwds.update(self.win_kwds)
+      kwds.update({'pool_size': self.arch[0], 'strides': self.arch[2]})
+      kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.pfn), **kwds)
     else:
       raise ValueError("Unknown architecture type: " + self.type_arch)
     return self.arch_link
 
 #-------------------------------------------------------------------------------
-  def _setup_transfer(self, inp):
+  def _setup_transfer(self):
     if self.tfn is None: return self.ret_out()
-    return self.add_link(Creation(self.tfn), *tfn_args, **tfn_kwds)
+    return self.add_link(Creation(self.tfn), *self.tfn_args, **self.tfn_kwds)
 
 #-------------------------------------------------------------------------------
-  def _setup_norm(self, inp):
+  def _setup_norm(self):
     if self.nor is None: return self.ret_out()
     kwds = dict(self.nor_kwds)
     if self.nor == Creation('batch_norm'):
@@ -352,20 +365,22 @@ class stream (chain):
         if self.ist is None:
           raise ValueError("Cannot setup batch_norm before setting training flag.")
         else:
-          kwds = kwds.update({'is_training': self.ist})
-    self.add_link(Creation(self.nor), *nor_args, **nor_kwds)
+          kwds.update({'is_training': self.ist})
+    self.add_link(Creation(self.nor), *self.nor_args, **self.nor_kwds)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def set_params(self):
+  def setup_params(self):
     self.params = []
     self.n_params = len(self.params)
     if self.arch_link is None: return self.params
-    return self.arch_link.set_params()
+    self.params = self.arch_link.setup_params()
+    self.n_params = len(self.params)
+    return self.params
 
 #-------------------------------------------------------------------------------
-  def set_outputs(self): 
-    # a chain should really have only one output so is more leaf-like here
+  def setup_outputs(self): 
+    # a stream should really have only one output so is more leaf-like here
     self.outputs = []
     self.n_outputs = len(self.outputs)
     if self.out is None: return self.outputs
