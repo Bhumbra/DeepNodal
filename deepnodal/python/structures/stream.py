@@ -201,8 +201,8 @@ class stream (chain):
     """
     self.win = win
     self.win_args = win_args
-    self_win_kwds = win_kwds
-    if self.type_arch != 'conv' or self.type_arch != 'pool': return
+    self.win_kwds = dict(win_kwds)
+    if self.type_arch != 'conv' and self.type_arch != 'pool': return
     if self.win is None: self.win = DEFAULT_PADDING_WINDOW
 
 #-------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ class stream (chain):
     """
     self.pfn = pfn
     self.pfn_args = pfn_args
-    self_pfn_kwds = pfn_kwds
+    self.pfn_kwds = pfn_kwds
     if self.type_arch != 'pool': return
     if self.pfn is None: self.pfn = DEFAULT_POOLING_FUNCTION
 
@@ -344,7 +344,7 @@ class stream (chain):
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'pool':
-      kwds.update({'pool_size': self.arch[0], 'strides': self.arch[2]})
+      kwds.update({'pool_size': self.arch[0], 'strides': self.arch[1]})
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.pfn), **kwds)
     else:

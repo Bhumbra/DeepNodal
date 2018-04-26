@@ -10,6 +10,9 @@ from deepnodal.python.concepts.stem import stem
 from deepnodal.python.structures.stream import *
 
 #-------------------------------------------------------------------------------
+DEFAULT_COALESCENCE_FUNCTION = 'con'
+
+#-------------------------------------------------------------------------------
 class level (stem):
   # A level comprises a single stream or multiple streams that may or may not be
   # coalesced at either end to varying degrees.
@@ -92,7 +95,7 @@ class level (stem):
       if len(self.ipc) != self.n_subobjects:
         raise TypeError('List length for set_input_coal specification must match number of streams')
     if not(len(self.ipc_kwds)):
-      self.ipc_kwds.update({'coalescence_fn': 'con'})
+      self.ipc_kwds.update({'coalescence_fn': DEFAULT_COALESCENCE_FUNCTION})
     if 'axis' not in self.ipc_kwds:
       self.ipc_kwds.update({'axis': -1})
 
@@ -201,7 +204,7 @@ class level (stem):
         print('Specification include attempting to coalesce a single stream')
         pass
       else:
-        self.opc = [np.arange(self.n_subobjects, dtype = int).tolist()]
+        self.opc = list(range(self.n_subobjects)) 
     if type(self.ipc) is list:
       if not(len(self.opc)):
         self.opc = None
@@ -211,7 +214,7 @@ class level (stem):
     else:
       raise TypeError('Specification must either be boolean or a list of lists')
     if not(len(self.opc_kwds)):
-      self.opc_kwds.update({'coalescence_fn': 'con'})
+      self.opc_kwds.update({'coalescence_fn': DEFAULT_COALESCENCE_FUNCTION})
     if 'axis' not in self.opc_kwds:
       self.opc_kwds.update({'axis': -1})
 
@@ -242,16 +245,29 @@ class level (stem):
       inp = tuple([subobject.inp for subobject in self.inp])
       self.inp = inp
     elif type(self.inp) is not tuple: # give the benefit of the doubt here
-      self.inp = self.inp,
+      self.inp = tuple([self.inp] * self.n_subobjects)
+    elif len(self.inp) == 1 and not(self.unit_subobject):
+      self.inp = tuple([self.inp[0]] * self.n_subobjects)
+    if self.ipc is None: # Attempt an input concentation if input multiple
+      if len(self.inp) > 1 and self.unit_subobject: # with unit_stream
+        self.set_input_coal(True)
+    if type(self.ipc) is bool:
+      if self.ipc:
+        self.ipc = list(range(len(self.inp))),
+
     self.Inp = self.inp
     if self.ipc is None: return self.Inp
+
+    if len(self.ipc) != self.n_subobjects:
+      raise ValueError("Input coalescence specification incommensurate with number of streams")
 
     # Here if specified we create the graph object(s) for input coalescence.
     Inp = [None] * len(self.ipc)
     for i, ipc in enumerate(self.ipc):
       inp = [self.inp[j] for j in ipc]
       func = self.ipc_kwds['coalescence_fn']
-      kwds = self.ipc_kwds.pop('coalescence_fn')
+      kwds = dict(self.ipc_kwds)
+      kwds.pop('coalescence_fn')
       Inp[i] = Creation(func)(inp, *self.ipc_args,
                name = self.name + "/input_" + func + "_" + str(i), **kwds)
     self.Inp = tuple(Inp)
