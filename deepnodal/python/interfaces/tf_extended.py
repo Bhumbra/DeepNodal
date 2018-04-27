@@ -21,6 +21,11 @@ def tf_max_norm_regularizer(clip_norm, axes = 1., name = "max_norm", collection 
   return maxnorm
 
 #-------------------------------------------------------------------------------
+def tf_l1_loss(t, name=None):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    return tf.reduce_sum(tf.abs(t))
+
+#-------------------------------------------------------------------------------
 def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
     return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))
@@ -32,41 +37,8 @@ def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
     return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
 
-#-------------------------------------------------------------------------------
-# TensorFlow has a different interfaces for different pooling layers 
-
-def tf_pool2d(*args, **kwds):
-  tf_func = {'max':max_pool2d, 'avg':avg_pool2d, 'gap':average_pooling2d}
-  try:
-    pool_type = kwds['pool_type']
-    del kwds['pool_type']
-  except KeyError:
-    pool_type = 'max'
-  pool_func = tf_func[pool_type]
-  kwargs = dict(kwds)
-  try:
-    pool_act = kwds['activation_fn']
-    del kwargs['activation_fn']
-  except KeyError:
-    pool_act = None
-  if pool_type == 'gap':
-    kwargs['pool_size'] = kwargs.pop('kernel_size')
-    kwargs['strides'] = kwargs.pop('stride')
-    if 'scope' in kwargs:
-      kwargs['name'] = kwargs.pop('scope')
-  pool_out = pool_func(*args, **kwargs)
-  if pool_act is None: return pool_out
-  try:
-    pool_name = kwds['scope']
-  except KeyError:
-    return pool_act(pool_out)
-  with name_scope(pool_name+"/"):
-    pool_actn = pool_act(pool_out)
-  return pool_actn
 
 #-------------------------------------------------------------------------------
-# TensorFlow has different interfaces for joining inputs either as sum of concat
-
 def tf_coalesce(X, coalescence_fn = 'con', axis = -1, **kwargs): 
   # valid values are 'con' for concatenate and 'sum' for add
   if coalescence_fn == 'con':
@@ -76,7 +48,7 @@ def tf_coalesce(X, coalescence_fn = 'con', axis = -1, **kwargs):
   raise ValueError("Unknown coalescence function specification: " + str(coalescence_dn))
 
 #-------------------------------------------------------------------------------
-# TensorFlow's weight initialisation supports very little customisation
+# TensorFlow contrib's weight initialisation supports very little customisation
 
 def tf_weight_initialiser(_W_shape, fan='in', distr = 'unif', locan=0., scale = 1., shape=1., dtype = np.float):
   W_shape = np.atleast_1d(_W_shape)

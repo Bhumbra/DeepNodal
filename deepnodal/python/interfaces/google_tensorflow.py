@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.contrib.layers import variance_scaling_initializer, l1_regularizer, l2_regularizer
 from tensorflow import name_scope, variable_scope
 from tensorflow.contrib.framework import arg_scope
-from deepnodal.python.calls.tf_extended import *
+from deepnodal.python.interfaces.tf_extended import *
 
 #-------------------------------------------------------------------------------
 try:
@@ -36,8 +36,8 @@ creation_dict = {'identity': tf.identity,
                  'batch_norm': tf.layers.batch_normalization,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
-                 'l1_reg': l1_regularizer,
-                 'l2_reg': l2_regularizer,
+                 'l1_reg': tf_l1_loss,
+                 'l2_reg': tf.nn.l2_loss,
                  'max_norm': tf_max_norm_regularizer,
                  'relu': tf.nn.relu,
                  'elu': tf.nn.elu,
@@ -127,6 +127,7 @@ def Summary(arg):
 # Parameters list
 
 Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
+Param_Reg = {'weights': 'kernel'}
 
 #-------------------------------------------------------------------------------
 # Logits list

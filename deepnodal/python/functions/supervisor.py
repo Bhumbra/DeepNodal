@@ -7,20 +7,19 @@ DEFAULT_COST_FUNCTION = 'mce'
 DEFAULT_LABEL = 'tensor'
 DEFAULT_LABEL_DTYPE = 'int64'
 DEFAULT_ERROR_QUOTIENT = 'in_top_k_error'
-DEFAULT_LEARNING_RATE = 0.01
 
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.python.functions.trainer import *
+from deepnodal.python.functions.overseer import *
 
 #------------------------------------------------------------------------------- 
-class supervisor (trainer):
+class supervisor (overseer):
   """
-  A supervisor is a trainer receiving an expected output data set (called labels) 
-  for each input  data set that uses a gradient-based optimiser (e.g. stochastic
-  gradient descent) to update the parameters within the trainee architecture 
-  according to pre-specified learning regimens based on a cost function. 
+  A supervisor is an overseer receiving an expected output data set (called labels) 
+  for each input data set and uses a gradient-based optimiser (e.g. stochastic
+  gradient descent) to update the parameters within the work architecture 
+  according to pre-specified learning regimes based on a cost function. 
   
   The convention adopted here is as follows:
 
@@ -33,24 +32,16 @@ class supervisor (trainer):
   erq = None                   # error quotient 
   gradients = None             # gradients
   grad_and_vars = None         # gradients and variables
-  regimen_grad_and_vars = None # grad_and_vars relevant to each regimen
+  regime_grad_and_vars = None  # grad_and_vars relevant to each regime
   hat_values = None            # object to compare labels for error calculations
   arch_out = None              # object to compare labels for cost calculations 
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    trainer.__init__(self, name, dev)
-    self.set_optimiser()
+    overseer.__init__(self, name, dev)
     self.set_labels()
     self.set_errorq()
     self.set_costfn()
-
-#-------------------------------------------------------------------------------
-  def set_optimiser(self, opt = DEFAULT_OPTIMISER, *opt_args, **opt_kwds):
-    """
-    opt = 'sgd' or 'adam' etc...
-    """
-    trainer.set_optimiser(self, opt, *opt_args, **opt_kwds)
 
 #-------------------------------------------------------------------------------
   def set_labels(self, lbl = None, *lbl_args, **lbl_kwds):
@@ -65,7 +56,7 @@ class supervisor (trainer):
     if 'dtype' not in self.lbl_kwds:
       self.lbl_kwds.update({'dtype': Dtype(DEFAULT_LABEL_DTYPE)})
     if 'name' not in self.lbl_kwds:
-      self.lbl_kwds.update({'name': self.name + "/labels"})
+      self.lbl_kwds.update({'name': self.name + "/batch/labels"})
     
 #-------------------------------------------------------------------------------
   def set_errorq(self, erq = None, *erq_args, **erq_kwds):
@@ -110,10 +101,11 @@ class supervisor (trainer):
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, gst = None, skip_summaries = False, **kwds):
 
-    if self.trainee is None: return
+    if self.work is None: return
+    if self.opt is None: self.set_optimiser(DEFAULT_OPTIMISER)
 
-    # Setup learning rate, optimiser, and trainee network
-    trainer.setup(self, ist, gst, True, **kwds)
+    # Setup learning rate, optimiser, and work network
+    overseer.setup(self, ist, gst, True, **kwds)
     
     # Setup supervisor labels objects
     self._setup_labels()
@@ -151,7 +143,7 @@ class supervisor (trainer):
 
 #-------------------------------------------------------------------------------
   def _setup_errors(self):
-    self.hat_values = self.trainee.outnets
+    self.hat_values = self.work.outnets
     self.errors = None
     if len(self.hat_values) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')
@@ -177,7 +169,7 @@ class supervisor (trainer):
 
 #-------------------------------------------------------------------------------
   def _setup_costfn(self):
-    self.arch_out = self.trainee.outnets
+    self.arch_out = self.work.outnets
     self.cost = None
     if len(self.arch_out) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')
@@ -201,17 +193,17 @@ class supervisor (trainer):
 
 #-------------------------------------------------------------------------------
   def _setup_losses(self):
-    self.reg_losses = Keys('reg', scope = self.trainee.name)
+    self.reg_loss = self.work.reg_loss
     if self.dev is None:
-      self.loss = Creation('add_ewise')([self.cost] + self.reg_losses, name = self.name + "/loss")
+      self.loss = Creation('add_ewise')([self.cost, self.reg_loss], name = self.name + "/loss")
     else:
       with Device(self.dev):
-        self.loss = Creation('add_ewise')([self.cost] + self.reg_losses, name = self.name + "/loss")
+        self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/loss")
     return self.loss
 
 #-------------------------------------------------------------------------------
   def _setup_gradients(self):
-    # We calculate all parameter gradients, whether regimen-specified or not
+    # We calculate all parameter gradients, whether regime-specified or not
     if self.dev is None:
       with Scope('var', self.name + "/", reuse = Flag('auto_reuse')):
         self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
@@ -225,27 +217,25 @@ class supervisor (trainer):
 
 #-------------------------------------------------------------------------------
   def _setup_delta_ops(self):
-    # Parameter updates are regimen-dependent
-    if not(self.n_regimens): # if not even a single regimen has been created
-      self.add_regimen(DEFAULT_LEARNING_RATE)
-    self.regimen_grad_and_vars = [None] * self.n_regimens
-    self.delta_ops = [None] * self.n_regimens
-    for i, _regimen in enumerate(self.regimens):
-      self.regimen_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regimen_param_indices[i]]
+    # Parameter updates are regime-dependent
+    self.regime_grad_and_vars = [None] * self.n_regimes
+    self.delta_ops = [None] * self.n_regimes
+    for i, _regime in enumerate(self.regimes):
+      self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.opt_name + "/gradients/apply_regimen_"+str(i), reuse=Flag('auto_reuse')):
-          self.delta_ops[i] = self.optimiser.apply_gradients(self.regimen_grad_and_vars[i], global_step = self.gst)
+        with variable_scope(self.name + "/gradients/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+          self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.opt_name + "/gradients/apply_regimen_"+str(i), reuse=Flag('auto_reuse')):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.regimen_grad_and_vars[i], global_step = self.gst)
+          with variable_scope(self.name + "/gradients/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+            self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], global_step = self.gst)
     return self.delta_ops
 
 #-------------------------------------------------------------------------------
   def _setup_scalars(self, scalars = None, scalar_names = None,
                            train_scalars = None, train_scalar_names = None, 
                            test_scalars = None, test_scalar_names = None):
-    trainer._setup_scalars(self, scalars, scalar_names)
+    overseer._setup_scalars(self, scalars, scalar_names)
     if train_scalars is None:
       train_scalars = [self.cost, self.loss]
       if self.errors is not None:
@@ -295,15 +285,17 @@ class supervisor (trainer):
     
     # This feed_dictionary supports inputs and labels
     feed_dict = {self.ist: is_training, self.inputs: feed_inputs, self.labels: feed_labels}
+    if self.session is None: return feed_dict
+
+    # Default using_regime if necessary
+    if self.using_regime is None: self.regime = -1
 
     # If training, updates learning_op
     if is_training: 
       self.feed_dict = feed_dict
-      if self.session is not None:
-        if self.using_regimen is None: self.using_regimen = -1
-        if self.using_regimen < 0: self.use_regimen(0)
-        self.progress[0] += 1                # one batch-update
-        self.progress[1] += len(feed_inputs) # sum(batch_sizes)
+      self.use_regime(max(0, self.using_regime))
+      self.progress[0] += 1                # one batch-update
+      self.progress[1] += len(feed_inputs) # sum(batch_sizes)
 
     return feed_dict
 
@@ -315,7 +307,7 @@ class supervisor (trainer):
     if self.session is None:
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, args[0], args[1])
-    self.session.run([self.batch_size_op, self.delta_ops[self.using_regimen]], feed_dict = feed_dict)
+    self.session.run([self.batch_size_op, self.delta_ops[self.using_regime]], feed_dict = feed_dict)
     self.scalars_train = self.summarise()
     self.scalars_train = self.scalars_train[:len(self.scalars)]
     save_session = self.write_intervals[2]

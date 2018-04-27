@@ -29,6 +29,12 @@ class network (stem):
   This approach only permits full inputs and outnets of subnets to be 
   corresponded, but a future intent is use dictionaries to permit partial 
   inputs and outnets to be used.
+
+  Using network.set_subnets() will override the names and devices according
+  of the subnet components according to settings of the network class instance.
+  
+  L1 and L2 regularisation can be specified at the level of the network using
+  the network.set_reguln(reg, *reg_args, **reg_kwds) function.
   """
 
   def_name = 'network'
@@ -41,6 +47,8 @@ class network (stem):
   unit_outnet = None           # n_outnet == 1
   inputs = None                # Inputs ordered to matching subnets
   type_inputs = None           # 'stack', 'level', 'stream', or 'arch'
+  reg = None                   # L1/2 regularisation
+  reguln = None                # L1/2 regularisation object
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -124,7 +132,9 @@ class network (stem):
       raise ValueError("Number of inputs must match number of subnets")
     self.type_inputs = ['arch'] * self.n_subnets
     for i, inp in enumerate(self.inputs):
-      if isinstance(inp, stream) or issubclass(inp, stream):
+      if type(inp) is list or type(inp) is tuple or type(inp) is int:
+        pass
+      elif isinstance(inp, stream) or issubclass(inp, stream):
         self.type_inputs[i] = 'stream'
       elif isinstance(inp, level) or issubclass(inp, level):
         self.type_inputs[i] = 'level'
@@ -150,13 +160,45 @@ class network (stem):
     return [subnet.set_dropout(spec[i], *args[i], **kwds[i]) for i, subnet in enumerate(self.subnets)]
 
 #-------------------------------------------------------------------------------
+  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+    """
+    reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
+    """
+    if type(reg) is int: reg = 'l' + str(reg) + '_reg'
+    self.reg = Creation(reg)
+    self.reg_args = reg_args
+    self.reg_kwds = reg_kwds
+    if self.reg is None and 'scale' in self.reg_kwds:
+      raise ValueError("L1/2 regularisation specification requires scaling coefficient keyword 'scale'")
+
+#-------------------------------------------------------------------------------
   def clone(self, other = None):
     raise TypeError("While subnets can be cloned, networks cannot for safety.")
 
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, **kwds):
-    if self.inputs is None:
-      return
+    if self.reg is None: self.set_reguln()
+    if self.inputs is None: return
+
+    # Setup inputs
+    self._setup_inputs(ist)
+
+    # Declare the subnets as subobjects to have access to their respective parameters
+    self.set_subobjects(self.subnets) 
+
+    # Collate architectural parameters
+    self.setup_params()
+
+    # Collate list of outputs
+    self.setup_outputs()
+
+    # Collate regularisation losses
+    self._setup_reguln()
+
+    return self.ret_out()
+
+#-------------------------------------------------------------------------------
+  def _setup_inputs(self, ist = None, **kwds):
     self.set_is_training(ist)
     self.inp = [None] * self.n_subnets
     for i in range(self.n_subnets):
@@ -181,16 +223,35 @@ class network (stem):
       self.subnets[i].setup(self.inp[i])
     self.out = [subnet.ret_out() for subnet in self.subnets]
 
-    # Declare the subnets as subobjects to have access to their respective parameters
-    self.set_subobjects(self.subnets) 
-
-    # Collate architectural parameters
-    self.setup_params()
-
-    # Collate list of outputs
-    self.setup_outputs()
-
-    return self.ret_out()
-
+#-------------------------------------------------------------------------------
+  def _setup_reguln(self):
+    self.reg_loss = []
+    if self.reg is None: return
+    self.reg_param_names = []
+    self.reg_params = []
+    param_reg = list(Param_Reg)[0]
+    for param in self.params:
+      param_name = list(param)[0]
+      if param_reg in param_name:
+        self.reg_params.append(param[param_name])
+        self.reg_param_names.append(param_name.replace(param_reg, Param_Reg[param_reg]))
+    if not(len(self.reg_params)): return self.reguln
+    self.reg_losses = [None] * len(self.reg_params)
+    for i in range(len(self.reg_params)):
+      if self.dev is None:
+        self.reg_losses[i] = Creation(self.reg)(self.reg_params[i], 
+                             self.reg_param_names[i] + "/reg_loss")
+      else:
+        with Device(self.dev):
+          self.reg_losses[i] = Creation(self.reg)(self.reg_params[i], 
+                               self.reg_param_names[i] + "/reg_loss")
+    if self.dev is None:
+      with Scope('var', self.name+"/reg_loss", Flag("auto_reuse")):
+        self.reg_loss = Creation('multiply')(Creation('add_ewise')(self.reg_losses), self.reg_kwds['scale'])
+    else:
+      with Device(self.dev):
+        with Scope('var', self.name+"/reg_loss", Flag("auto_reuse")):
+          self.reg_loss = Creation('multiply')(Creation('add_ewise')(self.reg_losses), self.reg_kwds['scale'])
+    
 #-------------------------------------------------------------------------------
 

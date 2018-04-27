@@ -92,7 +92,7 @@ class chain (stem):
     # Create chain instance if necessary
     if other is None:
       other = chain()
-    elif not isinstance(other, link) not issubclass(other, link):
+    elif not isinstance(other, link) or not issubclass(other, link):
       raise TypeError("Cannot clone chain to class " + str(other))
     elif other.links is not None:
       raise AttributeError("Cannot clone to a chain instance with pre-existing links")

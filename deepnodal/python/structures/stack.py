@@ -166,13 +166,6 @@ class stack (stem):
     return self.broadcast(self.subobject.set_usebias, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, spec = None, *args, **kwds):
-    """
-    spec = 'l1_reg' or 'l2_reg', with keyword: scale=scale
-    """
-    return self.broadcast(self.subobject.set_reguln, spec, *args, **kwds)
-
-#-------------------------------------------------------------------------------
   def set_dropout(self, spec = None, *args, **kwds):
     """
     spec = None: No dropout
@@ -247,7 +240,6 @@ class stack (stem):
     if self.is_training is None: other.set_is_training(self.is_training)
     if self.order is not None: other.set_order(self.order)
     if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
-    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
     if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)

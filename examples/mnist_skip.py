@@ -40,8 +40,8 @@ net.set_inputs(input_dims)
 # SET UP SUPERVISOR AND TRAINING
 
 sup = dn.supervisor()
-sup.set_trainee(net)
-sup.new_regimen(learning_rate)
+sup.set_work(net)
+sup.new_regime(learning_rate)
 
 # TRAIN AND TEST
 

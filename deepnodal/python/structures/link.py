@@ -12,7 +12,7 @@ which is not created until link.setup() is invoked.
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.concepts.leaf import leaf
-from deepnodal.python.calls.google_tensorflow import *
+from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
 class link (leaf):

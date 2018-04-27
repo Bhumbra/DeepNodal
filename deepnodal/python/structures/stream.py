@@ -45,7 +45,6 @@ class stream (chain):
   type_adim = None    # architecture type with dimension
   order = None        # string denoting order of operation (default 'dotn')
   ist = None          # is_training flag
-  reg = None          # L1/2 regularisation
   ubi = None          # Use bias 
   dro = None          # Dropout
   tfn = None          # Transfer function
@@ -138,17 +137,6 @@ class stream (chain):
     if not(len(ubi_kwds)):
       ubi_kwds = {'use_bias': self.ubi}
 
-#-------------------------------------------------------------------------------
-  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
-    """
-    reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
-    """
-    if type(reg) is int: reg = 'l' + str(reg) + '_reg'
-    self.reg = Creation(reg)
-    self.reg_args = reg_args
-    self.reg_kwds = reg_kwds
-    if self.reg is not None and not(len(reg_kwds)):
-      self.reg_kwds = {'kernel_initializer', self.reg}
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, dro = None, *dro_args, **dro_kwds):
@@ -229,7 +217,7 @@ class stream (chain):
     call_zoi = Creation('zoi')
     if call_zoi in self.pin:
       if 'bias_initializer' not in self.pin_kwds:
-        self.pin_kwds.update({'bias_regularizer', call_zoi})
+        self.pin_kwds.update({'bias_initializer', call_zoi})
 
 #-------------------------------------------------------------------------------
   def set_normal(self, nor = None, *nor_args, **nor_kwds):
@@ -321,7 +309,6 @@ class stream (chain):
     if self.type_arch == 'conv' or self.type_arch == 'pool':
       if self.win is None: self.set_padwin()
     if self.type_arch == 'dense' or self.type_arch == 'conv':
-      if self.reg is None: self.set_reguln()
       if self.ubi is None: self.set_usebias()
       if self.pin is None: self.set_parinit()
     kwds = {'name': self.name + "/" + self.type_adim}
@@ -329,14 +316,12 @@ class stream (chain):
       kwds.update({'units': self.arch})
       kwds.update({'activation': None})
       kwds.update(self.ubi_kwds)
-      kwds.update(self.reg_kwds)
       kwds.update(self.pin_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
       kwds.update({'activation': None})
       kwds.update(self.ubi_kwds)
-      kwds.update(self.reg_kwds)
       kwds.update(self.pin_kwds)
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
@@ -471,7 +456,6 @@ class stream (chain):
     if self.is_training is None: other.set_is_training(self.is_training)
     if self.order is not None: other.set_order(self.order)
     if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
-    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
     if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)

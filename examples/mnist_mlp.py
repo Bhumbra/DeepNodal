@@ -1,5 +1,5 @@
 """
-An example of a multilayer perceptron with SGD back-prop on MNIST data.
+An example of a multilayer perceptron with SGD back-prop and L2 using MNIST data
 """
 
 import deepnodal as dn
@@ -15,6 +15,8 @@ learning_rate = 0.01
 input_dims = [28, 28, 1]
 arch = [100, 100, 10]
 transfer_fn = ['relu'] * (len(arch)-1) + ['softmax']
+reg = 2
+reg_kwds = {'scale': 0.001}
 
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
@@ -33,12 +35,13 @@ mod.set_transfn(transfer_fn)
 net = dn.network(net_name)
 net.set_subnets(mod)
 net.set_inputs(input_dims)
+net.set_reguln(reg, **reg_kwds)
 
 # SET UP SUPERVISOR AND TRAINING
 
 sup = dn.supervisor()
-sup.set_trainee(net)
-sup.new_regimen(learning_rate)
+sup.set_work(net)
+sup.new_regime(learning_rate)
 
 # TRAIN AND TEST
 
