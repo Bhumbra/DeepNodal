@@ -38,15 +38,15 @@ class stream (chain):
   """
 
   def_name = 'stream'
-  arch = None         # archecture
-  arch_link = None    # archetecture link
-  arch_out = None     # archecture output (i.e. raw weighted sum or pool result)
-  type_arch = None    # archecture type without dimension
-  type_adim = None    # archecture type with dimension
+  arch = None         # architecture
+  arch_link = None    # architecture link
+  arch_out = None     # architecture output (i.e. raw weighted sum or pool result)
+  type_arch = None    # architecture type without dimension
+  type_adim = None    # architecture type with dimension
   order = None        # string denoting order of operation (default 'dotn')
   ist = None          # is_training flag
   reg = None          # L1/2 regularisation
-  ubi = None          # Use bias
+  ubi = None          # Use bias 
   dro = None          # Dropout
   tfn = None          # Transfer function
   win = None          # Padding window
@@ -190,9 +190,6 @@ class stream (chain):
     self.tfn_args = tfn_args
     self.tfn_kwds = dict(tfn_kwds)
     self.trans_fn = self.tfn
-    if tfn is None: return
-    if 'var_scope' not in self.tfn_kwds:
-      self.tfn_kwds.update({'var_scope': self.name})
 
 #-------------------------------------------------------------------------------
   def set_padwin(self, win = None, *win_args, **win_kwds):
@@ -354,7 +351,10 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def _setup_transfer(self):
     if self.tfn is None: return self.ret_out()
-    return self.add_link(Creation(self.tfn), *self.tfn_args, **self.tfn_kwds)
+    kwds = dict(self.tfn_kwds)
+    if 'var_scope' not in kwds:
+      kwds.update({'var_scope': self.name})
+    return self.add_link(Creation(self.tfn), *self.tfn_args, **kwds)
 
 #-------------------------------------------------------------------------------
   def _setup_norm(self):
@@ -450,6 +450,40 @@ class stream (chain):
     _weights = None if self.params_geo is None else self.params_geo.eval()
     _biases = None if self.params_ari is None else self.params_ari.eval()
     return _weights, _biases
+
+#-------------------------------------------------------------------------------
+  def clone(self, other = None):
+    if other is None:
+      other = stream()
+    elif not isinstance(other, stream) and not issubclass(other, stream):
+      raise TypeError("Cannot clone stream to class " + str(other))
+    elif other.links is not None:
+      raise AttributeError("Cannot clone to a stream instance with pre-existing links")
+
+    # Clone the architecture - does not create links because they are add-appended
+    other.set_arch(self.arch)
+
+    # Clone the links (redundant before the setup stage)
+    chain.clone(self, other)
+
+    # Now the rest of the specification (tedious, but safe)
+
+    if self.is_training is None: other.set_is_training(self.is_training)
+    if self.order is not None: other.set_order(self.order)
+    if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
+    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
+    if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
+    if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
+    if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
+    if self.pfn is not None: other.set_poolfn(self.pfn, *self.pfn_args, **self.pfn_kwds)
+    if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
+    if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
+
+    # Rename and redevice
+    other.set_name(self.name)
+    other.set_dev(self.dev)
+
+    return other
 
 #-------------------------------------------------------------------------------
 

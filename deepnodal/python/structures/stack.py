@@ -51,7 +51,7 @@ class stack (stem):
     return self.type_arch
 
 #-------------------------------------------------------------------------------
-  def set_skip_coal(self, skc = None, *skc_args, **skc_kwds):
+  def set_skcoal(self, skc = None, *skc_args, **skc_kwds):
     """
     skc is a coalescence specification that unites stream outputs across levels.
 
@@ -88,8 +88,9 @@ class stack (stem):
       raise TypeError("Skip coalescence specification must be None or a list")
     elif len(self.skc) != self.n_subobjects:
       raise ValueError("Skip coalescence specification list length must equal number of levels")
+    self.skc = list(self.skc)
     for i in range(self.n_subobjects):
-      if self.sck[i] is None:
+      if self.skc[i] is None:
         pass
       elif type(self.skc[i] is not tuple):
         if not(self.subobjects[i].unit_subobject):
@@ -98,49 +99,50 @@ class stack (stem):
           self.skc[i] = (self.skc[i],)
         else:
          raise TypeError("Unrecognised skip coalescence specification")
-      elif len(self.skc[i] != self.levels[i].n_subobjects):
+      elif len(self.skc[i]) != self.levels[i].n_subobjects:
         raise ValueError("Skip coalescence specification incommensurate with number of streams at output level.")
-      skci = list(self.skci)
-      for j in range(self.subobjects[i].n_subobjects):
-        skcij = skci[j]
-        if skci[j] is None:
-          pass
-        elif type(skcij) is int:
-          if skcij == 0:
-            skij = None
-          elif skcij >= i:
-            raise ValueError("Skip coalescence target must precede connection level")
-          elif skcij < 0:
-            skcij += i
-          if not(self.subobjects[sckcij].unit_subobject):
-            raise ValueError("Skip coalescence specification incommensurate with number of streams at skip level.")
-          elif skcij is not None:
-            skci[j] = [skcij, 0]
-        elif type(skcij) is list:
-          if len(skcij) != 2:
-            raise ValueError("Skip coalescence specification target specification must be a list of two.")
-          elif skcij[0] == 0:
-            skcij = None
-          elif skcij[0] >= i:
-            raise ValueError("Skip coalescence target must precede connection level")
-          elif skcij[0] < 0:
-            skcij[0] += i
-          if skcij is not None:
-            if skcij[1] >= self.subobjects[sckij[0]].n_subobjects:
-              raise ValueError("Skip coalescence specification exceeds target specification stream number.")
-        skci[j] = skcij
-      self.skc[i] = tuple(skci)
+      if self.skc[i] is None:
+        pass
+      else: # we need to complete any incomplete skc specification
+        skci = list(self.skc[i])
+        for j in range(self.subobjects[i].n_subobjects):
+          skcij = skci[j]
+          if skcij is None:
+            pass
+          elif type(skcij) is int:
+            if skcij >= i:
+              raise ValueError("Skip coalescence target must precede connection level")
+            elif skcij < 0: # skcij = 0 is treated as an absolute reference
+              skcij += i
+            if not(self.subobjects[skcij].unit_subobject):
+              raise ValueError("Skip coalescence specification incommensurate with number of streams at skip level.")
+            elif skcij is not None:
+              skci[j] = [skcij, 0]
+            else:
+              skci[j] = skcij
+          elif type(skcij) is list:
+            if len(skcij) != 2:
+              raise ValueError("Skip coalescence specification target specification must be a list of two.")
+            elif skcij[0] >= i:
+              raise ValueError("Skip coalescence target must precede connection level")
+            elif skcij[0] < 0: # skcij = 0 is treated as an absolute reference
+              skcij[0] += i
+            if skcij is not None:
+              if skcij[1] >= self.subobjects[ij[0]].n_subobjects:
+                raise ValueError("Skip coalescence specification exceeds target specification stream number.")
+            skci[j] = skcij
+        self.skc[i] = tuple(skci)
     if not(len(self.skc_kwds)):
       self.skc_kwds.update({'coalescence_fn': 'con'})
     if 'axis' not in self.skc_kwds:
       self.skc_kwds.update({'axis': -1})
 
 #-------------------------------------------------------------------------------
-  def set_input_coal(self, spec = None, *args, **kwds):
+  def set_ipcoal(self, spec = None, *args, **kwds):
     """
     spec = ipc is the coalescence specification for stream inputs within levels.
     """
-    return self.broadcast(self.subobject.set_input_coal, spec, *args, **kwds)
+    return self.broadcast(self.subobject.set_ipcoal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
@@ -216,11 +218,49 @@ class stack (stem):
     return self.broadcast(self.subobject.set_normal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_output_coal(self, spec = None, *args, **kwds):
+  def set_opcoal(self, spec = None, *args, **kwds):
     """
     spec = opc is the coalescence specification for stream outputs within levels.
     """
-    return self.broadcast(self.subobject.set_input_coal, spec, *args, **kwds)
+    return self.broadcast(self.subobject.set_ipcoal, spec, *args, **kwds)
+
+#-------------------------------------------------------------------------------
+  def clone(self, other = None):
+    if other is None:
+      other = stack()
+    elif not isinstance(other, stack) and issubclass(other, stack):
+      raise TypeError("Cannot clone stack to class " + str(other))
+    elif other.subobjects is not None:
+      raise AttributeError("Cannot clone to a stack instance with pre-existing subobjects")
+
+    # Clone the architecture - this _will_ create new instances of levels
+    other.set_arch(self.arch)
+
+    # Clone the levels
+    for self_subobjects, other_subobject in zip(self.subobjects, other.subobjects):
+      self_subobject.clone(other_subobject)
+
+    # Now the rest of the specification (tedious, but safe)
+
+    if self.skc is not None: other.set_skcoal(self.skc, *self.skc_args, **self.skc_kwds)
+    if self.ipc is not None: other.set_ipcoal(self.ipc, *self.ipc_args, **self.ipc_kwds)
+    if self.is_training is None: other.set_is_training(self.is_training)
+    if self.order is not None: other.set_order(self.order)
+    if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
+    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
+    if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
+    if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
+    if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
+    if self.pfn is not None: other.set_poolfn(self.pfn, *self.pfn_args, **self.pfn_kwds)
+    if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
+    if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
+    if self.opc is not None: other.set_opcoal(self.opc, *self.opc_args, **self.opc_kwds)
+
+    # Rename and redevice
+    other.set_name(self.name)
+    other.set_dev(self.dev)
+
+    return other
 
 #-------------------------------------------------------------------------------
   def setup(self, inp = None):
@@ -238,10 +278,16 @@ class stack (stem):
           self.skip_coal[i] = [None] * self.subobjects[i].n_subobjects
           for j in range(self.subobjects[i].n_subobjects):
             if self.skc[i][j] is not None:
+              IJ = self.skc[i][j]
+              inputs = [inp[j], self.subobjects[IJ[0]].subobjects[IJ[1]].ret_out()]
               func = self.skc_kwds['coalescence_fn']
-              kwds = self.kwc_kwds.pop('coalescence_fn')
-              self.skip_coal[i][j] = Creation(func)(inp[j], *self.skc_args, 
-                                     name = self.name + "/skip_" + func + "_" + str(i), **kwds)
+              kwds = self.skc_kwds
+              kwds.pop('coalescence_fn')
+              skip_name = self.name + "/" + self.subobject_name + "s_"
+              skip_name += str(i) + "_and_" + str(IJ[0]) + "_skip_" + func + "/" 
+              skip_name += "coalescence_" + str(j)
+              self.skip_coal[i][j] = Creation(func)(inputs, *self.skc_args, 
+                                     name = skip_name, **kwds)
               Inp[j] = self.skip_coal[i][j]
           inp = tuple(Inp)
     self.arch_out = self.subobjects[-1].arch_out

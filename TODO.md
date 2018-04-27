@@ -1,4 +1,4 @@
-#Todo:
+# Todo:
 
 - test and debug skip connection facilities
 - create structure cloning facilities

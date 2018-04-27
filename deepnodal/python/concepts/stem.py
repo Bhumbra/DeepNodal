@@ -43,6 +43,11 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
     self.name = name if name is not None else self.def_name
+    if self.subobjects is None: return
+    for i, subobject in enumerate(self.subobjects):
+    # no point re-naming subobjects if unit_subobject is true 
+      subobject_name = self.name if self.unit_subobject else self.name + "/" + self.subobject_name + "_" + str(i)
+      subobject.set_name(subobject_name)
 
 #-------------------------------------------------------------------------------
   def set_dev(self, dev = None):
@@ -71,19 +76,17 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     if self.subobjects is None:
       return self.subobjects
     elif type(self.subobjects) is list:
-      pass
+      self.n_subobjects = len(self.subobjects)
+      self.unit_subobject = self.n_subobjects == 1
+      # it would be quite rude to rename or redevice these subobjects so we won't
     elif type(subobjects) is int:
       self.n_subobjects = subobjects
       self.unit_subobject = self.n_subobjects == 1
-      self.subobjects = [None] * self.n_subobjects
-      for i in range(subobjects):
-        # no point re-naming subobjects if unit_subobject is true 
-        subobject_name = self.name if self.unit_subobject else self.name + "/" + self.subobject_name + "_" + str(i)
-        self.subobjects[i] = self.subobject(subobject_name, self.dev) # no point renaming 
+      self.subobjects = [self.subobject() for i in range(self.n_subobjects)]
+      self.set_name(self.name) # this renames all subobjects
+      self.set_dev(self.dev)   # this redevices all subobjects
     else:
       raise TypeError("Unrecognised subobjects specification.")
-    self.n_subobjects = len(self.subobjects)
-    self.unit_subobject = self.n_subobjects == 1
     return self.subobjects
 
 #-------------------------------------------------------------------------------

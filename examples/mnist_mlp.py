@@ -8,12 +8,13 @@ import datetime
 
 # PARAMETERS
 
+n_epochs = 20
+batch_size = 60
+learning_rate = 0.01
+
 input_dims = [28, 28, 1]
 arch = [100, 100, 10]
 transfer_fn = ['relu'] * (len(arch)-1) + ['softmax']
-learning_rate = 0.01
-batch_size = 60
-n_epochs = 20
 
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
@@ -26,7 +27,7 @@ iterations_per_epoch = source.train_num_examples // batch_size
 
 # SET UP NETWORK
 
-mod = dn.stack(net_name+"/model")
+mod = dn.stack()
 mod.set_arch(arch)
 mod.set_transfn(transfer_fn)
 net = dn.network(net_name)
@@ -35,7 +36,7 @@ net.set_inputs(input_dims)
 
 # SET UP SUPERVISOR AND TRAINING
 
-sup = dn.supervisor(net_name+'/SGD')
+sup = dn.supervisor()
 sup.set_trainee(net)
 sup.new_regimen(learning_rate)
 

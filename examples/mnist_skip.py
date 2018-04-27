@@ -1,5 +1,6 @@
 """
-An example of a single softmax layer regression on MNIST data.
+An example of a multilayer perceptron with a skip connection 
+using SGD back-prop on MNIST data.
 """
 
 import deepnodal as dn
@@ -13,10 +14,11 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = 10
-transfer_function = 'softmax'
+arch = [100, 100, 100, 10]
+transfer_fn = ['relu'] * (len(arch)-1) + ['softmax']
+skip_coalescence = [None] * (len(arch)-2) + [-2, None]
 
-net_name = 'softmax_layer'
+net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
 
 # INPUT DATA
@@ -27,9 +29,10 @@ iterations_per_epoch = source.train_num_examples // batch_size
 
 # SET UP NETWORK
 
-mod = dn.stream()
+mod = dn.stack()
 mod.set_arch(arch)
-mod.set_transfn(transfer_function)
+mod.set_transfn(transfer_fn)
+mod.set_skcoal(skip_coalescence)
 net = dn.network(net_name)
 net.set_subnets(mod)
 net.set_inputs(input_dims)

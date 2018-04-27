@@ -32,19 +32,42 @@ class network (stem):
   """
 
   def_name = 'network'
-  subnets = None
-  type_subnets = None
-  n_subnets = None
-  outnets = None
-  n_outnets = None
-  inputs = None
-  type_inputs = None
+  subnets = None               # Subnet instances excluding inputs
+  type_subnets = None          # 'stack', 'level', or 'stream'
+  n_subnets = None             # len(subnets)
+  unit_subnet = None           # n_subnet == 1
+  outnets = None               # Those subnets with outputs to other subnets
+  n_outnets = None             # len(outnets)
+  unit_outnet = None           # n_outnet == 1
+  inputs = None                # Inputs ordered to matching subnets
+  type_inputs = None           # 'stack', 'level', 'stream', or 'arch'
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
     self.set_subnets() # defaults to nothing
     self.setup()
+
+#-------------------------------------------------------------------------------
+  def set_name(self, name = None):
+    # We collate subnets declaring them as subobjects so
+    # the stem version of this function must be overloaded here...
+
+    self.name = name if name is not None else self.def_name
+    if self.subnets is None: return
+    for i, _subnet in enumerate(self.subnets):
+      # no point re-naming subnets if unit_subnet true 
+      subnet_name = self.name if self.unit_subnet else self.name + "/subnet" + "_" + str(i)
+      _subnet.set_name(subnet_name)
+
+#-------------------------------------------------------------------------------
+  def set_dev(self, dev = None):
+    # We collate subnets declaring them as subobjects so
+    # the stem version of this function must be overloaded here...
+    self.dev = dev
+    if self.subnets is None: return
+    for _subnet in self.subnets:
+      _subnet.set_dev(dev)
 
 #-------------------------------------------------------------------------------
   def set_subnets(self, subnets = None):
@@ -57,15 +80,17 @@ class network (stem):
     self.unit_subnet = self.n_subnets == 1
     self.type_subnets = [None] * self.n_subnets
     for i, subnet in enumerate(self.subnets):
-      if isinstance(subnet, stream):
+      if isinstance(subnet, stream) or issubclass(subnet, stream):
         self.type_subnets[i] = 'stream'
-      elif isinstance(subnet, level):
+      elif isinstance(subnet, level) or issubclass(subnet, level):
         self.type_subnets[i] = 'level'
-      elif isinstance(subnet, stack):
+      elif isinstance(subnet, stack) or issubclass(subnet, stack):
         self.type_subnets[i] = 'stack'
       else:
         raise TypeError("Unknown subnet type: " + str(subnet))
     self.set_outnets()
+    self.set_name(self.name) # this renames the subnets
+    self.set_dev(self.dev)   # this redevices the subnets
     return self.type_subnets
     
 #-------------------------------------------------------------------------------
@@ -82,6 +107,7 @@ class network (stem):
       if i in indices:
         self.outnets.append(subnet)
     self.n_outnets = len(self.outnets)
+    self.unit_outnet = self.n_outnets == 1
     return self.outnets
 
 #-------------------------------------------------------------------------------
@@ -98,11 +124,11 @@ class network (stem):
       raise ValueError("Number of inputs must match number of subnets")
     self.type_inputs = ['arch'] * self.n_subnets
     for i, inp in enumerate(self.inputs):
-      if isinstance(inp, stream):
+      if isinstance(inp, stream) or issubclass(inp, stream):
         self.type_inputs[i] = 'stream'
-      elif isinstance(inp, level):
+      elif isinstance(inp, level) or issubclass(inp, level):
         self.type_inputs[i] = 'level'
-      elif isinstance(inp, stack):
+      elif isinstance(inp, stack) or issubclass(inp, stack):
         self.type_inputs[i] = 'stack'
     return self.type_inputs
 
@@ -122,6 +148,10 @@ class network (stem):
     if type(args) is not list: args = [args] * self.n_subnets
     if type(kwds) is not list: kwds = [kwds] * self.n_subnets
     return [subnet.set_dropout(spec[i], *args[i], **kwds[i]) for i, subnet in enumerate(self.subnets)]
+
+#-------------------------------------------------------------------------------
+  def clone(self, other = None):
+    raise TypeError("While subnets can be cloned, networks cannot for safety.")
 
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, **kwds):

@@ -1,7 +1,7 @@
 # Level module for Tensorflow. A level is a structure that contains one or more
 # streams in parallel which may coalesced either at the input ends, output ends,
-# both, or not at all and any combination as specified by the self.set_input_coal
-# and self.set_output_coal.
+# both, or not at all and any combination as specified by the self.set_ipcoal
+# and self.set_opcoal.
 
 # Gary Bhumbra
 
@@ -61,7 +61,7 @@ class level (stem):
     return self.type_arch
 
 #-------------------------------------------------------------------------------
-  def set_input_coal(self, ipc = None, *ipc_args, **ipc_kwds):
+  def set_ipcoal(self, ipc = None, *ipc_args, **ipc_kwds):
     """
     ipc is a coalescence specification that unites inputs so that their numbers must
     correspond to that of the number of streams.
@@ -85,7 +85,7 @@ class level (stem):
       elif self.unit_subobject:
         pass # we'll just have to find out the number of inputs later
       else:
-        raise ValueError('Non-unitary stream levels require list-based set_input_coal specifications')
+        raise ValueError('Non-unitary stream levels require list-based set_ipcoal specifications')
     elif type(self.ipc) is list:
       if not(len(self.ipc)):
         self.ipc = None
@@ -93,7 +93,7 @@ class level (stem):
       elif type(self.ipc[0]) is not list:
         self.ipc = [self.ipc]
       if len(self.ipc) != self.n_subobjects:
-        raise TypeError('List length for set_input_coal specification must match number of streams')
+        raise TypeError('List length for set_ipcoal specification must match number of streams')
     if not(len(self.ipc_kwds)):
       self.ipc_kwds.update({'coalescence_fn': DEFAULT_COALESCENCE_FUNCTION})
     if 'axis' not in self.ipc_kwds:
@@ -179,7 +179,7 @@ class level (stem):
     return self.broadcast(self.subobject.set_normal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_output_coal(self, opc = None, *opc_args, **opc_kwds):
+  def set_opcoal(self, opc = None, *opc_args, **opc_kwds):
     """
     opc is a coalescence specification that unites outputs so that their numbers may
     differ to that of the number of streams.
@@ -219,6 +219,43 @@ class level (stem):
       self.opc_kwds.update({'axis': -1})
 
 #-------------------------------------------------------------------------------
+  def clone(self, other = None):
+    if other is None:
+      other = level()
+    elif not isinstance(other, level) and not issubclass(other, level):
+      raise TypeError("Cannot clone level to class " + str(other))
+    elif other.subobjects is not None:
+      raise AttributeError("Cannot clone to a level instance with pre-existing subobjects")
+
+    # Clone the architecture - this _will_ create new instances of streams
+    other.set_arch(self.arch)
+
+    # Clone the streams
+    for self_subobjects, other_subobject in zip(self.subobjects, other.subobjects):
+      self_subobject.clone(other_subobject)
+
+    # Now the rest of the specification (tedious, but safe)
+
+    if self.ipc is not None: other.set_ipcoal(self.ipc, *self.ipc_args, **self.ipc_kwds)
+    if self.is_training is None: other.set_is_training(self.is_training)
+    if self.order is not None: other.set_order(self.order)
+    if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
+    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
+    if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
+    if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
+    if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
+    if self.pfn is not None: other.set_poolfn(self.pfn, *self.pfn_args, **self.pfn_kwds)
+    if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
+    if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
+    if self.opc is not None: other.set_opcoal(self.opc, *self.opc_args, **self.opc_kwds)
+
+    # Rename and redevice
+    other.set_name(self.name)
+    other.set_dev(self.dev)
+
+    return other
+
+#-------------------------------------------------------------------------------
   def setup(self, inp = None):
     inp = self._setup_input(inp)  # does not touch self.subobjects
     if self.inp is None: return self.inp # nothing in, nothing out
@@ -232,7 +269,7 @@ class level (stem):
   def _setup_input(self, inp = None):
     # inp may either be a level or a tuple of inputs.
     # self.inp -> coalescence (if specified) -> self.Inp
-    if self.ipc is None: self.set_input_coal()
+    if self.ipc is None: self.set_ipcoal()
     self.inp = inp
     self.Inp = self.inp
     self.out = None
@@ -250,7 +287,7 @@ class level (stem):
       self.inp = tuple([self.inp[0]] * self.n_subobjects)
     if self.ipc is None: # Attempt an input concentation if input multiple
       if len(self.inp) > 1 and self.unit_subobject: # with unit_stream
-        self.set_input_coal(True)
+        self.set_ipcoal(True)
     if type(self.ipc) is bool:
       if self.ipc:
         self.ipc = list(range(len(self.inp))),
@@ -277,7 +314,7 @@ class level (stem):
   def _setup_output(self, Out = None):
     # Out is expected to be tuple of size self.n_streams. Optionally it may be
     # a single graph object for single stream levels.
-    if self.opc is None: self.set_output_coal()
+    if self.opc is None: self.set_opcoal()
     self.Out = Out
     self.out = self.Out
     if self.out is None: return self.ret_out()
@@ -299,6 +336,7 @@ class level (stem):
     self.out = tuple(out)
     self.setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()
+
 
 #-------------------------------------------------------------------------------
 

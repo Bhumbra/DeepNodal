@@ -85,4 +85,19 @@ class link (leaf):
     return self.params
 
 #-------------------------------------------------------------------------------
+  def clone(self, other = None):
+    if other is None:
+      other = link()
+    elif not isinstance(other, link) and not issubclass(other, link):
+      raise TypeError("Cannot clone link to class " + str(other))
+
+    # Change name and device...
+    other.set_name(self.name)
+    other.set_dev(self.dev)
+
+    # ... before setting the creation in case this influences self.var_scope
+    other.set_creation(self.creation, *self.args, **self.kwds)
+    return other
+
+#-------------------------------------------------------------------------------
 
