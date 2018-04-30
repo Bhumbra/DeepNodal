@@ -143,6 +143,18 @@ class network (stem):
     return self.type_inputs
 
 #-------------------------------------------------------------------------------
+  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+    """
+    reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
+    """
+    if type(reg) is int: reg = 'l' + str(reg) + '_reg'
+    self.reg = Creation(reg)
+    self.reg_args = reg_args
+    self.reg_kwds = reg_kwds
+    if self.reg is None and 'scale' in self.reg_kwds:
+      raise ValueError("L1/2 regularisation specification requires scaling coefficient keyword 'scale'")
+
+#-------------------------------------------------------------------------------
   def set_is_training(self, ist = None):
     self.ist = ist
     if self.subnets is None: return
@@ -160,20 +172,41 @@ class network (stem):
     return [subnet.set_dropout(spec[i], *args[i], **kwds[i]) for i, subnet in enumerate(self.subnets)]
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
-    """
-    reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
-    """
-    if type(reg) is int: reg = 'l' + str(reg) + '_reg'
-    self.reg = Creation(reg)
-    self.reg_args = reg_args
-    self.reg_kwds = reg_kwds
-    if self.reg is None and 'scale' in self.reg_kwds:
-      raise ValueError("L1/2 regularisation specification requires scaling coefficient keyword 'scale'")
-
-#-------------------------------------------------------------------------------
   def clone(self, other = None):
-    raise TypeError("While subnets can be cloned, networks cannot for safety.")
+    if other is None:
+      other = network()
+    elif not isinstance(other, network) and issubclass(other, network):
+      raise TypeError("Cannot clone network to class " + str(other))
+    elif other.subnets is not None:
+      raise AttributeError("Cannot clone to a network instance with pre-existing subnets")
+
+    # Clone the subnets one-by-one and declare as subnets of new network
+    other.set_subnets([_subnet.clone() for _subnet in self.subnets])
+
+    # Raw architectural inputs will be copied over whereas inputs that are subnets will be matched clone-for-clone
+    other_inputs = list(self.inputs)
+
+    for i, inp in enumerate(other_inputs):
+      if self.type_inputs[i] != 'arch':
+        index = None
+        for j, obj in enumerate(self.subnets):
+          if inp == obj:
+            index = j
+        if index is None:
+          raise AttributeError("Cannot clone unidentifiable non-architectural input: "+str(inp))
+        else:
+          other_inputs[i] = other.subnets[index]
+    
+    other.set_inputs(other_inputs)
+
+    # Copy the remaining properties
+    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
+
+    # Rename and redevice
+    other.set_name(self.name)
+    other.set_dev(self.dev)
+
+    return other
 
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, **kwds):
@@ -225,7 +258,7 @@ class network (stem):
 
 #-------------------------------------------------------------------------------
   def _setup_reguln(self):
-    self.reg_loss = []
+    self.reg_loss = None
     if self.reg is None: return
     self.reg_param_names = []
     self.reg_params = []

@@ -1,4 +1,4 @@
-#Stem module for Tensorflow. A stem is a structure that contains one or more
+# Stem module for Tensorflow. A stem is a structure that contains one or more
 # substructures called subobjects. These subobjects may be classes that inherit from stem
 # or from leaf. Note it is up to inheriting classes whether the subobjects are arranged
 # in series, in parallel, or a combination.

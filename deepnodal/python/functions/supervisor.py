@@ -95,8 +95,6 @@ class supervisor (overseer):
     self.cfn_args = cfn_args
     self.cfn_kwds = dict(cfn_kwds)
     if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
-    if 'name' not in self.cfn_kwds:
-      self.cfn_kwds.update({'name': self.name + "/cost"})
 
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, gst = None, skip_summaries = False, **kwds):
@@ -173,32 +171,64 @@ class supervisor (overseer):
     self.cost = None
     if len(self.arch_out) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')
-    self.trans_fn_out = self.arch_out[0].trans_fn
-    if self.trans_fn_out in Logits_List: # pre-transfer-function value required
+    self.trans_fn_out = Creation(self.arch_out[0].trans_fn)
+    kwds = dict(self.cfn_kwds)
+    if Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
       self.arch_out = self.arch_out[0].arch_out
+      kwds.update({'name': self.name + "/cost"})
       if self.dev is None:
         self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
-                                       activation_fn = self.trans_fn_out, **self.cfn_kwds)
+                                       activation_fn = self.trans_fn_out, **kwds)
       else:
         with Device(self.dev):
           self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
-                                         activation_fn = self.trans_fn_out, **self.cfn_kwds)
+                                         activation_fn = self.trans_fn_out, **kwds)
     else: # we'll just use the hat values
-      if self.dev is None:
-        self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
-      else:
-        with Device(self.dev):
-          self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
+      ndim_hat_values, ndim_labels = len(Shape(self.hat_values)), len(Shape(self.labels))
+      if ndim_hat_values == ndim_labels:
+        if self.dev is None:
+          with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
+            self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
+        else:
+          with Device(self.dev):
+            with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
+              self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
+      elif Creation(self.cfn) == Creation('mse') and ndim_hat_values == 2 and ndim_labels == 1:
+        # Here we attempt to create an interface that allows sparse labels to be converted to one-hot dense tensors
+        if self.dev is None:
+          self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hat_values)[-1]),
+                                                   name=self.name+"/batch/labels/dense")
+        else:
+          with Device(self.dev):
+            self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hat_values)[-1]),
+                                                     name=self.name+"/batch/labels/dense")
+        if self.dev is None:
+          with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
+            self.cost = Creation(self.cfn)(self.hat_values, self.labels_dense,
+                                           *self.cfn_args, **self.cfn_kwds)
+        else:
+          with Device(self.dev):
+            with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
+              self.cost = Creation(self.cfn)(self.hat_values, self.labels_dense,
+                                             *self.cfn_args, **self.cfn_kwds)
+
     return self.cost
 
 #-------------------------------------------------------------------------------
   def _setup_losses(self):
     self.reg_loss = self.work.reg_loss
-    if self.dev is None:
-      self.loss = Creation('add_ewise')([self.cost, self.reg_loss], name = self.name + "/loss")
+    if self.reg_loss is None:
+      if self.dev is None:
+        self.loss = Creation('identity')(self.cost, name = self.name + "/loss")
+      else:
+        with Device(self.dev):
+          self.loss = Creation('identity')(self.cost, name = self.name + "/loss")
     else:
-      with Device(self.dev):
-        self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/loss")
+      if self.dev is None:
+        self.loss = Creation('add_ewise')([self.cost, self.reg_loss], name = self.name + "/loss")
+      else:
+        with Device(self.dev):
+          self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/loss")
     return self.loss
 
 #-------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 """
-An example of a multilayer perceptron with SGD back-prop and L2 regularisation training on MNIST data
+A rather contrived example of two sigmoid layers in parallel performing 
+mean-squared error regression on MNIST data.
 """
 
 import deepnodal as dn
@@ -13,12 +14,10 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = [100, 100, 10]
-transfer_fn = ['relu'] * (len(arch)-1) + ['softmax']
-reg = 2
-reg_kwds = {'scale': 0.001}
+arch = (5, 5)
+transfer_function = 'sigmoid'
 
-net_name = 'mlp'
+net_name = 'sigmoid_layers'
 write_dir = '/tmp/dn_logs/'
 
 # INPUT DATA
@@ -27,24 +26,25 @@ source = dn.helpers.mnist()
 source.read_data()
 iterations_per_epoch = source.train_num_examples // batch_size
 
-# SPECIFY ARCHITECTURE
+# SPECIFY ARCHITECTURE 
 
-mod = dn.stack()
+mod = dn.level()
 mod.set_arch(arch)
-mod.set_transfn(transfer_fn)
+mod.set_transfn(transfer_function)
+mod.set_opverge(True)
 
 # SPECIFY NETWORK
 
 net = dn.network(net_name)
 net.set_subnets(mod)
 net.set_inputs(input_dims)
-net.set_reguln(reg, **reg_kwds)
 
 # SPECIFY SUPERVISOR AND TRAINING
 
 sup = dn.supervisor()
 sup.set_work(net)
 sup.new_regime(learning_rate)
+sup.set_costfn('mse')
 
 # TRAIN AND TEST
 

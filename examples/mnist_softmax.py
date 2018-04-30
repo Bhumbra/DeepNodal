@@ -25,16 +25,19 @@ source = dn.helpers.mnist()
 source.read_data()
 iterations_per_epoch = source.train_num_examples // batch_size
 
-# SET UP NETWORK
+# SPECIFY ARCHITECTURE
 
 mod = dn.stream()
 mod.set_arch(arch)
 mod.set_transfn(transfer_function)
+
+# SPECIFY NETWORK
+
 net = dn.network(net_name)
 net.set_subnets(mod)
 net.set_inputs(input_dims)
 
-# SET UP SUPERVISOR AND TRAINING
+# SPECIFY SUPERVISOR AND TRAINING
 
 sup = dn.supervisor()
 sup.set_work(net)

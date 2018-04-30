@@ -92,14 +92,15 @@ class chain (stem):
     # Create chain instance if necessary
     if other is None:
       other = chain()
-    elif not isinstance(other, link) or not issubclass(other, link):
+    elif not isinstance(other, chain) and not issubclass(other, chain):
       raise TypeError("Cannot clone chain to class " + str(other))
     elif other.links is not None:
       raise AttributeError("Cannot clone to a chain instance with pre-existing links")
 
     # All we have to do now is clone the links
-    for _link in self.links:
-      other.add_link(_link.clone())
+    if self.links is not None:
+      for _link in self.links:
+        other.add_link(_link.clone())
 
     # Now rename and redevice
     other.set_name(self.name)

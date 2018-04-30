@@ -37,15 +37,18 @@ def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
     return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
 
-
 #-------------------------------------------------------------------------------
-def tf_coalesce(X, coalescence_fn = 'con', axis = -1, **kwargs): 
+def tf_vergence(X, vergence_fn = 'con', divergence = None, axis = -1, **kwargs): 
   # valid values are 'con' for concatenate and 'sum' for add
-  if coalescence_fn == 'con':
+  if vergence_fn == 'con':
     return tf.concat(X, axis = axis, **kwargs)
-  if coalescence_dn == 'sum':
+  if vergence_fn == 'sum':
     return tf.reduce_sum(X, axis = axis, **kwargs)
-  raise ValueError("Unknown coalescence function specification: " + str(coalescence_dn))
+  if vergence_fn == 'div':
+    if divergence is None:
+      raise ValueError("Vergence with vergence_fn='div' requires divergence specification")
+    return tf.split(X, divergence, axis = axis, **kwargs)
+  raise ValueError("Unknown vergence function specification: " + str(coalescence_dn))
 
 #-------------------------------------------------------------------------------
 # TensorFlow contrib's weight initialisation supports very little customisation

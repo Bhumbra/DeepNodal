@@ -25,9 +25,15 @@ creation_dict = {'identity': tf.identity,
                  'subtract': tf.subtract,
                  'multiply': tf.multiply,
                  'shape': tf.shape,
+                 'mean': tf.reduce_mean,
                  'sum': tf.reduce_sum,
                  'con': tf.concat,
-                 'mean': tf.reduce_mean,
+                 'pack': tf.stack,
+                 'matmul': tf.matmul,
+                 'eye': tf.eye,
+                 'cast': tf.cast,
+                 'diverge': tf.split,
+                 'verge': tf_vergence,
                  'dense': tf.layers.dense,
                  'conv2d': tf.layers.conv2d,
                  'pool2d': {'max':tf.layers.max_pooling2d,
@@ -42,8 +48,10 @@ creation_dict = {'identity': tf.identity,
                  'relu': tf.nn.relu,
                  'elu': tf.nn.elu,
                  'softmax': tf.nn.softmax,
+                 'sigmoid': tf.nn.sigmoid,
                  'var': tf.Variable,
                  'tensor': tf.placeholder,
+                 's2d': tf.sparse_to_dense,
                  'vsi': tf.variance_scaling_initializer,
                  'zoi': tf.zeros_initializer,
                  'lvi': tf.local_variables_initializer,
@@ -56,6 +64,7 @@ creation_dict = {'identity': tf.identity,
                  'in_top_k_error': tf_in_top_k_error,
                  'mse': tf.losses.mean_squared_error,
                  'mce': tf_mean_cross_entropy,
+                 'onehot': tf.one_hot,
                  'logger': tf.summary.FileWriter,
                  'saver': tf.train.Saver,
                  'defaults': tf.get_default_graph,
@@ -140,7 +149,12 @@ Logits_List = [tf.nn.softmax, tf.nn.sigmoid]
 # Shape function as list
 
 def Shape(X):
-  XS = list(X.shape)
+  S = [None]
+  XS = X.shape
+  try:
+   XS = list(XS)
+  except ValueError:
+    return S
   S = [None] * len(XS)
   for i, xs in enumerate(XS):
     try:

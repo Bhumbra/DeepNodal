@@ -52,7 +52,7 @@ class stream (chain):
   pfn = None          # Pooling function
   pin = None          # Parameter initialisation
   nor = None          # Normalisation
-  trans_fn = None     
+  trans_fn = None     # Identical to tfn
   dropout_quotient = None
 
 #-------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ class stream (chain):
     # Note links are not created here because they are added sequentially at
     # the stream.setup(inp) stage.
 
-    self.arch = arch
+    self.arch = arch # arch = None is the default signifying an identity
     self.arch_link = None
     self.arch_out = None
     self.type_arch = None
@@ -174,7 +174,7 @@ class stream (chain):
     other options: 'softmax', and 'sigmoid'
     """
     if tfn is None: tfn = DEFAULT_TRANSFER_FUNCTION
-    self.tfn = Creation(tfn)
+    self.tfn = tfn
     self.tfn_args = tfn_args
     self.tfn_kwds = dict(tfn_kwds)
     self.trans_fn = self.tfn
@@ -224,7 +224,7 @@ class stream (chain):
     """
     nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
-    self.nor = Creation(nor)
+    self.nor = nor
     self.nor_args = nor_args
     self_nor_kwds = nor_kwds
 
@@ -441,9 +441,9 @@ class stream (chain):
     if other is None:
       other = stream()
     elif not isinstance(other, stream) and not issubclass(other, stream):
-      raise TypeError("Cannot clone stream to class " + str(other))
-    elif other.links is not None:
-      raise AttributeError("Cannot clone to a stream instance with pre-existing links")
+      raise TypeError("Cannot clone to target class " + str(other))
+    elif other.links is not None and self.arch != other.arch:
+      raise AttributeError("Cannot clone to a target instance with differing architecture")
 
     # Clone the architecture - does not create links because they are add-appended
     other.set_arch(self.arch)
@@ -453,8 +453,8 @@ class stream (chain):
 
     # Now the rest of the specification (tedious, but safe)
 
-    if self.is_training is None: other.set_is_training(self.is_training)
     if self.order is not None: other.set_order(self.order)
+    if self.ist is not None: other.set_is_training(self.ist)
     if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
@@ -462,6 +462,10 @@ class stream (chain):
     if self.pfn is not None: other.set_poolfn(self.pfn, *self.pfn_args, **self.pfn_kwds)
     if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
+
+    # Copy over the summary transfer function
+
+    other.trans_fn = self.trans_fn
 
     # Rename and redevice
     other.set_name(self.name)
