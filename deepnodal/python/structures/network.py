@@ -6,6 +6,7 @@ be specified directly since they do not recognise hierarchical structures.
 
 # Gary Bhumbra
 #-------------------------------------------------------------------------------
+DEFAULT_INPUT_STRUCTURE_TYPES = ['stream', 'level', 'stack']
 DEFAULT_INPUT_DATA_TYPE = 'float32'
 
 #-------------------------------------------------------------------------------
@@ -119,8 +120,10 @@ class network (stem):
     return self.outnets
 
 #-------------------------------------------------------------------------------
-  def set_inputs(self, inputs = None):
+  def set_inputs(self, inputs = None, *inputs_args, **inputs_kwds):
     self.inputs = inputs
+    self.inputs_args = inputs_args
+    self.inputs_kwds = dict(inputs_kwds)
     self.type_inputs = None
     if self.inputs is None: return
     if type(self.inputs) is not list:
@@ -130,10 +133,10 @@ class network (stem):
         self.inputs = [self.inputs]
     if len(self.inputs) != self.n_subnets:
       raise ValueError("Number of inputs must match number of subnets")
-    self.type_inputs = ['arch'] * self.n_subnets
+    self.type_inputs = ['unspecified'] * self.n_subnets
     for i, inp in enumerate(self.inputs):
       if type(inp) is list or type(inp) is tuple or type(inp) is int:
-        pass
+        self.type_inputs[i] = 'arch'
       elif isinstance(inp, stream) or issubclass(inp, stream):
         self.type_inputs[i] = 'stream'
       elif isinstance(inp, level) or issubclass(inp, level):
@@ -187,7 +190,7 @@ class network (stem):
     other_inputs = list(self.inputs)
 
     for i, inp in enumerate(other_inputs):
-      if self.type_inputs[i] != 'arch':
+      if self.type_inputs[i] in DEFAULT_INPUT_STRUCTURE_TYPES:
         index = None
         for j, obj in enumerate(self.subnets):
           if inp == obj:
@@ -196,6 +199,8 @@ class network (stem):
           raise AttributeError("Cannot clone unidentifiable non-architectural input: "+str(inp))
         else:
           other_inputs[i] = other.subnets[index]
+      elif self.type_inputs[i] != "arch": # i.e. 'unspecified'
+        raise ValueError("Cannot clone functional forms of unspecified inputs")
     
     other.set_inputs(other_inputs)
 
@@ -212,9 +217,10 @@ class network (stem):
   def setup(self, ist = None, **kwds):
     if self.reg is None: self.set_reguln()
     if self.inputs is None: return
+    self.set_is_training(ist)
 
     # Setup inputs
-    self._setup_inputs(ist)
+    self._setup_inputs()
 
     # Declare the subnets as subobjects to have access to their respective parameters
     self.set_subobjects(self.subnets) 
@@ -231,28 +237,38 @@ class network (stem):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _setup_inputs(self, ist = None, **kwds):
-    self.set_is_training(ist)
+  def _setup_inputs(self):
     self.inp = [None] * self.n_subnets
     for i in range(self.n_subnets):
-      if self.type_inputs[i] != 'arch':
+      if self.type_inputs[i] in DEFAULT_INPUT_STRUCTURE_TYPES:
         self.inp[i] = self.inputs[i].ret_out()
         if self.inp[i] is None:
           raise ValueError("Sequential input logic violated.")
-      else:
-        kwargs = dict(kwds)
-        if 'dtype' not in kwargs:
-          kwargs.update({'dtype':Dtype(DEFAULT_INPUT_DATA_TYPE)})
+      elif self.type_inputs[i] == 'arch':
+        kwds = dict(self.inputs_kwds)
+        if 'dtype' not in kwds:
+          kwds.update({'dtype': Dtype(DEFAULT_INPUT_DATA_TYPE)})
         inp_dim = [None]
         for dim in self.inputs[i]:
           inp_dim.append(dim)
         if self.dev is None:
-          self.inp[i] = Creation('tensor')(kwargs['dtype'], shape = inp_dim,
-                                       name = self.name + "/inputs_" + str(i))
+          self.inp[i] = Creation('tensor')(kwds['dtype'], shape = inp_dim,
+                                           name = self.name + "/inputs_" + str(i))
         else:
           with Device(self.dev):
-            self.inp[i] = Creation('tensor')(kwargs['dtype'], shape = inp_dim,
+            self.inp[i] = Creation('tensor')(kwds['dtype'], shape = inp_dim,
                                          name = self.name + "/inputs_" + str(i))
+      else: # the input is being over-ridden externally, which is fine.
+        if self.dev is None:
+          self.inp[i] = Creation(self.inputs)(self.inputs_args[i],
+                                              name = self.name + "/inputs_" + str(i),
+                                              **self.inputs_kwds)
+        else:
+          with Device(self.dev):
+            self.inp[i] = Creation(self.inputs)(self.inputs_args[i],
+                                                name = self.name + "/inputs_" + str(i),
+                                                **self.inputs_kwds)
+
       self.subnets[i].setup(self.inp[i])
     self.out = [subnet.ret_out() for subnet in self.subnets]
 

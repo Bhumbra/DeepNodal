@@ -16,10 +16,12 @@ from deepnodal.python.functions.overseer import *
 #------------------------------------------------------------------------------- 
 class supervisor (overseer):
   """
-  A supervisor is an overseer receiving an expected output data set (called labels) 
-  for each input data set and uses a gradient-based optimiser (e.g. stochastic
-  gradient descent) to update the parameters within the work architecture 
-  according to pre-specified learning regimes based on a cost function. 
+  A supervisor is an overseer with the benefit of labels. As a result, it should
+  receive an expected output data set for each input data set. It uses a gradient-
+  based optimiser (e.g. stochastic gradient descent) to update the parameters 
+  within the work architecture according to pre-specified learning regimes based 
+  on a cost or loss function. Optionally this can include additional 
+  regularisation losses based on the magnitude of weight parameters.
   
   The convention adopted here is as follows:
 
@@ -73,8 +75,7 @@ class supervisor (overseer):
     self.erq_args = erq_args
     self.erq_kwds = dict(erq_kwds)
     if self.erq is None: self.erq = DEFAULT_ERROR_QUOTIENT
-    self.erq = Creation(self.erq)
-    if self.erq == Creation('mse'):
+    if Creation(self.erq) == Creation('mse'):
       if len(erq_args):
         print("Warning: error quotient specifications for k are ignored for mean square errors")
         self.erq_args = ()
@@ -97,7 +98,7 @@ class supervisor (overseer):
     if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_summaries = False, **kwds):
+  def setup(self, ist = None, gst = None, skip_metrics = False, **kwds):
 
     if self.work is None: return
     if self.opt is None: self.set_optimiser(DEFAULT_OPTIMISER)
@@ -107,6 +108,15 @@ class supervisor (overseer):
     
     # Setup supervisor labels objects
     self._setup_labels()
+
+    # Setup metrics
+    self._setup_metrics(skip_metrics)
+
+    return self.ist, self.gst
+
+#-------------------------------------------------------------------------------
+  def _setup_metrics(self, skip_metrics = False):
+    if skip_metrics: return
 
     # Setup network output and error objects
     self._setup_errors()
@@ -122,8 +132,6 @@ class supervisor (overseer):
 
     # Setup parameter update operations
     self._setup_delta_ops()
-
-    if skip_summaries: return
 
     # Setup summary scalars
     self._setup_scalars()

@@ -23,8 +23,8 @@ class trainer (slave):
   provision for training sessions, variable handling, loggers, and savers. 
 
   It is abstract, and inheriting classes must define self.train to be
-  instantiable. The most immediate example of this is the class supervisor, via
-  learner.
+  instantiable. The most immediate example of this is is the class supervisor, 
+  via overseer.
 
   """
   def_name = 'trainer'
@@ -90,11 +90,12 @@ class trainer (slave):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_summaries = False):
+  def setup(self, ist = None, gst = None, skip_metrics = False):
     if self.work is None: return 
 
     # Setup variables and outputs
-    self._setup_inputs(ist)
+    self._setup_is_training(ist)
+    self._setup_inputs()
     self._setup_variables()
     self._setup_outputs()
 
@@ -102,23 +103,35 @@ class trainer (slave):
     self._setup_batch_size()
     self._setup_learning_rate(gst)
     self._setup_optimiser()
-
-    if skip_summaries: return self.ist, self.gst
-
-    # Setup the scalar and distribution summaries
-    self._setup_scalars()
-    self._setup_distros()
+    self._setup_metrics(skip_metrics)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_inputs(self, ist = None):
-    # Setup is_training first
-    if self.ist is None: 
+  def _setup_metrics(self, skip_metrics = False):
+    # Setup the scalar and distribution summaries
+    if skip_metrics: return
+    self._setup_scalars()
+    self._setup_distros()
+
+#-------------------------------------------------------------------------------
+  def _setup_is_training(self, ist = None):
+    if self.ist is None:
       if ist is None:
-        self._setup_is_training()
+        pass
       else:
-        self.set_is_training(ist)
+        return self.set_is_training(ist)
+    else:
+      return self.ist
+    if self.dev is None:
+      self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/batch/is_training")
+    else:
+      with Device(self.dev):
+        self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/batch/is_training")
+    return self.ist
+
+#-------------------------------------------------------------------------------
+  def _setup_inputs(self):
 
     # Setup the work and inputs
     self.work.setup(self.ist)
@@ -129,16 +142,9 @@ class trainer (slave):
     self.inputs = self.work.inp[0]
     return self.inputs
 
-#-------------------------------------------------------------------------------
-  def _setup_is_training(self):
-    if self.dev is None:
-      self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/batch/is_training")
-    else:
-      with Device(self.dev):
-        self.ist = Creation('tensor')(Dtype('bool'), name=self.name+"/batch/is_training")
 
 #-------------------------------------------------------------------------------
-  def _setup_variables(self):
+  def _setup_variables(self): # this creates no graph objects
     """
     self.params is list of dictionaries in the form:
     self.param[i] = {self.variable_names[i]: self.variables}
@@ -157,7 +163,7 @@ class trainer (slave):
     return self.variables
 
 #-------------------------------------------------------------------------------
-  def _setup_outputs(self):
+  def _setup_outputs(self): # this creates no graph objects
     self.n_outputs = len(self.work.outputs)
     self.output_names = [None] * self.n_outputs
     self.outputs = [None] * self.n_outputs
@@ -179,7 +185,7 @@ class trainer (slave):
           self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs)[0])
 
 #-------------------------------------------------------------------------------
-  def _setup_learning_rate(self, gst = None): # this sets up batch_size and learning_rate
+  def _setup_learning_rate(self, gst = None): # this sets up self.learning_rate
     # Setup global_step first
     if self.gst is None: 
       if gst is None:
@@ -220,7 +226,7 @@ class trainer (slave):
     self.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
-  def _setup_optimiser(self, ist = None):
+  def _setup_optimiser(self):
     kwds = dict(self.opt_kwds)
     if 'name' not in kwds:
       kwds.update({'name': self.name+"/optimiser"})
@@ -260,6 +266,11 @@ class trainer (slave):
     return self.distros
 
 #-------------------------------------------------------------------------------
+  def set_session(self, session = None):
+    self.session = session
+    return self.session
+
+#-------------------------------------------------------------------------------
   def new_session(self, write_dir = None, *args, **kwds):
     if self.outputs is None: self.setup()
 
@@ -267,12 +278,11 @@ class trainer (slave):
     self._setup_write_dir(write_dir)
     self._setup_logger()
     self._setup_saver()
-    self.session = Creation('session')(*args, **kwds)
+    session = self.set_session(Creation('session')(*args, **kwds))
 
     # Ideal point to confirm whether self.gvi has been setup and run
-    if self.session is not None and self.gvi is None: self.init_variables()
-
-    return self.session
+    if session is not None and self.gvi is None: self.init_variables()
+    return session
 
 #-------------------------------------------------------------------------------
   def init_variables(self, restorepoint = None):

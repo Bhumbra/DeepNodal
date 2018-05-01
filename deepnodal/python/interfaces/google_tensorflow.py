@@ -10,6 +10,7 @@ from tensorflow.contrib.framework import arg_scope
 from deepnodal.python.interfaces.tf_extended import *
 
 #-------------------------------------------------------------------------------
+# It seems tf.AUTO_REUSE does not feature in early TensorFlow versions
 try:
   TF_AUTO_REUSE = tf.AUTO_REUSE
 except AttributeError:
@@ -19,7 +20,6 @@ except AttributeError:
 # Creation dictionary
 
 creation_dict = {'identity': tf.identity,
-                 'device': tf.device,
                  'add': tf.add,
                  'add_ewise': tf.add_n,
                  'subtract': tf.subtract,
@@ -70,7 +70,6 @@ creation_dict = {'identity': tf.identity,
                  'defaults': tf.get_default_graph,
                  'session': tf.Session}
 
-#-------------------------------------------------------------------------------
 def Creation(*args):
   if not(len(args)): return None
   creation = creation_dict
@@ -79,7 +78,7 @@ def Creation(*args):
   return creation
 
 #-------------------------------------------------------------------------------
-# Dtype dictionary
+# Dtype 
 
 dtype_dict = {None: None,
               'bool': tf.bool,
@@ -89,49 +88,56 @@ dtype_dict = {None: None,
               'float64': tf.float64,
               'tensor': tf.Tensor}
 
-#-------------------------------------------------------------------------------
 def Dtype(arg):
   return dtype_dict[arg]
 
-#-------------------------------------------------------------------------------
-def Device(spec):
-  return creation_dict['device'](spec)
 
 #-------------------------------------------------------------------------------
-# Scope dictionary
+# Scope 
 
 scope_dict = {'name': name_scope,
               'var': variable_scope,
               'arg': arg_scope}
 
-#-------------------------------------------------------------------------------
 def Scope(spec, *args, **kwds):
   return scope_dict[spec](*args, **kwds)
 
 #-------------------------------------------------------------------------------
-# Keys dictionary
+# Keys (not yet in use in deepnodal)
 keys_dict = {'reg': tf.GraphKeys.REGULARIZATION_LOSSES}
 
-#-------------------------------------------------------------------------------
 def Keys(arg, *args, **kwds):
   return tf.get_collection(keys_dict[arg], *args, **kwds)
 
 #-------------------------------------------------------------------------------
-# Flags dictionary
+# Flags 
 flag_dict = {'auto_reuse': TF_AUTO_REUSE}
 
-#-------------------------------------------------------------------------------
 def Flag(arg):
   return flag_dict[arg]
 
 #-------------------------------------------------------------------------------
-# Summary dictionary
+# Summary 
 summary_dict = {'scalar': tf.summary.scalar, 'distro': tf.summary.histogram}
 
-#-------------------------------------------------------------------------------
 def Summary(arg):
   return summary_dict[arg]
 
+#-------------------------------------------------------------------------------
+# Device
+device_dict = {'device': tf.device, 
+               'cpu': '/device:CPU:', 
+               'gpu': '/device:GPU:'}
+
+def Device(spec = None, number = None): # returns a string if number is not None
+  if number is None: return device_dict['device'](spec)
+  if spec == 'cpu' and number != 0:
+    raise ValueError("TensorFlow support for only single CPU device")
+  return device_dict[spec] + str(number)
+
+#-------------------------------------------------------------------------------
+def Device(spec):
+  return creation_dict['device'](spec)
 #-------------------------------------------------------------------------------
 # Parameters list
 

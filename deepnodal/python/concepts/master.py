@@ -19,7 +19,7 @@ class master (function):
   """
 
   def_name = 'master'              # default name
-  def_subworker = leaf             # default subworker class
+  def_subworker = slave            # default subworker class
   def_subworker_name = 'subworker' # default subworker name
   subworkers = None                # subworker instances which may be leaves or stems
   n_subworkers = None              # number of subworkers

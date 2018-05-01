@@ -18,13 +18,13 @@ from deepnodal.python.functions.trainer import *
 class overseer (trainer):
   """
   A overseer is an abstract class inheriting from trainer, associated with 
-  a single optimiser to perform unsupervised or supervised training,
-  however a overseer can additionaly use one or more regimens for learning. 
+  a single optimiser to perform unsupervised or supervised training.
+  In addition a overseer can use one or more training regimens for learning. 
   
   The class overseer does not calculate gradients.
 
   It is abstract, and inheriting classes must define self.train to be
-  instantiable. The most immediate example of this is the class supervisor.
+  instantiable. The most immediate example of this is is the class supervisor.
 
   """
   def_name = 'overseer'
@@ -94,12 +94,12 @@ class overseer (trainer):
     return self.regime[regime_index]
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_summaries = False):
+  def setup(self, ist = None, gst = None, skip_metrics = False):
 
     # Setup the regimes
     gst = self._setup_regimes(gst)
 
-    # Setup all trainer objects except the summaries
+    # Setup all trainer objects except the metrics
     ist, gst = trainer.setup(self, ist, gst, True)
 
     # Collate the regimen parameter indices 
@@ -108,11 +108,9 @@ class overseer (trainer):
       _regime.setup(self.gst)
       self.regime_param_indices[i] = self.work.ret_params(_regime.par, True)
 
-    if skip_summaries: return
+    self._setup_metrics(skip_metrics)
 
-    # Setup the scalar and distribution summaries
-    self._setup_scalars()
-    self._setup_distros()
+    return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
   def _setup_regimes(self, gst = None): # this sets up the regime learning rate graph objects
