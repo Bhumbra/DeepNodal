@@ -79,15 +79,15 @@ class overseer (trainer):
     return self.n_regimes - 1
 
 #-------------------------------------------------------------------------------
-  def set_regime_spec(self, regime_index = None, dro = None, par = None):
+  def set_regime(self, regime_index = None, dro = None, par = None):
     """
     dro is the dropout specification
     par is the parameter specification
     The affected regime class instance is returned.
     """
-    self.regime[regime_index].set_dropouts(dro)
-    self.regime[regime_index].set_parameters(par)
-    return self.regime[regime_index]
+    self.regimes[regime_index].set_dropouts(dro)
+    self.regimes[regime_index].set_parameters(par)
+    return self.regimes[regime_index]
 
 #-------------------------------------------------------------------------------
   def setup(self, ist = None, gst = None, skip_metrics = False):

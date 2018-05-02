@@ -53,6 +53,7 @@ class stream (chain):
   pin = None          # Parameter initialisation
   nor = None          # Normalisation
   trans_fn = None     # Identical to tfn
+  dro_link = None     # references to dropout_link
   dropout_quotient = None
 
 #-------------------------------------------------------------------------------
@@ -133,10 +134,9 @@ class stream (chain):
     if ubi is None: ubi = DEFAULT_USE_BIAS
     self.ubi = ubi
     self.ubi_args = ubi_args
-    self.ubi_kwds = ubi_kwds
+    self.ubi_kwds = dict(ubi_kwds)
     if not(len(ubi_kwds)):
       ubi_kwds = {'use_bias': self.ubi}
-
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, dro = None, *dro_args, **dro_kwds):
@@ -156,15 +156,13 @@ class stream (chain):
       else:
         raise ValueError("Unknown dropout change specification")
     if type(dro) is float and not(len(dro_args)) and not(len(dro_kwds)):
-      dro, dro_args = 'var', [dro]
+      dro, dro_args = 'var', (dro,)
     if dro is not None and not(len(dro_args)):
       raise ValueError("Unknown dropout specification")
 
-    self.dro = dro if type(dro) is not str else Creation(dro) # note this can be an `identity'
+    self.dro = dro
     self.dro_args = dro_args
     self.dro_kwds = dict(dro_kwds)
-    if 'trainable' not in self.dro_kwds:
-      self.dro_kwds.update({'trainable':False})
 
 #-------------------------------------------------------------------------------
   def set_transfn(self, tfn = None, *tfn_args, **tfn_kwds):
@@ -197,7 +195,7 @@ class stream (chain):
     """
     self.pfn = pfn
     self.pfn_args = pfn_args
-    self.pfn_kwds = pfn_kwds
+    self.pfn_kwds = dict(pfn_kwds)
     if self.type_arch != 'pool': return
     if self.pfn is None: self.pfn = DEFAULT_POOLING_FUNCTION
 
@@ -226,7 +224,7 @@ class stream (chain):
     """
     self.nor = nor
     self.nor_args = nor_args
-    self_nor_kwds = nor_kwds
+    self.nor_kwds = dict(nor_kwds)
 
 #-------------------------------------------------------------------------------
   def setup(self, inp = None):
@@ -291,13 +289,20 @@ class stream (chain):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
     if self.dev is None:
-      self.dropout_quotient = self.dro(*self.dro_args, name = self.name + "/dropout_quotient", **self.dro_kwds)
-      self.dropout_keepprob = Creation('subtract')(1., self.dropout_quotient, name = self.name + "/dropout_keeprob")
+      self.dropout_quotient = Creation(self.dro)(*self.dro_args, 
+                              name = self.name + "/dropout/quotient", trainable=False)
     else:
       with Device(self.dev):
-        self.dropout_quotient = self.dro(*self.dro_args, name = self.name + "/dropout_quotient", **self.dro_kwds)
-        self.dropout_keepprob = Creation('subtract')(1., self.dropout_quotient, name = self.name + "/dropout_keeprob")
-    return self.add_link(Creation('dropout'), self.dropout_kp, scope = self.name + "/dropout")
+        self.dropout_quotient = Creation(self.dro)(*self.dro_args, 
+                                name = self.name + "/dropout/quotient", trainable=False)
+    kwds = dict(self.dro_kwds)
+    if 'training' not in kwds:
+      if self.ist is None:
+        raise ValueError("Cannot setup dropout before setting training flag.")
+      else:
+        kwds.update({'training': self.ist})
+    return self.add_link(Creation('dropout'), rate = self.dropout_quotient, 
+                         name = self.name + "/dropout", **kwds)
 
 #-------------------------------------------------------------------------------
   def _setup_arch(self):
@@ -345,13 +350,15 @@ class stream (chain):
   def _setup_norm(self):
     if self.nor is None: return self.ret_out()
     kwds = dict(self.nor_kwds)
-    if self.nor == Creation('batch_norm'):
-      if 'is_training' not in self.nor_kwds:
+    if Creation(self.nor) == Creation('batch_norm'):
+      if 'training' not in kwds:
         if self.ist is None:
           raise ValueError("Cannot setup batch_norm before setting training flag.")
         else:
-          kwds.update({'is_training': self.ist})
-    self.add_link(Creation(self.nor), *self.nor_args, **self.nor_kwds)
+          kwds.update({'training': self.ist})
+      if 'name' not in kwds:
+        kwds.update({'name': self.name + "/batch_norm"})
+    self.add_link(Creation(self.nor), *self.nor_args, **kwds)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

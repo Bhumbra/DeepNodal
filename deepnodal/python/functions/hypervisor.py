@@ -175,11 +175,11 @@ class hypervisor (supervisor, master, stem):
     for i, _input in enumerate(self.inputs):
       if self.dev is None:
         self.inputs_to_clones[i] = Creation('diverge')(_input, self.n_devs, axis = 0,
-                                   name = self.name + '/inputs_to_clones')
+                                   name = self.name + '/batch/inputs_to_clones')
       else:
         with Device(self.dev):
           self.inputs_to_clones[i] = Creation('diverge')(_input, self.n_devs, axis = 0,
-                                     name = self.name + '/inputs_to_clones')
+                                     name = self.name + '/batch/inputs_to_clones')
 
     # Re-index by clone
     self.inputs_by_clones = [None] * self.n_devs
@@ -211,11 +211,11 @@ class hypervisor (supervisor, master, stem):
     for i in range(self.n_outputs):
       if self.dev is None:
         self.outputs[i] = Creation('con')(slave_outputs_by_slave[i], axis=0,
-                          name = self.name + "/" + self.output_names[i])
+                          name = self.name + "/" + self.work.name + "/update_ops/" + self.output_names[i])
       else:
         with Device(self.dev):
           self.outputs[i] = Creation('con')(slave_outputs_by_slave[i], axis=0,
-                            name = self.name + "/" + self.output_names[i])
+                            name = self.name + "/" + self.work.name + "/update_ops/" + self.output_names[i])
     return self.outputs
 
 #-------------------------------------------------------------------------------
@@ -265,11 +265,11 @@ class hypervisor (supervisor, master, stem):
     # Setup labels_to_slaves through diverging by splitting label batch
     if self.dev is None:
       self.labels_to_slaves = Creation('diverge')(self.labels, self.n_devs, axis = 0,
-                              name = self.name + '/labels_to_slaves')
+                              name = self.name + '/batch/labels_to_slaves')
     else:
       with Device(self.dev):
         self.labels_to_slaves = Creation('diverge')(self.labels, self.n_devs, axis = 0,
-                                name = self.name + '/labels_to_slaves')
+                                name = self.name + '/batch/labels_to_slaves')
 
     # Set identity object specifications to the slaves
     for _labels, _slave in zip(list(self.labels_to_slaves), self.slaves):
@@ -283,17 +283,20 @@ class hypervisor (supervisor, master, stem):
     if self.unit_dev:
       return supervisor._setup_errors(self)
 
+    # If not(self.unit_dev), hypervisor doesn't care about its own hat values
+    # because it never evaluates them.
+
     slave_errors = [_slave.errors for _slave in self.slaves]
     if type(slave_errors) is not list:
       if self.dev is None:
         self.errors = Creation('mean')(Creation('pack')(slave_errors,
-                      name = self.name + "/error_quotients"),
-                      name = self.name + "/error_quotient")
+                      name = self.name + "/metrics/error_quotients"),
+                      name = self.name + "/metrics/error_quotient")
       else:
         with Device(self.dev):
           self.errors = Creation('mean')(Creation('pack')(slave_errors,
-                        name = self.name + "/error_quotients"),
-                        name = self.name + "/error_quotient")
+                        name = self.name + "/metrics/error_quotients"),
+                        name = self.name + "/metrics/error_quotient")
       return self.errors
     
     slave_errors_by_slave = [None] * len(self.erq_args[0])
@@ -307,13 +310,13 @@ class hypervisor (supervisor, master, stem):
     for i, k in enumerate(self.erq_args[0]):
       if self.dev is None:
         self.errors[i] = Creation('mean')(Creation('pack')(slave_errors_by_slave[i],
-                         name = self.name + "/error_quotients_" + str(k)), 
-                         name = self.name + "/error_quotient_" + str(k))
+                         name = self.name + "/metrics/error_quotients_" + str(k)), 
+                         name = self.name + "/metrics/error_quotient_" + str(k))
       else:
         with Device(self.dev):
           self.errors[i] = Creation('mean')(Creation('pack')(slave_errors_by_slave[i],
-                           name = self.name + "/error_quotients_" + str(k)), 
-                           name = self.name + "/error_quotient_" + str(k))
+                           name = self.name + "/metrics/error_quotients_" + str(k)), 
+                           name = self.name + "/metrics/error_quotient_" + str(k))
     return self.errors
 
 #-------------------------------------------------------------------------------
@@ -324,13 +327,13 @@ class hypervisor (supervisor, master, stem):
     slave_costs = [_slave.cost for _slave in self.slaves]
     if self.dev is None:
       self.cost = Creation('mean')(Creation('pack')(slave_costs,
-                  name = self.name + "/costs"),
-                  name = self.name + "/cost")
+                  name = self.name + "/metrics/costs"),
+                  name = self.name + "/metrics/cost")
     else:
       with Device(self.dev):
         self.cost = Creation('mean')(Creation('pack')(slave_costs,
-                    name = self.name + "/costs"),
-                    name = self.name + "/cost")
+                    name = self.name + "/metrics/costs"),
+                    name = self.name + "/metrics/cost")
     return self.cost
 
 #-------------------------------------------------------------------------------
@@ -341,13 +344,13 @@ class hypervisor (supervisor, master, stem):
     slave_losses = [_slave.loss for _slave in self.slaves]
     if self.dev is None:
       self.loss = Creation('mean')(Creation('pack')(slave_losses,
-                  name = self.name + "/losses"),
-                  name = self.name + "/loss")
+                  name = self.name + "/metrics/losses"),
+                  name = self.name + "/metrics/loss")
     else:
       with Device(self.dev):
         self.loss = Creation('mean')(Creation('pack')(slave_losses,
-                    name = self.name + "/losses"),
-                    name = self.name + "/loss")
+                    name = self.name + "/metrics/losses"),
+                    name = self.name + "/metrics/loss")
     return self.loss
 
 #-------------------------------------------------------------------------------
@@ -406,7 +409,7 @@ class hypervisor (supervisor, master, stem):
     for _slave in self.slaves:
       for i in range(self.n_params):
         k += 1
-        with Scope('var', self.name+"/assign_ops/param_"+str(k), Flag('auto_reuse')):
+        with Scope('var', self.name + "/" + self.work.name + "/update_ops/param_"+str(k), Flag('auto_reuse')):
           if self.dev is None:
             self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
           else:
@@ -422,19 +425,19 @@ class hypervisor (supervisor, master, stem):
     for i, _regime in enumerate(self.regimes):
       self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
           self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-        with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/regimens/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
             self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
                                                                global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
             self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
             self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-          with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
               self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
                                                                  global_step = self.gst)

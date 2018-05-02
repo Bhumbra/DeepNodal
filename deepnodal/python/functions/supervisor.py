@@ -35,7 +35,7 @@ class supervisor (overseer):
   gradients = None             # gradients
   grad_and_vars = None         # gradients and variables
   regime_grad_and_vars = None  # grad_and_vars relevant to each regime
-  hat_values = None            # object to compare labels for error calculations
+  hatval = None            # object to compare labels for error calculations
   arch_out = None              # object to compare labels for cost calculations 
 
 #-------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ class supervisor (overseer):
       if not len(self.erq_args):
         self.erq_args = [1],
         if 'name' not in erq_kwds:
-          self.erq_kwds.update({'name': self.name + "/error_quotient"})
+          self.erq_kwds.update({'name': self.name + "/metrics/error_quotient"})
       elif type(self.erq_args[0]) is not list:
         self.erq_args = [self.erq_args[0]],
 
@@ -106,10 +106,8 @@ class supervisor (overseer):
     # Setup learning rate, optimiser, and work network
     overseer.setup(self, ist, gst, True, **kwds)
     
-    # Setup supervisor labels objects
+    # Setup supervisor labels objects and metrics
     self._setup_labels()
-
-    # Setup metrics
     self._setup_metrics(skip_metrics)
 
     return self.ist, self.gst
@@ -118,25 +116,20 @@ class supervisor (overseer):
   def _setup_metrics(self, skip_metrics = False):
     if skip_metrics: return
 
-    # Setup network output and error objects
+    # Setup hat values and errors
+    self._setup_hatval()
     self._setup_errors()
 
-    # Setup cost function
+    # Setup cost and loss objects
     self._setup_costfn()
-
-    # Setup losses 
     self._setup_losses()
 
-    # Setup gradient computations
+    # Setup gradient computations and parameter update operations
     self._setup_gradients()
-
-    # Setup parameter update operations
     self._setup_train_ops()
 
-    # Setup summary scalars
+    # Setup summary scalars and distributions
     self._setup_scalars()
-
-    # Setup summary distributions
     self._setup_distros()
 
 #-------------------------------------------------------------------------------
@@ -151,29 +144,32 @@ class supervisor (overseer):
       self.labels = self.lbl
 
 #-------------------------------------------------------------------------------
-  def _setup_errors(self):
-    self.hat_values = self.work.outnets
-    self.errors = None
-    if len(self.hat_values) != 1:
+  def _setup_hatval(self):
+    self.hatval = self.work.outnets
+    if len(self.hatval) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')
-    self.hat_values = self.hat_values[0].ret_out()
-    while type(self.hat_values) is tuple or type(self.hat_values) is list:
-      if len(self.hat_values) != 1:
+    self.hatval = self.hatval[0].ret_out()
+    while type(self.hatval) is tuple or type(self.hatval) is list:
+      if len(self.hatval) != 1:
         raise ValueError('Supervisor class currently supports only a single unit stream output')
       else:
-        self.hat_values = list(self.hat_values)[0]
+        self.hatval = list(self.hatval)[0]
+
+#-------------------------------------------------------------------------------
+  def _setup_errors(self):
+    self.errors = None
     if not(len(self.erq_args[0])): # i.e. mse
       if self.dev is None:
-        self.errors = [Creation(self.erq)(self.hat_values, self.labels, **self.erq_kwds)]
+        self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
       else:
         with Device(self.dev):
-          self.errors = [Creation(self.erq)(self.hat_values, self.labels, **self.erq_kwds)]
+          self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
     else:
       self.errors = [None] * len(self.erq_args)
       # at the time of coding, "in_top_k" was not supported by GPU devices
       for i, k in enumerate(self.erq_args[0]):
-        self.errors[i] = Creation(self.erq)(self.hat_values, self.labels, k,\
-                                            name = self.name + "/error_quotient_" + str(k))
+        self.errors[i] = Creation(self.erq)(self.hatval, self.labels, k,\
+                                            name = self.name + "/metrics/error_quotient_" + str(k))
     return self.errors
 
 #-------------------------------------------------------------------------------
@@ -186,7 +182,7 @@ class supervisor (overseer):
     kwds = dict(self.cfn_kwds)
     if Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
       self.arch_out = self.arch_out[0].arch_out
-      kwds.update({'name': self.name + "/cost"})
+      kwds.update({'name': self.name + "/metrics/cost"})
       if self.dev is None:
         self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
                                        activation_fn = self.trans_fn_out, **kwds)
@@ -195,32 +191,32 @@ class supervisor (overseer):
           self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
                                          activation_fn = self.trans_fn_out, **kwds)
     else: # we'll just use the hat values
-      ndim_hat_values, ndim_labels = len(Shape(self.hat_values)), len(Shape(self.labels))
-      if ndim_hat_values == ndim_labels:
+      ndim_hatval, ndim_labels = len(Shape(self.hatval)), len(Shape(self.labels))
+      if ndim_hatval == ndim_labels:
         if self.dev is None:
-          with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
-            self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
+          with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+            self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
         else:
           with Device(self.dev):
-            with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
-              self.cost = Creation(self.cfn)(self.hat_values, self.labels, *self.cfn_args, **self.cfn_kwds)
-      elif Creation(self.cfn) == Creation('mse') and ndim_hat_values == 2 and ndim_labels == 1:
+            with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+              self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
+      elif Creation(self.cfn) == Creation('mse') and ndim_hatval == 2 and ndim_labels == 1:
         # Here we attempt to create an interface that allows sparse labels to be converted to one-hot dense tensors
         if self.dev is None:
-          self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hat_values)[-1]),
+          self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
                                                    name=self.name+"/batch/labels/dense")
         else:
           with Device(self.dev):
-            self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hat_values)[-1]),
+            self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
                                                      name=self.name+"/batch/labels/dense")
         if self.dev is None:
-          with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
-            self.cost = Creation(self.cfn)(self.hat_values, self.labels_dense,
+          with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+            self.cost = Creation(self.cfn)(self.hatval, self.labels_dense,
                                            *self.cfn_args, **self.cfn_kwds)
         else:
           with Device(self.dev):
-            with Scope('var', self.name + "/cost", reuse=Flag('auto_reuse')):
-              self.cost = Creation(self.cfn)(self.hat_values, self.labels_dense,
+            with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+              self.cost = Creation(self.cfn)(self.hatval, self.labels_dense,
                                              *self.cfn_args, **self.cfn_kwds)
 
     return self.cost
@@ -230,16 +226,16 @@ class supervisor (overseer):
     self.reg_loss = self.work.reg_loss
     if self.reg_loss is None:
       if self.dev is None:
-        self.loss = Creation('identity')(self.cost, name = self.name + "/loss")
+        self.loss = Creation('identity')(self.cost, name = self.name + "/metrics/loss")
       else:
         with Device(self.dev):
-          self.loss = Creation('identity')(self.cost, name = self.name + "/loss")
+          self.loss = Creation('identity')(self.cost, name = self.name + "/metrics/loss")
     else:
       if self.dev is None:
-        self.loss = Creation('add_ewise')([self.cost, self.reg_loss], name = self.name + "/loss")
+        self.loss = Creation('add_ewise')([self.cost, self.reg_loss], name = self.name + "/metrics/loss")
       else:
         with Device(self.dev):
-          self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/loss")
+          self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/metrics/loss")
     return self.loss
 
 #-------------------------------------------------------------------------------
@@ -267,19 +263,19 @@ class supervisor (overseer):
     for i, _regime in enumerate(self.regimes):
       self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
           self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
-        with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
             self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
                                                                global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
             self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
             self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
-          with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
               self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
                                                                  global_step = self.gst)
@@ -310,7 +306,7 @@ class supervisor (overseer):
     if test_scalar_names is None:
       test_scalar_names = [self.name+"/COST_TEST", self.name+"/LOSS_TEST"]
       if self.errors is not None:
-        if self.erq != Creation("in_top_k_error"):
+        if Creation(self.erq) != Creation("in_top_k_error"):
           test_scalar_names.append(self.name+"/ERRQ_TEST")
         else:
           for i, err in enumerate(self.errors):

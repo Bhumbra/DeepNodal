@@ -203,14 +203,14 @@ class stack (stem):
     return self.broadcast(self.subobject.set_poolfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_parinit(self, pin = None, *pin_args, **pin_kwds):
+  def set_parinit(self, spec = None, *args, **kwds):
     """
     spec = 'vsi' (variance scale initialiser) and/or 'zoi' (zero offset initialiser)
     """
     return self.broadcast(self.subobject.set_parinit, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_normal(self, nor = None, *nor_args, **nor_kwds):
+  def set_normal(self, spec = None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """

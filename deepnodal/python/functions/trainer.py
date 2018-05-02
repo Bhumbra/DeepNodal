@@ -240,8 +240,6 @@ class trainer (slave):
 #-------------------------------------------------------------------------------
   def _setup_optimiser(self):
     kwds = dict(self.opt_kwds)
-    if 'name' not in kwds:
-      kwds.update({'name': self.name+"/optimiser"})
     if self.dev is None:
       with Scope('var', self.name, reuse=Flag('auto_reuse')):
         self.optimiser = Creation(self.opt)(*self.opt_args, learning_rate=self.learning_rate, **kwds)
