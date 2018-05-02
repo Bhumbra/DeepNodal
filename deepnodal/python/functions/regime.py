@@ -57,7 +57,13 @@ class regime (slave):
         with Device(self.dev):
           self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
     else:
-      if lrn == Creation('identity'):
+      if lrn == Creation('var'):
+        if self.dev is None:
+          self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+        else:
+          with Device(self.dev):
+            self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+      elif lrn == Creation('identity'):
         if self.dev is None:
           self.learning_rate = lrn(*self.lrn_args, **kwds)
         else:
@@ -69,6 +75,8 @@ class regime (slave):
         else:
           with Device(self.dev):
             self.learning_rate = lrn(*self.lrn_args, global_step = self.gst, **kwds)
+    return self.learning_rate
+
 
 #-------------------------------------------------------------------------------
 

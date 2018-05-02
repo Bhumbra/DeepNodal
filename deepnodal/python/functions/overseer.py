@@ -76,10 +76,6 @@ class overseer (trainer):
     self.regimes.append(regime(self.name + "/regimes/regime_" + str(len(self.regimes)), self.dev))
     self.regimes[-1].set_learning_rate(Creation(lrn), *lrn_args, **lrn_kwargs)
     self.n_regimes = len(self.regimes)
-    if self.n_regimes > 1:
-      for _regime in self.regimes:
-        if callable(_regime.lrn):
-          print("Warning: functional learning rate specification incompatible with multiple regimes")
     return self.n_regimes - 1
 
 #-------------------------------------------------------------------------------
@@ -119,12 +115,15 @@ class overseer (trainer):
     if self.gst is None: self.set_global_step(gst)
     if self.gst is None: self._setup_global_step()
 
-    # Set up the regime index scalar
+    # Set up the regime index scalar - at the time of coding, not GPU-compatible
+    """
     if self.dev is None:
       self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
     else:
       with Device(self.dev):
         self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
+    """
+    self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
 
     # We need at least one regime
     if not(self.n_regimes):
@@ -134,7 +133,7 @@ class overseer (trainer):
     for _regime in self.regimes: _regime.setup(self.gst)
 
     # Construct learning rate specifications suitable for regimens
-    if self.n_regimes == 1:
+    if self.n_regimes == -1:
       self.set_learning_rate('identity', self.regimes[0].learning_rate)
     else:
       self.set_learning_rate('var', 0)
@@ -155,7 +154,7 @@ class overseer (trainer):
   def set_feed_dict(self, is_training = False, feed_inputs = None):
     
     # This feed_dictionary supports only inputs
-    feed_dict = {self.ist: is_training, self.inputs: feed_inputs}
+    feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs}
     if self.session is None: return feed_dict
 
     # Default using_regime if necessary
@@ -186,13 +185,12 @@ class overseer (trainer):
 
     # Update regime_index and run update operations if necessary
     if update_regime:
+      # Regime learning rates and parameter list updates look after themselves
+      # That just leaves the regime index and dropout
       self.using_regime = using_regime
       with Scope('var', self.name+"/regime_updates", reuse=True):
         op = self.regime_index.assign(self.using_regime)
         self.session.run(op)
-        if Creation(self.lrn) == Creation('var'):
-          op = self.learning_rate.assign(self.regimes[self.using_regime].learning_rate)
-          self.session.run(op)
       self.work.set_dropout(self.session, self.regimes[self.using_regime].dro)
 
     return update_regime

@@ -137,6 +137,8 @@ class network (stem):
     for i, inp in enumerate(self.inputs):
       if type(inp) is list or type(inp) is tuple or type(inp) is int:
         self.type_inputs[i] = 'arch'
+      elif type(inp) is str:
+        self.type_inputs[i] = str(inp)
       elif isinstance(inp, stream) or issubclass(inp, stream):
         self.type_inputs[i] = 'stream'
       elif isinstance(inp, level) or issubclass(inp, level):
@@ -258,16 +260,18 @@ class network (stem):
           with Device(self.dev):
             self.inp[i] = Creation('tensor')(kwds['dtype'], shape = inp_dim,
                                          name = self.name + "/inputs_" + str(i))
-      else: # the input is being over-ridden externally, which is fine.
+      elif callable(Creation(self.inputs[i])): # the inputs creation is being over-ridden externally
         if self.dev is None:
-          self.inp[i] = Creation(self.inputs)(self.inputs_args[i],
-                                              name = self.name + "/inputs_" + str(i),
-                                              **self.inputs_kwds)
+          self.inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
+                                                 name = self.name + "/inputs_" + str(i),
+                                                 **self.inputs_kwds)
         else:
           with Device(self.dev):
-            self.inp[i] = Creation(self.inputs)(self.inputs_args[i],
-                                                name = self.name + "/inputs_" + str(i),
-                                                **self.inputs_kwds)
+            self.inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
+                                                  name = self.name + "/inputs_" + str(i),
+                                                  **self.inputs_kwds)
+      else:
+        self.inp[i] = self.inputs[i]
 
       self.subnets[i].setup(self.inp[i])
     self.out = [subnet.ret_out() for subnet in self.subnets]

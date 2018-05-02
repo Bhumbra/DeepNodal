@@ -22,6 +22,10 @@ except AttributeError:
 creation_dict = {'identity': tf.identity,
                  'add': tf.add,
                  'add_ewise': tf.add_n,
+                 'aug_dims': tf.expand_dims,
+                 'assign': tf.assign,
+                 'combine': tf.group,
+                 'deps': tf.control_dependencies,
                  'subtract': tf.subtract,
                  'multiply': tf.multiply,
                  'shape': tf.shape,
@@ -135,9 +139,6 @@ def Device(spec = None, number = None): # returns a string if number is not None
     raise ValueError("TensorFlow support for only single CPU device")
   return device_dict[spec] + str(number)
 
-#-------------------------------------------------------------------------------
-def Device(spec):
-  return creation_dict['device'](spec)
 #-------------------------------------------------------------------------------
 # Parameters list
 

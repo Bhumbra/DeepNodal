@@ -138,8 +138,8 @@ class trainer (slave):
     if self.work.inputs is None:
       raise AttributeError("Cannot setup trainer without network inputs specified.")
     if len(self.work.inp) != 1:
-      raise ValueError("Current only single network input supported.")
-    self.inputs = self.work.inp[0]
+      raise ValueError("Current only single subnet network input supported.")
+    self.inputs = self.work.inp
     return self.inputs
 
 
@@ -174,15 +174,21 @@ class trainer (slave):
 
 #-------------------------------------------------------------------------------
   def _setup_batch_size(self):
+    # At the time of coding, batch_size evaluation is not GPU-compatible
+    """
     if self.dev is None:
       self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
       with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs)[0])
+        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
     else:
       with Device(self.dev):
         self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
         with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs)[0])
+          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+    """
+    self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
+    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
+      self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
 
 #-------------------------------------------------------------------------------
   def _setup_learning_rate(self, gst = None): # this sets up self.learning_rate
@@ -207,7 +213,13 @@ class trainer (slave):
         with Device(self.dev):
           self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
     else:
-      if lrn == Creation('identity'):
+      if lrn == Creation('var'):
+        if self.dev is None:
+          self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+        else:
+          with Device(self.dev):
+            self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+      elif lrn == Creation('identity'):
         if self.dev is None:
           self.learning_rate = lrn(*self.lrn_args, **kwds)
         else:
@@ -354,7 +366,7 @@ class trainer (slave):
   def set_feed_dict(self, is_training = False, feed_inputs = None):
     
     # This feed_dictionary supports only inputs
-    feed_dict = {self.ist: is_training, self.inputs: feed_inputs}
+    feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs}
     if self.session is None: return feed_dict
 
     # If training, update batch_size and learning rate

@@ -131,7 +131,7 @@ class supervisor (overseer):
     self._setup_gradients()
 
     # Setup parameter update operations
-    self._setup_delta_ops()
+    self._setup_train_ops()
 
     # Setup summary scalars
     self._setup_scalars()
@@ -141,11 +141,14 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _setup_labels(self):
-    if self.dev is None:
-      self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
-    else:
-      with Device(self.dev):
+    if callable(Creation(self.lbl)):
+      if self.dev is None:
         self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
+      else:
+        with Device(self.dev):
+          self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
+    else:
+      self.labels = self.lbl
 
 #-------------------------------------------------------------------------------
   def _setup_errors(self):
@@ -254,20 +257,34 @@ class supervisor (overseer):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _setup_delta_ops(self):
+  def _setup_train_ops(self):
     # Parameter updates are regime-dependent
     self.regime_grad_and_vars = [None] * self.n_regimes
-    self.delta_ops = [None] * self.n_regimes
+    self.lrate_ops = [None] * self.n_regimes # learning rate ops
+    self.prepa_ops = [None] * self.n_regimes # preparatory ops
+    self.delta_ops = [None] * self.n_regimes # delta parameter ops
+    self.train_ops = [None] * self.n_regimes # training ops
     for i, _regime in enumerate(self.regimes):
       self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/gradients/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-          self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], global_step = self.gst)
+        with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+          self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
+        with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          with Creation('deps')([self.prepa_ops[i]]):
+            self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+                                                               global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/gradients/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], global_step = self.gst)
-    return self.delta_ops
+          with variable_scope(self.name + "/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
+            self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
+          with variable_scope(self.name + "/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+            with Creation('deps')([self.prepa_ops[i]]):
+              self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+                                                                 global_step = self.gst)
+      self.train_ops[i] = self.delta_ops[i]
+    return self.train_ops
 
 #-------------------------------------------------------------------------------
   def _setup_scalars(self, scalars = None, scalar_names = None,
@@ -322,7 +339,7 @@ class supervisor (overseer):
   def set_feed_dict(self, is_training = False, feed_inputs = None, feed_labels = None):
     
     # This feed_dictionary supports inputs and labels
-    feed_dict = {self.ist: is_training, self.inputs: feed_inputs, self.labels: feed_labels}
+    feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs, self.labels: feed_labels}
     if self.session is None: return feed_dict
 
     # Default using_regime if necessary
@@ -345,7 +362,7 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, args[0], args[1])
-    self.session.run([self.batch_size_op, self.delta_ops[self.using_regime]], feed_dict = feed_dict)
+    self.session.run(self.train_ops[self.using_regime], feed_dict = feed_dict)
     self.scalars_train = self.summarise()
     self.scalars_train = self.scalars_train[:len(self.scalars)]
     save_session = self.write_intervals[2]
