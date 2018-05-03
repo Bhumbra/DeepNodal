@@ -331,6 +331,5 @@ class level (stem):
     self.setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()
 
-
 #-------------------------------------------------------------------------------
 

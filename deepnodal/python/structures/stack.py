@@ -187,7 +187,6 @@ class stack (stem):
     self.trans_fn = self.subobjects[-1].trans_fn
     return argout
 
-
 #-------------------------------------------------------------------------------
   def set_padwin(self, spec = None, *args, **kwds):
     """

@@ -142,7 +142,6 @@ class trainer (slave):
     self.inputs = self.work.inp
     return self.inputs
 
-
 #-------------------------------------------------------------------------------
   def _setup_variables(self): # this creates no graph objects
     """

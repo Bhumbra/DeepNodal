@@ -381,69 +381,6 @@ class stream (chain):
     return self.outputs
 
 #-------------------------------------------------------------------------------
-
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-# LEGACY CODE FOLLOWS
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-  def vsi_weights(self, session, trf_map = None, distr_map = {}, locan_map = {}, scale_map = {}, shape_map = {}):
-    """
-    This function is intended to re-initialise weights once a session is started.
-
-    """
-    # variance-scale-initialise, parameters can be mapped to transfer function
-    if self.params_geo is None: return
-    Ws = np.array(self.params_geo.eval().shape, dtype = int)
-
-    # Default to He et al. initialisation
-    fan = 'fan_in'
-    distr = 'trun'
-    locan = 0.
-    scale = 1.
-    shape = 2.
-    map_trf = trf_map if type(trf_map) is bool else trf_map
-    if map_trf is None: map_trf = False
-    if map_trf:
-      if type(map_trf) is bool:
-        map_trf = self.trf
-      try:
-        distr = distr_map[map_trf]
-        locan = locan_map[map_trf]
-        scale = scale_map[map_trf]
-        shape = shape_map[map_trf]
-      except KeyError: # default to He et al. initialisation
-        pass
-    W = tf_weight_initialiser(Ws, fan=fan, distr=distr, locan=locan, scale=scale, shape=shape)
-    return self.set_vars(session, weights = W)
-
-#-------------------------------------------------------------------------------
-  def set_param_ops(self, params_ari = None, params_geo = None, remember = True):
-    # params_exp is not yet supported
-    param_ops = [tf.no_op(name=self.name + "/no_op"), tf.no_op(name=self.name + "/no_op")]
-    if self.param_ari is not None and params_ari is not None:
-      param_ops[0] = tf.assign(self.params_ari, params_ari, name = self.name + "/biases_assign")
-    if self.param_geo is not None and params_geo is not None:
-      param_ops[1] = tf.assign(self.params_geo, params_geo, name = self.name + "/weights_assign")
-    param_ops = tf.group(set[0], setvarsOp[1], name=self.name + "/params_assign")
-    if not remember: return param_ops
-    self.param_ops = param_ops
-    return self.param_ops
-
-#-------------------------------------------------------------------------------
-  def set_vars(self, session = None, weights = None, biases = None):
-    if session is None:
-      raise ValueError("Cannot set parameters without session in progress")
-    ops = self.setvarsop(weights, biases, False)
-    session.run(ops)
-
-#-------------------------------------------------------------------------------
-  def ret_vars(self):
-    _weights = None if self.params_geo is None else self.params_geo.eval()
-    _biases = None if self.params_ari is None else self.params_ari.eval()
-    return _weights, _biases
-
-#-------------------------------------------------------------------------------
   def clone(self, other = None):
     if other is None:
       other = stream()

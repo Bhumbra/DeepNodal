@@ -9,10 +9,10 @@ with multiple learning regimen.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-DEFAULT_LEARNING_RATE = 0.01
+from deepnodal.python.functions.trainer import *
 
 #-------------------------------------------------------------------------------
-from deepnodal.python.functions.trainer import *
+DEFAULT_LEARNING_RATE = 0.01
 
 #-------------------------------------------------------------------------------
 class overseer (trainer):

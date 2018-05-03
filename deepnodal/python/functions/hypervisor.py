@@ -154,7 +154,7 @@ class hypervisor (supervisor, master, stem):
     [_slave.setup(self.ist, self.gst, skip_metrics, **kwds) for _slave in self.slaves]
     self._setup_outputs(True)
 
-    # 4. and 5.
+    # 5. and 6.
     self._setup_metrics(skip_metrics)
 
     return self.ist, self.gst

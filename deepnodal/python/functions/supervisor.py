@@ -2,16 +2,17 @@
 Supervisor module for Tensorflow. 
 """
 
+# Gary Bhumbra
+
+#-------------------------------------------------------------------------------
+from deepnodal.python.functions.overseer import *
+
+#-------------------------------------------------------------------------------
 DEFAULT_OPTIMISER = 'sgd'
 DEFAULT_COST_FUNCTION = 'mce'
 DEFAULT_LABEL = 'tensor'
 DEFAULT_LABEL_DTYPE = 'int64'
 DEFAULT_ERROR_QUOTIENT = 'in_top_k_error'
-
-# Gary Bhumbra
-
-#-------------------------------------------------------------------------------
-from deepnodal.python.functions.overseer import *
 
 #------------------------------------------------------------------------------- 
 class supervisor (overseer):
