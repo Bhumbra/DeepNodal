@@ -21,7 +21,7 @@ write_dir = '/tmp/dn_logs/'
 
 def main():
 
-# INPUT DATA
+  # INPUT DATA
 
   source = dn.helpers.mnist()
   source.read_data()

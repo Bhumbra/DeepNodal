@@ -1,6 +1,6 @@
 # Introduction
 
-DeepNodal is a high level Python framework for TensorFlow intended for rapid construction of deep networks with
+DeepNodal is a high level Python framework for TensorFlow intended for rapid deep learning development with
 automated distribution of computations across multiple devices.
 
 ## Motivation
@@ -14,7 +14,7 @@ The first stage can require considerable amounts of coding even for somewhat sim
 become much more complicated with multiple hardware devices (e.g. GPUs) to the extent where a minor adjustment to a
 network design can entail a lot of changes in code.
 
-DeepNodal adopts a slightly different approach. It is designed with research science work in mind rather than software
+DeepNodal adopts a different approach. It is designed with research science work in mind rather than software
 engineering applications. It abstracts much of engineering components so that the coding can be focussed on network
 design instead. This is achieved by adding an additional stage to the list above:
 
@@ -22,26 +22,26 @@ design instead. This is achieved by adding an additional stage to the list above
 2. Graph object construction.
 3. Execution and updates of graph objects with feeded data.
 
-At first it might seem an additional first step would require an increase in code. However, by introducing this
-approach, DeepNodal almostly entirely takes care of stages 2 and 3. By separating network and learning design from
-graph construction and execution, the code is considerably shortened and much less likely to contain errors. 
+At first it might seem an additional first step would require an increase in code instructions. However, by introducing
+this a specification stage, DeepNodal almostly entirely takes care of stages 2 and 3. By separating network and learning
+design from graph construction and execution, the code is considerably shortened and much less likely to contain errors. 
 
-The only real learning curve for coders is a short shallow one, and that is to understand how to code
-specifications. This is very straightforward in DeepNodal, where for instance `stack` specifications (we will describe
-stacks properly later) are given as lists: for example consider specifying 4-layer hidden layers each with 128 output
-units, with a 10-unit output layer:
+The only real learning curve for coders is short and shallow, and that is to understand how to code specifications. This
+is very straightforward in DeepNodal, where for instance `stack` specifications (we will describe stacks properly later)
+are made using Python lists: for example consider specifying 4-hidden layers each with 128 output units, with a 10-unit
+output layer:
 
 ```python
-$ mod = dn.stack() 
-$ mod.set_arch([128, 128, 128, 128, 10])
+  mod = dn.stack() 
+  mod.set_arch([128, 128, 128, 128, 10])
 ```
 
-Now suppose the network designer wishes to replace the third layer into two layers in parallel with convergence of their
-outputs to provide a concatenated input to the next hidden_layer, then the only change in code required is:
+Now suppose the network designer wishes to replace the third layer with another with two layers in parallel converging
+their outputs to provide a concatenated input to the next hidden layer, then the only change in code required is:
 
 ```python
-$ mod = dn.stack() 
-$ mod.set_arch([128, 128, (128, 128), 128, 10])
+  mod = dn.stack() 
+  mod.set_arch([128, 128, (128, 128), 128, 10])
 ```
 
 This illustrates the motivation behind DeepNodal. If a change in design is conceptually simple, the corresponding
@@ -70,7 +70,7 @@ import deepnodal as dn
 ```
 
 Before using the library, it is a very good idea to look at the examples first. A simple example can be run from the
-current path by invoking python3:
+current path in bash by invoking python3:
 
 ```
 $ python3 examples/mnist_softmax.py
@@ -78,8 +78,8 @@ $ python3 examples/mnist_softmax.py
 
 # Examples
 
-Note that the MNIST examples download and extract (as necessary) the MNIST data to /tmp/mnist/ and save their logs and
-models to /tmp/dn_logs/.
+The MNIST examples download and extract (as necessary) the MNIST data to /tmp/mnist/ and save their logs and models to
+/tmp/dn_logs/.
 
 ## Softmax regression
 
@@ -87,17 +87,19 @@ The simplest example is examples/mnist_softmax.py, which performs softmax regres
 the code is self-explanatory, the critical lines are:
 
 ```python
+...
 input_dims = [28, 28, 1]
 arch = 10
 transfn = 'softmax'
-
+...
   mod = dn.stream()
   mod.set_arch(arch)
   mod.set_transfn(transfn)
-
+...
   net = dn.network()
   net.set_subnets(mod)
   net.set_inputs(input_dims)
+...
 ```
 
 What is a DeepNodal `stream`? It is the simplest model in DeepNodal, comprising a single chain of transformations to
@@ -119,17 +121,17 @@ Consider examples/mnist_sigmoid.py, a rather contrived example of parallel layer
 squared error cost function. Here, the critical lines are:
 
 ```python
+...
 arch = (5, 5)
 transfn = 'sigmoid'
-
+...
   mod = dn.level()
   mod.set_arch(arch)
   mod.set_transfn(transfn)
   mod.set_opverge(True)
-
+...
   sup = dn.supervisor()
-  .
-  .
+...
   sup.set_costfn('mse')
 ```
 
@@ -156,14 +158,16 @@ Have a look at examples/mnist_skip.py, which uses hidden layers with a skip conn
 lines are:
 
 ```python
+...
 arch = [100, 100, 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 skipcv = [None] * (len(arch)-2) + [-2, None]
-
+...
   mod = dn.stack()
   mod.set_arch(arch)
   mod.set_transfn(transfn)
   mod.set_skipcv(skipcv)
+...
 ```
 
 A DeepNodal `stack` is a series of levels that are connected in sequence end-to-end but may also include skip
@@ -196,7 +200,9 @@ An example of inter-connecting single- and multi- stream levels is given in exam
 is evident only in one line of the code:
 
 ```python
+...
 arch = [100, (100, None, 100), 10]
+...
 ```
 
 This architecture specification means that the second level comprises of three streams, sharing a common input from the
@@ -212,6 +218,7 @@ regimes. In the example examples/mnist_mlp, a simple multilayer perceptron desig
 here not too helpful!) batch normalisation specifications as well as multiple training regimes. The relevant lines are:
 
 ```python
+...
 dropout = [None] * (len(arch)-1) + [0.5]
 reguln = 2
 reguln_kwds = {'scale': 0.001}
@@ -219,13 +226,12 @@ normal = ['batch_norm'] + [None] * (len(arch)-1)
 normal_kwds = {'momentum':0.99, 'epsilon':0.1}
 optimiser = 'adam'
 optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
-
+...
   mod.set_dropout(dropout)
   mod.set_normal(normal, **normal_kwds)
+...
   net.set_reguln(reguln, **reguln_kwds)
-
-  # SPECIFY SUPERVISOR AND TRAINING
-
+...
   sup = dn.supervisor()
   sup.set_optimiser('adam', **optimiser_kwds)
   sup.set_work(net)
@@ -234,7 +240,7 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
   sup.new_regime(0.01*learning_rate)
   sup.new_regime(0.01*learning_rate)
   sup.set_regime(3, False) # disable dropout
-
+...
   with sup.new_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       if i == n_epochs // 4:
@@ -243,10 +249,11 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
         sup.use_regime(2)
       elif i == 3 * n_epochs // 4:
         sup.use_regime(3)
+...
 ```
 
 Since the syntax is consistent with previous examples, the code should be self-explanatory. Notice how dropout is
-applied to the last layer, at the level of `stack` specification whereas L2 regularisation is specified at the `network`
+applied to the last layer, at the `stack` specification stage whereas L2 regularisation is specified at the `network`
 stage. Like dropout, batch-normalisation is specified to the stack, in this case only affecting the first level. And
 unlike previous examples, for which the default stochastic gradient descent `('sgd')` optimiser was employed by the
 supervisor, here an Adam optimiser is used `('adam')`. Finally, four training regimes (indexed 0 to 3) have been created
@@ -261,15 +268,17 @@ of such a convolutional network is provided in examples/mnist_cnn. The only evid
 can be seen from the architectural specification:
 
 ```python
+...
 arch = [[16, [5, 5], [1, 1]], [[3, 3], [2, 2]], [16, [3, 3], [1, 1]], [[3, 3], [2, 2]], 100, 10]
+...
 ```
 
 Since again there are no tuples in sight, it is clear that every level comprises a single stream. A convolution stream
 architecture specification takes the form `[number_of_feature_maps, [kernel_size], [stride]]` whereas for pooling layers
 it is: `[[pooling_size], [stride]]`. The last two level architectures are single integers and therefore regular dense
 layers as shown in previous examples. The existence of convolution and pooling layers is nowhere evident elsewhere in
-the code as this is all that is sufficient for DeepNodal. If you are sceptical, please inspect the corresponding
-TensorBoard graph if you need to be convinced.
+the code as this is all that is sufficient for DeepNodal. If you are not convinced, please inspect the corresponding
+TensorBoard graph.
 
 ## Multiple-GPU convolutional network example
 
@@ -277,8 +286,11 @@ This final MNIST example can only be run if you have multiple GPUs. It is virtua
 but with only a couple of changes:
  
 ```python 
+...
 num_gpus = 2 
+...
 sup = dn.hypervisor(devs = num_gpus) 
+...
 ```
 
 A `hypervisor` is a `supervisor` which does exactly the same thing but distributes the work-load onto multiple GPUs.
@@ -287,7 +299,8 @@ hypervisor takes the average gradients computed across the GPUs to perform the p
 effect results in training that would be identical to what would take place for unsplit training batches. 
 
 Although the adjustments in the code above are trivial, the complexity of implementation is considerable and this can be
-seen if you look at the corresponding TensorBoard graph. Increased overheads of accommodating multiple devices does not
-necessarily result in a speed up in computation, and indeed it will probably be slower for this example. But advantage of
-distributing computations across multiple devices is the increased freedom of constructing deeper and complex networks
-without running into memory limitation problems.
+seen if you look at the corresponding TensorBoard graph. Increased overheads means that using multiple devices does not
+necessarily result in a speed up in computation, and indeed in this example it will probably be slower. But the
+advantage of distributing computations across multiple devices is the increased freedom of constructing deeper and
+complex networks without running into memory limitation problems.
+
