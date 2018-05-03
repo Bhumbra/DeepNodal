@@ -1,5 +1,12 @@
-# Todo:
-- construct a multi-GPU hypervisor
-- expand API vocabulary
-- write a quickstarter
+# TODO:
+
+## TESTING
+
+- test 'same' and 'valid' padding windows for pooling and convolutional specifications.
+- test 'max' and 'avg' pooling functions.
+
+## FEATURES
+
+- improved custom weight initialisation routine.
+- regimen-specific layer `freezing` - mostly coded.
 

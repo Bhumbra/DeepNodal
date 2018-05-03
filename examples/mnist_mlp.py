@@ -77,7 +77,6 @@ def main():
       summary_str = sup.test(source.test_images, source.test_labels)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
-
 if __name__ == '__main__':
   main()
 

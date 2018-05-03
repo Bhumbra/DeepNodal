@@ -11,8 +11,8 @@ from deepnodal.python.structures.chain import *
 DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for identity architectures.
 DEFAULT_USE_BIAS = True
 DEFAULT_TRANSFER_FUNCTION = None
-DEFAULT_POOLING_FUNCTION = 'max'
-DEFAULT_TRANSFER_FUCNTION = None
+DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
+DEFAULT_POOLING_KERNEL_FUNCTION = 'max'       # other: 'avg'
 DEFAULT_PADDING_WINDOW = 'same'
 
 #-------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ class stream (chain):
   dro = None          # Dropout
   tfn = None          # Transfer function
   win = None          # Padding window
-  pfn = None          # Pooling function
+  kfn = None          # Kernel function (for convolution and pooling layers)
   pin = None          # Parameter initialisation
   nor = None          # Normalisation
   trans_fn = None     # Identical to tfn
@@ -107,7 +107,7 @@ class stream (chain):
     self.set_usebias()
     self.set_transfn()
     self.set_padwin()
-    self.set_poolfn()
+    self.set_kernfn()
     return self.type_arch
 
 #-------------------------------------------------------------------------------
@@ -189,15 +189,18 @@ class stream (chain):
     if self.win is None: self.win = DEFAULT_PADDING_WINDOW
 
 #-------------------------------------------------------------------------------
-  def set_poolfn(self, pfn = None, *pfn_args, **pfn_kwds):
+  def set_kernfn(self, kfn = None, *kfn_args, **kfn_kwds):
     """
-    pfn = 'max' or 'avg'
+    kfn = 'max' or 'avg'
     """
-    self.pfn = pfn
-    self.pfn_args = pfn_args
-    self.pfn_kwds = dict(pfn_kwds)
-    if self.type_arch != 'pool': return
-    if self.pfn is None: self.pfn = DEFAULT_POOLING_FUNCTION
+    self.kfn = kfn
+    self.kfn_args = kfn_args
+    self.kfn_kwds = dict(kfn_kwds)
+    if self.kfn is not None: return
+    if self.type_arch == 'pool':
+      self.kfn = DEFAULT_POOLING_KERNEL_FUNCTION
+    elif self.type_arch == 'conv':
+      self.kfn = DEFAULT_CONVOLUTION_KERNEL_FUNCTION
 
 #-------------------------------------------------------------------------------
   def set_parinit(self, pin = None, *pin_args, **pin_kwds):
@@ -309,10 +312,9 @@ class stream (chain):
     if self.type_adim == 'identity':
       self.add_link(Creation(self.type_adim), name = self.name + "/" + self.type_adim)
       return self.ret_out()
-    if self.type_arch == 'pool':
-      if self.pfn is None: self.set_poolfn()
     if self.type_arch == 'conv' or self.type_arch == 'pool':
       if self.win is None: self.set_padwin()
+      if self.kfn is None: self.set_kernfn()
     if self.type_arch == 'dense' or self.type_arch == 'conv':
       if self.ubi is None: self.set_usebias()
       if self.pin is None: self.set_parinit()
@@ -329,11 +331,11 @@ class stream (chain):
       kwds.update(self.ubi_kwds)
       kwds.update(self.pin_kwds)
       kwds.update(self.win_kwds)
-      self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
+      self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
     elif self.type_arch == 'pool':
       kwds.update({'pool_size': self.arch[0], 'strides': self.arch[1]})
       kwds.update(self.win_kwds)
-      self.arch_link = self.add_link(Creation(self.type_adim, self.pfn), **kwds)
+      self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
     else:
       raise ValueError("Unknown architecture type: " + self.type_arch)
     return self.arch_link
@@ -403,7 +405,7 @@ class stream (chain):
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
     if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
-    if self.pfn is not None: other.set_poolfn(self.pfn, *self.pfn_args, **self.pfn_kwds)
+    if self.kfn is not None: other.set_kernfn(self.kfn, *self.kfn_args, **self.kfn_kwds)
     if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
 

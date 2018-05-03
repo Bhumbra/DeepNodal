@@ -195,11 +195,11 @@ class stack (stem):
     return self.broadcast(self.subobject.set_padwin, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_poolfn(self, spec = None, *args, **kwds):
+  def set_kernfn(self, spec = None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
-    return self.broadcast(self.subobject.set_poolfn, spec, *args, **kwds)
+    return self.broadcast(self.subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_parinit(self, spec = None, *args, **kwds):
