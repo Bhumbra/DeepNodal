@@ -16,12 +16,12 @@ input_dims = [28, 28, 1]
 arch = [100, 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 dropout = [None] * (len(arch)-1) + [0.5]
+reguln = 2
+reguln_kwds = {'scale': 0.001}
 normal = ['batch_norm'] + [None] * (len(arch)-1)
 normal_kwds = {'momentum':0.99, 'epsilon':0.1}
 optimiser = 'adam'
 optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
-reguln = 2
-reguln_kwds = {'scale': 0.001}
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
 

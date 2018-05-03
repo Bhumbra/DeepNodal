@@ -41,7 +41,6 @@ net.set_inputs(input_dims)
 # SPECIFY SUPERVISOR AND TRAINING
 
 sup = dn.hypervisor(devs = num_gpus)
-#sup = dn.supervisor()
 sup.set_work(net)
 sup.new_regime(learning_rate)
 
