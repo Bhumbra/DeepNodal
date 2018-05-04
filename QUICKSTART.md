@@ -135,8 +135,8 @@ transfn = 'sigmoid'
   sup.set_costfn('mse')
 ```
 
-Here, the model is not a stream but a DeepNodal `level`. A level is a model comprising of one or more chains in
-parallel. A vergence can be specified to inter-relate chains at their input or output stage. The vergence function (by
+Here, the model is not a stream but a DeepNodal `level`. A level is a model comprising of one or more streams in
+parallel. A vergence can be specified to inter-relate streams at their input or output stage. The vergence function (by
 default `vergence_fn='con'` for convergence) specifies whether the inputs or outputs are concatenated or summed (where
 `vergence_fn='sum'`). 
 
@@ -287,6 +287,7 @@ control. The example in examples/mnist_lenet constructs a LeNet-style architectu
 additional specifications:
 
 ```python
+...
 arch = [ [6, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
          [16, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
          [120, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
@@ -312,7 +313,7 @@ max-pooling ('max') but you can see in this example it has been changed to avera
 layers. 
 
 By default the padding window is 'same' but as you can see in the example it has been changed to 'valid' for the first
-level only. Also note that padding specification is ignored for last two levels since they are dense layers. The
+level only. Also note that padding specification is ignored for the last two levels since they are dense layers. The
 `weights` specification controls the weights initialisation which here is variance-scaling initialisation ('vsi'), as
 recommended by He et al. (2015). Once again, do inspect the TensorBoard graph to confirm the customisations and the
 histograms to see the truncated normal-distributions in weight coefficients.
