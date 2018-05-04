@@ -119,11 +119,21 @@ class level (stem):
     return self.broadcast(self.subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_usebias(self, spec = None, *args, **kwds):
+  def set_biases(self, spec = None, *args, **kwds):
     """
-    spec is a boolean flag set to whether to usebias
+    spec enables/disables biases and initialisation. Valid inputs are:
+    None (default bias settings), False/True, disable/enable biases,
+    or Bias initializer (e.g. 'zoi'): use bias with this initialiser
     """
-    return self.broadcast(self.subobject.set_usebias, spec, *args, **kwds)
+    return self.broadcast(self.subobject.set_biases, spec, *args, **kwds)
+
+#-------------------------------------------------------------------------------
+  def set_weights(self, spec = None, *args, **kwds):
+    """
+    Sets initialiser for weights
+    wgt = None or 'vs' (variance scaling)
+    """
+    return self.broadcast(self.subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, spec = None, *args, **kwds):
@@ -162,13 +172,6 @@ class level (stem):
     spec = 'max' or 'avg'
     """
     return self.broadcast(self.subobject.set_kernfn, spec, *args, **kwds)
-
-#-------------------------------------------------------------------------------
-  def set_parinit(self, spec = None, *args, **kwds):
-    """
-    spec = 'vsi' (variance scale initialiser) and/or 'zoi' (zero offset initialiser)
-    """
-    return self.broadcast(self.subobject.set_parinit, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_normal(self, spec = None, *args, **kwds):

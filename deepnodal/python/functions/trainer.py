@@ -400,4 +400,19 @@ class trainer (slave):
     pass
     
 #-------------------------------------------------------------------------------
+  def ret_params(self, return_names = True):
+    """
+    Returns a list of parameters as numpy arrays
+    if return_names is True, returns parameter_names, parameter_values
+    """
+    param_lbl = [None] * self.n_params
+    param_val = [None] * self.n_params
+    for i, param in enumerate(self.params):
+      param_lbl[i] = list(param)[0]
+      param_val[i] = param[param_lbl[i]].eval()
+
+    if not(return_names): return param_val
+    return param_lbl, param_val
+
+#-------------------------------------------------------------------------------
 

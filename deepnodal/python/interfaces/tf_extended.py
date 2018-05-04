@@ -4,10 +4,14 @@
 
 import tensorflow as tf
 import numpy as np
+import math
 from scipy import stats
 from tensorflow.contrib.layers import max_pool2d, avg_pool2d
 average_pooling2d = tf.layers.average_pooling2d
 from tensorflow import name_scope, variable_scope
+from tensorflow.python.framework import dtypes
+from tensorflow.python.ops import random_ops
+from tensorflow.python.ops.init_ops import Initializer, _compute_fans
 
 #-------------------------------------------------------------------------------
 # TensorFlow has no max_norm regulariser
@@ -46,67 +50,104 @@ def tf_vergence(X, vergence_fn = 'con', divergence = None, axis = -1, **kwargs):
     return tf.reduce_sum(X, axis = axis, **kwargs)
   if vergence_fn == 'div':
     if divergence is None:
-      raise ValueError("Vergence with vergence_fn='div' requires divergence specification")
+      raise ValueError("Vergence with vergence_fn='div' requires divergence specification") 
     return tf.split(X, divergence, axis = axis, **kwargs)
   raise ValueError("Unknown vergence function specification: " + str(coalescence_dn))
 
 #-------------------------------------------------------------------------------
-# TensorFlow contrib's weight initialisation supports very little customisation
+# TensorFlow weight initialisation supports very little customisation
 
-def tf_weight_initialiser(_W_shape, fan='in', distr = 'unif', locan=0., scale = 1., shape=1., dtype = np.float):
-  W_shape = np.atleast_1d(_W_shape)
-  fan = fan.lower()
-  distr = distr.lower()
-  locan = float(locan)
-  scale = float(scale)
-  shape = float(shape)
+# from tensorflow.python.ops.init_ops import Initializer
+class tf_variance_scaling_initialiser (Initializer):
+  """
+  An initialiser that generates tensor for weight parameters.
+  distr is the chosen distribution which may be 'unif' (uniform), 'norm', 'trun' (truncated normal), 'gamma' or 'beta'
+  fan specifies the normalisation denominator and can be 'in'. 'out', or 'avg'.
+  locan is the offset numerator to centralise the distribution (default 0, but for example you could use -1).
+  scale is the scaling factor prior to offsetting (default 1.).
+  shape (ignored if distr = 'unif' or 'norm' or 'trun') is the shaping parameter for 'gamma' and 'beta')
 
-  n_input = W_shape[-2]
-  n_output = W_shape[-1]
-  if len(W_shape) > 2:
-    prod_dim = np.prod(W_shape[:-2])
-    n_input *= prod_dim
-    n_output *= prod_dim
-  if fan == 'out':
-    n = n_output
-  elif fan == 'in':
-    n = n_input
-  else:
-    n = 0.5 * (n_input + n_output)
+  This code tries to match the functionality of tensorflow.python.ops.init_ops.VarianceScaling.
+  """
+  def __init__(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1., 
+      seed = None, dtype = dtypes.float32):
+    self.set_config(distr, fan, locan, scale, shape, seed, dtype)
 
-  W = None
-  mn = locan / n
-  sd = np.sqrt(2./n) # a la he2015delving
+#-------------------------------------------------------------------------------
+  def set_config(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1., 
+      seed = None, dtype = dtypes.float32):
+    self.distr, self.fan = distr.lower(), fan.lower()
+    if scale <= 0.:
+      raise ValueError("The scale argument must be a positive floating point")
+    if self.distr not in ['unif', 'norm', 'trun', 'gamma', 'beta']:
+      raise ValueError("Invalid fan specification: ", self.distr)
+    if self.fan not in ['in', 'out', 'avg']:
+      raise ValueError("Invalid fan specification: ", self.fan)
+    self.locan, self.scale, self.shape = locan, scale, shape
+    self.seed, self.dtype = seed, dtype
 
-  if distr == 'norm':
-    W = np.random.normal(0., scale=sd, size=W_shape)
-  elif distr == 'unif': # this corresponds to an sd of np.sqrt(1./n) not np.sqrt(2./n)
-    limit = np.sqrt(3. / n)
-    W = np.random.uniform(-limit, limit, size=W_shape)
-  elif distr == 'trun':
-    W = sd * stats.truncnorm.rvs(-shape, shape, size=W_shape) * 1.137
-  elif distr == 'gamm':
-    lmbda = sd / np.sqrt(shape)
-    W =  np.random.gamma(shape, lmbda, size=W_shape)
-    W -= lmbda * shape
-  elif distr == 'gamd':
-    lmbda = sd / np.sqrt(2. * shape)
-    W =  np.random.gamma(shape, lmbda, size=W_shape)
-    W -= np.random.gamma(shape, lmbda, size=W_shape)
-  elif distr == 'beta':
-    W = sd * (np.random.beta(shape, shape, size=W_shape)-0.5) / np.sqrt(1. / (8.*shape + 4.))
-  elif distr == 'bgam':
-    lmbda = sd / np.sqrt(shape * (shape + 1.))
-    W_shape_prod = int(np.prod(W_shape))
-    W_number_plus = W_shape_prod // 2
-    W_number_minus = W_shape_prod - W_number_plus
-    W = np.hstack( [np.random.gamma(shape, lmbda, size=W_number_plus),
-                   -np.random.gamma(shape, lmbda, size=W_number_minus)]  )
-    W = W[np.random.permutation(W_shape_prod)].reshape(W_shape)
-  elif distr == 'tria':
-    W = sd * (np.random.triangular(0., 0.5, 1., size=W_shape) - 0.5) * np.sqrt(24.)
+#-------------------------------------------------------------------------------
+  def __call__(self, shape, dtype=None, partition_info=None):
+    # Note here, shape refers to dims not distribution shape parameter!
 
-  if W is None: raise ValueError("Unknown distribution specification: " + dist)
-  return scale * np.array(W, dtype = dtype) + locan / n
+    # We will switch in one line:
+    dims = shape if partition_info is None else partition_info.full_shape
+
+    if dtype is None:
+      dtype = self.dtype
+    if not dtype.is_floating:
+      raise TypeError("Only floating data types supported.")
+    
+    # Calculate denominator
+    ninp, nout = _compute_fans(dims)
+    n = None
+    if self.fan == 'in':
+      n = max(1., ninp)
+    elif self.fan == 'out':
+      n = max(1., nout)
+    elif self.fan == 'avg':
+      n = max(1., 0.5 * (ninp + nout))
+
+    # Random number generator
+    rand = None
+    stdev = math.sqrt(2. / n) # a la he2015delving
+
+    if self.distr == 'unif':
+      limit = stdev * math.sqrt(3.)
+      rand = random_ops.uniform(dims, -limit, limit, self.dtype, seed=self.seed)
+    elif self.distr == 'norm':
+      rand = random_ops.random_normal(dims, 0., stdev, self.dtype, seed=self.seed)
+    elif self.distr == 'trun': # -2SD to +2SD truncated normal has a SD of 1./1.137
+      rand = random_ops.truncated_normal(dims, 0., 1.137*stdev, self.dtype, seed=self.seed)
+    elif self.distr == 'gamma':
+      gamma = self.shape
+      invlb = math.sqrt(gamma) / stdev
+      rand = random_ops.random_gamma(dims, gamma, invlb, self.dtype, seed=self.seed) - (gamma/invlb)
+    elif self.distr == 'beta':
+      gamma = self.shape
+      rand_0 = random_ops.random_gamma(dims, gamma, 1., self.dtype, seed=self.seed)
+      rand_1 = random_ops.random_gamma(dims, gamma, 1., self.dtype, seed=self.seed)
+      rand = stdev * ((rand_0 / (rand_0 + rand_1)) - 0.5) * math.sqrt(8.*self.shape + 4.)
+
+    # Scale and offset as required
+    randscaled = rand if self.scale == 1. else rand * self.scale
+    randoffset = randscaled if self.locan == 0. else randscaled + (self.locan/n)
+
+    return randoffset
+
+#-------------------------------------------------------------------------------
+  def ret_config(self):
+    return {
+        'distr': self.distr,
+        'fan': self.fan,
+        'locan': self.locan,
+        'scale': self.scale,
+        'seed': self.seed,
+        'dtype': self.dtype,
+    }
+
+#-------------------------------------------------------------------------------
+  def get_config(self): # TensorFlow's convention
+    return self.ret_config()
 
 #-------------------------------------------------------------------------------

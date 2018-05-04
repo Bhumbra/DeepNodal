@@ -4,9 +4,9 @@
 
 #-------------------------------------------------------------------------------
 import tensorflow as tf
-from tensorflow.contrib.layers import variance_scaling_initializer, l1_regularizer, l2_regularizer
 from tensorflow import name_scope, variable_scope
 from tensorflow.contrib.framework import arg_scope
+from tensorflow.python.ops.init_ops import VarianceScaling
 from deepnodal.python.interfaces.tf_extended import *
 
 #-------------------------------------------------------------------------------
@@ -68,7 +68,8 @@ creation_dict = {'identity': tf.identity,
                  'var': tf.Variable,
                  'tensor': tf.placeholder,
                  's2d': tf.sparse_to_dense,
-                 'vsi': tf.variance_scaling_initializer,
+                 'vs': VarianceScaling, # TensorFlow's version
+                 'vsi': tf_variance_scaling_initialiser, # mine
                  'zoi': tf.zeros_initializer,
                  'lvi': tf.local_variables_initializer,
                  'gvi': tf.global_variables_initializer,

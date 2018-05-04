@@ -9,7 +9,7 @@ from deepnodal.python.structures.chain import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for identity architectures.
-DEFAULT_USE_BIAS = True
+DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
 DEFAULT_POOLING_KERNEL_FUNCTION = 'max'       # other: 'avg'
@@ -45,15 +45,15 @@ class stream (chain):
   type_adim = None    # architecture type with dimension
   order = None        # string denoting order of operation (default 'dotn')
   ist = None          # is_training flag
-  ubi = None          # Use bias 
+  bia = None          # Biases
+  wgt = None          # Weights
   dro = None          # Dropout
   tfn = None          # Transfer function
   win = None          # Padding window
   kfn = None          # Kernel function (for convolution and pooling layers)
-  pin = None          # Parameter initialisation
   nor = None          # Normalisation
   trans_fn = None     # Identical to tfn
-  dro_link = None     # references to dropout_link
+  vsi = None          # An instance of custom weights initialiser class if needed
   dropout_quotient = None
 
 #-------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ class stream (chain):
 
     # Default bare essentials
     self.set_order()
-    self.set_usebias()
+    self.set_biases()
     self.set_transfn()
     self.set_padwin()
     self.set_kernfn()
@@ -127,16 +127,34 @@ class stream (chain):
     self.order = order
 
 #-------------------------------------------------------------------------------
-  def set_usebias(self, ubi = None, *ubi_args, **ubi_kwds):
+  def set_biases(self, bia = None, *bia_args, **bia_kwds):
     """
-    ubi is a boolean flag set to whether to usebias
+    bia enables/disables biases and initialisation. Valid inputs are:
+    None (default bias settings), False/True, disable/enable biases,
+    or Bias initializer (e.g. 'zoi'): use bias with this initialiser
     """
-    if ubi is None: ubi = DEFAULT_USE_BIAS
-    self.ubi = ubi
-    self.ubi_args = ubi_args
-    self.ubi_kwds = dict(ubi_kwds)
-    if not(len(ubi_kwds)):
-      ubi_kwds = {'use_bias': self.ubi}
+    if bia is None: bia = DEFAULT_BIASES
+    self.bia = bia
+    self.bia_args = bia_args
+    self.bia_kwds = dict(bia_kwds)
+    if type(self.bia) is not bool:
+      if 'bias_initializer' not in self.bia_kwds:
+        self.bia_kwds.update({'bias_initializer': Creation(self.bia)})
+      self.bia = True
+    self.bia_kwds.update({'use_bias': self.bia})
+
+#-------------------------------------------------------------------------------
+  def set_weights(self, wgt = None, *wgt_args, **wgt_kwds):
+    """
+    Sets initialiser for weights
+    wgt = None or 'vs' (variance scaling)
+    """
+    self.wgt = wgt
+    self.wgt_args = wgt_args
+    self.wgt_kwds = dict(wgt_kwds)
+    if self.wgt is None: return
+    if 'kernel' not in self.wgt_kwds:
+        self.wgt_kwds.update({'kernel_initializer': Creation(self.wgt)})
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, dro = None, *dro_args, **dro_kwds):
@@ -187,11 +205,14 @@ class stream (chain):
     self.win_kwds = dict(win_kwds)
     if self.type_arch != 'conv' and self.type_arch != 'pool': return
     if self.win is None: self.win = DEFAULT_PADDING_WINDOW
+    if 'padding' not in self.win_kwds:
+      self.win_kwds.update({'padding':self.win})
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, kfn = None, *kfn_args, **kfn_kwds):
     """
-    kfn = 'max' or 'avg'
+    kfn = 'xcorr' or 'sconv' or 'tconv' for convolution layers
+    kfn = 'max' or 'avg' for pooling layers
     """
     self.kfn = kfn
     self.kfn_args = kfn_args
@@ -201,24 +222,6 @@ class stream (chain):
       self.kfn = DEFAULT_POOLING_KERNEL_FUNCTION
     elif self.type_arch == 'conv':
       self.kfn = DEFAULT_CONVOLUTION_KERNEL_FUNCTION
-
-#-------------------------------------------------------------------------------
-  def set_parinit(self, pin = None, *pin_args, **pin_kwds):
-    """
-    pin = 'vsi' (variance scale initialiser) and/or 'zoi' (zero offset initialiser)
-    """
-    self.pin = pin if type(pin) is list else [pin]
-    self.pin = [Creation(_pin) for _pin in self.pin]
-    self.pin_args = pin_args
-    self.pin_kwds = dict(pin_kwds)
-    call_vsi = Creation('vsi')
-    if call_vsi in self.pin:
-      if 'weights_initializer' not in self.pin_kwds:
-        self.pin_kwds.update({'weights_initializer', call_vsi})
-    call_zoi = Creation('zoi')
-    if call_zoi in self.pin:
-      if 'bias_initializer' not in self.pin_kwds:
-        self.pin_kwds.update({'bias_initializer', call_zoi})
 
 #-------------------------------------------------------------------------------
   def set_normal(self, nor = None, *nor_args, **nor_kwds):
@@ -316,20 +319,25 @@ class stream (chain):
       if self.win is None: self.set_padwin()
       if self.kfn is None: self.set_kernfn()
     if self.type_arch == 'dense' or self.type_arch == 'conv':
-      if self.ubi is None: self.set_usebias()
-      if self.pin is None: self.set_parinit()
+      if self.bia is None: self.set_biases()
+      if self.wgt is None: self.set_weights()
+      if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
+        vsi_kwds = dict(self.wgt_kwds)
+        vsi_kwds.pop('kernel_initializer')
+        self.vsi = Creation(self.wgt)(**vsi_kwds)
+        self.wgt_kwds = {'kernel_initializer': self.vsi}
     kwds = {'name': self.name + "/" + self.type_adim}
     if self.type_arch == 'dense':
       kwds.update({'units': self.arch})
       kwds.update({'activation': None})
-      kwds.update(self.ubi_kwds)
-      kwds.update(self.pin_kwds)
+      kwds.update(self.bia_kwds)
+      kwds.update(self.wgt_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
       kwds.update({'activation': None})
-      kwds.update(self.ubi_kwds)
-      kwds.update(self.pin_kwds)
+      kwds.update(self.bia_kwds)
+      kwds.update(self.wgt_kwds)
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
     elif self.type_arch == 'pool':
@@ -401,12 +409,12 @@ class stream (chain):
 
     if self.order is not None: other.set_order(self.order)
     if self.ist is not None: other.set_is_training(self.ist)
-    if self.ubi is not None: other.set_usebias(self.ubi, *self.ubi_args, **self.ubi_kwds)
+    if self.bia is not None: other.set_biases(self.bia, *self.bia_args, **self.bia_kwds)
+    if self.wgt is not None: other.set_weights(self.wgt, *self.wgt_args, **self.wgt_kwds)
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
     if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
     if self.kfn is not None: other.set_kernfn(self.kfn, *self.kfn_args, **self.kfn_kwds)
-    if self.pin is not None: other.set_parinit(self.pin, *self.pin_args, **self.pin_kwds)
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
 
     # Copy over the summary transfer function

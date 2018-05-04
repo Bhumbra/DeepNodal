@@ -2,11 +2,10 @@
 
 ## TESTING
 
-- test 'same' and 'valid' padding windows for pooling and convolutional specifications.
-- test 'max' and 'avg' pooling functions.
+- try some CIFAR tests.
 
 ## FEATURES
 
-- improved custom weight initialisation routine.
 - regimen-specific layer `freezing` - mostly coded.
+
 

@@ -280,22 +280,57 @@ layers as shown in previous examples. The existence of convolution and pooling l
 the code as this is all that is sufficient for DeepNodal. If you are not convinced, please inspect the corresponding
 TensorBoard graph.
 
+## LeNet convolutional network example
+
+While the default settings for the convolutional network example above work well, a network designer will want more
+control. The example in examples/mnist_lenet constructs a LeNet-style architecture, with a few lines that give
+additional specifications:
+
+```python
+arch = [ [6, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
+         [16, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
+         [120, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
+         84, 
+         10]
+transfn = ['relu'] * (len(arch)-1) + ['softmax']
+kernfn = ['xcorr', 'avg'] * 3 + [None, None]
+padwin = ['valid'] + ['same'] * (len(arch)-1)
+weights = 'vsi'
+...
+  mod = dn.stack()
+  mod.set_arch(arch)
+  mod.set_transfn(transfn)
+  mod.set_kernfn(kernfn)
+  mod.set_padwin(padwin)
+  mod.set_weights(weights)
+...
+```
+
+The kernel function specification `kernfn` alternates between the convolution ('xcorr') and pooling ('avg') layers.
+Despite its name the default convolution is a cross-correlation ('xcorr'). The default pooling kernel function is 
+max-pooling ('max') but you can see in this example it has been changed to average pooling ('avg') for all pooling
+layers. 
+
+By default the padding window is 'same' but as you can see in the example it has been changed to 'valid' for the first
+level only. Also note that padding specification is ignored for last two levels since they are dense layers. The
+`weights` specification controls the weights initialisation which here is variance-scaling initialisation ('vsi'), as
+recommended by He et al. (2015). Once again, do inspect the TensorBoard graph to confirm the customisations and the
+histograms to see the truncated normal-distributions in weight coefficients.
+
 ## Multiple-GPU convolutional network example
 
-This final MNIST example can only be run if you have multiple GPUs. It is virtually identical to the previous example 
-but with only a couple of changes:
+This final MNIST example, examples/mnist_lenet_multigpu.py can only be run if you have multiple GPUs. It is virtually 
+identical to the previous example but with only a single change:
  
 ```python 
 ...
-num_gpus = 2 
-...
-sup = dn.hypervisor(devs = num_gpus) 
+sup = dn.hypervisor(devs = 2) 
 ...
 ```
 
 A `hypervisor` is a `supervisor` which does exactly the same thing but distributes the work-load onto multiple GPUs.
-Each GPU performs the necessary computations for a sub-batch of size `batch_size/num_gpus`. During training, the
-hypervisor takes the average gradients computed across the GPUs to perform the parameter updates. This approach in
+Each GPU performs the necessary computations for a sub-batch of size `batch_size/[number_of_gpu_devs]`. During training,
+the hypervisor takes the average gradients computed across the GPUs to perform the parameter updates. This approach in
 effect results in training that would be identical to what would take place for unsplit training batches. 
 
 Although the adjustments in the code above are trivial, the complexity of implementation is considerable and this can be
