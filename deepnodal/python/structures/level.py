@@ -37,7 +37,9 @@ class level (stem):
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
-    self.set_arch() # defaults to an identity
+    self.set_arch()    # defaults to an identity
+    self.set_ipverge() # sets ipv_args and ipv_kwds
+    self.set_opverge() # sets ipv_args and ipv_kwds
     self.setup()
 
 #-------------------------------------------------------------------------------
@@ -99,10 +101,34 @@ class level (stem):
         self.ipv = [self.ipv]
       if len(self.ipv) != self.n_subobjects:
         raise TypeError('List length for set_ipverge specification must match number of streams')
-    if not(len(self.ipv_kwds)):
+    if 'vergence_fn' not in self.ipv_kwds:
       self.ipv_kwds.update({'vergence_fn': DEFAULT_VERGENCE_FUNCTION})
     if 'axis' not in self.ipv_kwds:
-      self.ipv_kwds.update({'axis': -1})
+      ax = 0
+      if Creation('con') == Creation(self.ipv_kwds['vergence_fn']):
+        ax = -1
+      self.ipv_kwds.update({'axis': ax})
+
+#-------------------------------------------------------------------------------
+  def broadcast(self, func, spec = None, *args, **kwds): # overloads stem.broadcast
+    """
+    We overload here because here we 'None' any broadcast specifications to
+    identity architectures.
+
+    There's nothing to stop designers from over-ruling this by providing
+    full list specifications but they would really want to.
+    """
+    #if type(spec) is not list: spec = [spec] * self.n_subobjects
+    if type(spec) is not list:
+      spec = [spec] * self.n_subobjects
+      for i in range(self.n_subobjects):
+        if self.subobjects[i].type_adim == 'identity':
+          spec[i] = None
+    if type(args) is not list: args = [args] * self.n_subobjects
+    if type(kwds) is not list: kwds = [kwds] * self.n_subobjects
+
+
+    return [func(subobject, spec[i], *args[i], **kwds[i]) for i, subobject in enumerate(self.subobjects)]
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
@@ -183,10 +209,13 @@ class level (stem):
 #-------------------------------------------------------------------------------
   def set_opverge(self, opv = None, *opv_args, **opv_kwds):
     """
-    opc is a vergence specification that unites outputs so that their numbers may
+    opv is a vergence specification that unites outputs so that their numbers may
     differ to that of the number of streams.
 
-    opc may be True, specifying all streams outputs to be coalesced within the level.
+    opv may be True, specifying all streams outputs to be coalesced within the level.
+
+    ...or opv may be a list of lists where the outer dimension is the number of
+    vergences and inner dimension for each is the index of streams to verge.
 
     By default, concatenation ('con') is assumed, but under `kwds', 'vergence_fn'
     may be 'sum'.
@@ -198,15 +227,21 @@ class level (stem):
     self.opv_args = opv_args
     self.opv_kwds = dict(opv_kwds)
     if self.opv is None: return
+
+    # There is no reason why we can't complete and check the specification now
+
+    # First check/complete boolean specification
     if type(self.opv) is bool:
       if not(self.opv):
         self.opv = None
         return
       elif self.unit_subobject:
         print('Specification include attempting to coalesce a single stream')
-        pass
+        self.opv = None
+        return
       else:
         self.opv = list(range(self.n_subobjects)) 
+
     if type(self.opv) is list:
       if not(len(self.opv)):
         self.opv = None
@@ -215,10 +250,13 @@ class level (stem):
         self.opv = [self.opv]
     else:
       raise TypeError('Specification must either be boolean or a list of lists')
-    if not(len(self.opv_kwds)):
+    if 'vergence_fn' not in self.opv_kwds:
       self.opv_kwds.update({'vergence_fn': DEFAULT_VERGENCE_FUNCTION})
     if 'axis' not in self.opv_kwds:
-      self.opv_kwds.update({'axis': -1})
+      ax = 0
+      if Creation('con') == Creation(self.opv_kwds['vergence_fn']):
+        ax = -1
+      self.opv_kwds.update({'axis': ax})
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
@@ -282,22 +320,23 @@ class level (stem):
     elif len(self.inp) == 1 and not(self.unit_subobject):
       self.inp = tuple([self.inp[0]] * self.n_subobjects)
     if self.ipv is None: # Attempt an input concentation if input multiple
-      if len(self.inp) > 1 and self.unit_subobject: # with unit_stream
-        self.set_ipverge(True)
+      if len(self.inp) > 1:
+        if self.unit_subobject:
+          self.set_ipverge(True, *self.ipv_args, **self.ipv_kwds)
+        elif len(self.inp) != self.n_subobjects:
+          raise ValueError("Number of input verge specificaitons incommensurate with number of streams")
     if type(self.ipv) is bool:
       if self.ipv:
         self.ipv = list(range(len(self.inp))),
-
     self.Inp = self.inp
     if self.ipv is None: return self.Inp
-
     if len(self.ipv) != self.n_subobjects:
       raise ValueError("Input vergence specification incommensurate with number of streams")
 
     # Here if specified we create the graph object(s) for input vergence.
     Inp = [None] * len(self.ipv)
-    for i, ipc in enumerate(self.ipv):
-      inp = [self.inp[j] for j in ipc]
+    for i, ipv in enumerate(self.ipv):
+      inp = [self.inp[j] for j in ipv]
       func = self.ipv_kwds['vergence_fn']
       kwds = dict(self.ipv_kwds)
       kwds.pop('vergence_fn')
@@ -323,8 +362,8 @@ class level (stem):
     self.out = self.Out
     if self.opv is None: return self.ret_out()
     out = [None] * len(self.opv)
-    for i, opc in enumerate(self.opv):
-      Out = [self.Out[j] for j in opc]
+    for i, opv in enumerate(self.opv):
+      Out = [self.Out[j] for j in opv]
       func = self.opv_kwds['vergence_fn']
       kwds = dict(self.opv_kwds)
       kwds.pop('vergence_fn')

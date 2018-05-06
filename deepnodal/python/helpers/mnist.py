@@ -6,6 +6,7 @@ import subprocess
 import numpy as np
 
 #-------------------------------------------------------------------------------
+MNIST_GZIP_COMMAND = "gunzip"
 MNIST_URL_DIRECTORY = 'http://yann.lecun.com/exdb/mnist/'
 MNIST_ZIP_EXTENSION = '.gz'
 MNIST_DIRECTORY = "/tmp/mnist/"
@@ -31,9 +32,9 @@ def maybe_download_and_extract(directory, filename, zipextension=MNIST_ZIP_EXTEN
   if not(os.path.exists(target_path)):
     print("Extracting %s" % (source_path))
     # Can't make python's gzip work here so using gunzip
-    gunzip_command = "gunzip " + source_path
-    gunzip_process = subprocess.Popen(gunzip_command.split(), stdout=subprocess.PIPE)
-    gunzip_process.communicate()
+    gzip_command = MNIST_GZIP_COMMAND + " " + source_path
+    gzip_process = subprocess.Popen(gzip_command.split(), stdout=subprocess.PIPE)
+    gzip_process.communicate()
 
 #-------------------------------------------------------------------------------
 def read_idx1(file_path):

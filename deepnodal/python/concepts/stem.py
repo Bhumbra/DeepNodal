@@ -101,7 +101,11 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     pass
 
 #-------------------------------------------------------------------------------
-  def ret_out(self, out = None):
+  def ret_inp(self):
+    return self.inp
+
+#-------------------------------------------------------------------------------
+  def ret_out(self):
     return self.out
 
 #-------------------------------------------------------------------------------

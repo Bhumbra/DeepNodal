@@ -113,7 +113,7 @@ considered a subnet of the network. A subnet may be a `stream`, but it may also 
 as a `level` or `stack` (which will be described shortly). After running examples/mnist_softmax.py, the model and
 TensorFlow logs will be saved to the /tmp/dn_logs/ path. Please inspect the TensorBoard-rendered graph after running the
 example, and inspect the implementation since the TensorBoard graph design is intended to make the implementation as
-graphically clear as possible.
+graphically clear as possible. Notice how DeepNodal automatically flattens the input for the dense layer.
 
 ## Sigmoid parallel layers example
 
@@ -201,15 +201,16 @@ is evident only in one line of the code:
 
 ```python
 ...
-arch = [100, (100, None, 100), 10]
+arch = [100, (100, None, 100), (100, None, 100), 10]
 ...
 ```
 
-This architecture specification means that the second level comprises of three streams, sharing a common input from the
-first level. Since the last level has only a single stream, DeepNodal can only make sense of this stack design by
-introducing an input vergence (`con` by default) for this last level. Notice how the first and last stream of the second
-level comprise simple dense layers whereas the middle stream has an architecture of `None`, which correponds to an
-`identity`. This approach therefore provides an alternative way of creating skip connection vergences between levels.
+This architecture specification means that the second and third levels comprises of three streams, the first sharing a
+common input from the first level. Since the last level has only a single stream, DeepNodal can only make sense of this
+stack design by introducing an input vergence (`con` by default) for this last level. Notice how the first and third
+stream of the middle levels comprise simple dense layers whereas the middle stream has an architecture of `None`, which
+correponds to an `identity`. This approach therefore provides an alternative way of creating skip connection vergences
+between levels.
 
 ## Multi-layer perceptron with regularisation and batch-normalisation example
 
@@ -278,7 +279,8 @@ architecture specification takes the form `[number_of_feature_maps, [kernel_size
 it is: `[[pooling_size], [stride]]`. The last two level architectures are single integers and therefore regular dense
 layers as shown in previous examples. The existence of convolution and pooling layers is nowhere evident elsewhere in
 the code as this is all that is sufficient for DeepNodal. If you are not convinced, please inspect the corresponding
-TensorBoard graph.
+TensorBoard graph. Notice how Deepnodal automatically flattens the output of the last pooling layer give provide an
+acceptable input to the first dense layer.
 
 ## LeNet convolutional network example
 
