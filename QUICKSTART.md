@@ -12,21 +12,22 @@ Deep learning libraries such as TensorFlow and Theano typically require two stag
 
 The first stage can require considerable amounts of coding even for somewhat simple network configurations. Matters
 become much more complicated with multiple hardware devices (e.g. GPUs) to the extent where a minor adjustment to a
-network design can entail a lot of changes in code. There are very useful libraries that provide convenient wrappers
-around deep learning backends, with more intuitive functions for common network configurations. However, while they
-might reduce of bulk of code, the resulting code remains highly repetitive.
+network design can entail a lot of changes in code. There are helpful libraries that provide convenient wrappers around
+deep learning backends, with more intuitive functions for common network configurations. However, while they might
+reduce some of the syntactic bulk, the resulting code remains highly vulnerable to boilerplate verbosity.
 
-DeepNodal adopts a different approach. It is designed with research science work in mind rather than software
-engineering applications. It abstracts much of engineering components so that the coding can be focussed on network
-design instead. This is achieved by adding an additional stage to the list above:
+DeepNodal adopts a different approach. A model-driven engineering methodology underlies the design of DeepNodal to
+provide a deep learning framework for research science work rather than software engineering applications. It aims at
+using abstract representations of concepts to encapsulate much of engineering components so that the coding can be
+focussed on network design instead. This is achieved by adding an additional stage to the list above:
 
 1. Specification of network design and learning regimes.
 2. Graph object construction.
 3. Execution and updates of graph objects with feeded data.
 
 At first it might seem an additional first step would require an increase in code instructions. However, by introducing
-this a specification stage, DeepNodal almostly entirely takes care of stages 2 and 3. By separating network and learning
-design from graph construction and execution, the code is considerably shortened and much less likely to contain errors. 
+this specification stage, DeepNodal almostly entirely takes care of stages 2 and 3. By separating network and learning
+design from graph construction and execution, the code is considerably shortened and much less prone to coding errors. 
 
 The only real learning curve for coders is short and shallow, and that is to understand how to code specifications. This
 is very straightforward in DeepNodal, where for instance `stack` specifications (we will describe stacks properly later)
@@ -174,7 +175,7 @@ skipcv = [None] * (len(arch)-2) + [-2, None]
 
 A DeepNodal `stack` is a series of levels that are connected in sequence end-to-end but may also include skip
 connection vergences between outputs of non-contiguous levels. Again the vergence function may be a concatenation
-('con') or summation ('sum'). 
+('con') or summation ('sum'). Whereas a level consists of streams in parallel, a stack comprises of levels in series.
 
 The `stack` is the highest fully specifiable hierarchical DeepNodal model. A DeepNodal `network` may comprise of any
 permutation of inter-connected subnets whether they are stacks, levels, or streams. While a `network` is not fully
