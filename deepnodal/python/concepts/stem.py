@@ -235,4 +235,3 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     return outputs
 
 #-------------------------------------------------------------------------------
-
