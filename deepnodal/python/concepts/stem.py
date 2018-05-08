@@ -11,7 +11,7 @@ from deepnodal.python.concepts.leaf import *
 #-------------------------------------------------------------------------------
 class stem (structure): # we inherit structure because a stem is never a leaf
   """
-  A stem is a structure that supports and broadcasts to many subobjects.
+  A stem is a structure that supports and broadcasts specifications to many subobjects.
   Note a subobject may be another stem or a leaf (the default).
 
   The stem class is abstract and inheriting classes must define self.setup(inp)
@@ -26,6 +26,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
   subobject = leaf                 # subobject class
   unit_subobject = None            # flag to state unit subobject
   subobject_name = 'subobject'     # default subobject name if not unit_subobject
+  spec_type = None                 # container type to give specifications to subobjects (dict not allowed)
   inp = None                       # input
   out = None                       # output
   params = None                    # parameters - collated from subobjects
@@ -109,19 +110,48 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     return self.out
 
 #-------------------------------------------------------------------------------
-  def broadcast(self, func, spec = None, *args, **kwds):
+  def set_spec(self, func, spec = None, *args, **kwds):
     """
-    Allows broadcasting of a specification to all subobjects in the following form:
+    Allows set_specing of a specification to all subobjects in the following form:
     return [func(subobject, spec, *args, **kwds) for subobject in enumerate(self.subobjects)]
     ...or...
     return [func(subobject, spec[i], *args[i], **kwds[i]) for i, subobject in enumerate(self.subobjects)]
     ...or...
     any such combination.
     """
-    if type(spec) is not list: spec = [spec] * self.n_subobjects
-    if type(args) is not list: args = [args] * self.n_subobjects
-    if type(kwds) is not list: kwds = [kwds] * self.n_subobjects
-    return [func(subobject, spec[i], *args[i], **kwds[i]) for i, subobject in enumerate(self.subobjects)]
+    if self.spec_type is None:
+      return [func(subobject, spec, *args, **kwds) for i, subobject in enumerate(self.subobjects)]
+    if type(spec) is not self.spec_type:
+      spec = self.spec_type([spec] * self.n_subobjects)
+    elif len(spec) != self.n_subobjects:
+      raise ValueError("Specification incommensurate with number of subobjects")
+    if len(kwds):
+      if len(args) == 1:
+        args = args[0]
+        if type(args) is not self.spec_type:
+          args = self.spec_type([args] * self.n_subobjects)
+        elif len(args) != self.n_subobjects:
+          raise ValueError("Specification arguments incommensurate with number of subobjects")
+        return [func(subobject, spec[i], args[i], **kwds) for i, subobject in enumerate(self.subobjects)]
+      elif not(len(args)):
+        return [func(subobject, spec[i], **kwds) for i, subobject in enumerate(self.subobjects)]
+      else:
+        return [func(subobject, spec[i], *args, **kwds) for i, subobject in enumerate(self.subobjects)]
+    elif len(args) == 1:
+      args = args[0]
+      if type(args) is dict:
+        kwds = dict(args)
+        return [func(subobject, spec[i], **kwds) for i, subobject in enumerate(self.subobjects)]
+      elif type(args) is self.spec_type:
+        if len(spec_type) != self.n_subjects:
+          raise ValueError("Specification arguments incommensurate with number of subobjects")
+        return [func(subobject, spec[i], args[i]) for i, subobject in enumerate(self.subobjects)]
+      else:
+        return [func(subobject, spec[i], args) for i, subobject in enumerate(self.subobjects)]
+    elif not(len(args)):
+      return [func(subobject, spec[i]) for i, subobject in enumerate(self.subobjects)]
+    else:
+      return [func(subobject, spec[i], args) for i, subobject in enumerate(self.subobjects)]
 
 #-------------------------------------------------------------------------------
   def setup_params(self):

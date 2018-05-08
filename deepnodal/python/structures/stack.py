@@ -27,6 +27,7 @@ class stack (stem):
   arch = None             # architecture
   type_arch = None        # level architectures if all stream types are the same
   levels = None           # provides a friendly UI to the list of subobjects
+  spec_type = list        # specification type
   trans_fn = None         # transfer function of last level if identical for all streams
   arch_out = None         # archecture output of last level if unit_stream
   scv = None              # Skip vergence specification (across levels)
@@ -119,21 +120,21 @@ class stack (stem):
     """
     spec = ipv is the vergence specification for stream inputs within levels.
     """
-    return self.broadcast(self.subobject.set_ipverge, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_ipverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
     """
     spec = is_training must be set to handle some operations (e.g. batch normalisation)
     """
-    return self.broadcast(self.subobject.set_is_training, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_is_training, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_order(self, spec = None, *args, **kwds):
     """
     spec = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
-    return self.broadcast(self.subobject.set_order, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_biases(self, spec = None, *args, **kwds):
@@ -142,7 +143,7 @@ class stack (stem):
     None (default bias settings), False/True, disable/enable biases,
     or Bias initializer (e.g. 'zoi'): use bias with this initialiser
     """
-    return self.broadcast(self.subobject.set_biases, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_biases, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_weights(self, spec = None, *args, **kwds):
@@ -150,7 +151,7 @@ class stack (stem):
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
     """
-    return self.broadcast(self.subobject.set_weights, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, spec = None, *args, **kwds):
@@ -159,7 +160,7 @@ class stack (stem):
     spec = 0.: Full dropout (i.e. useless)
     spec = 0.4: dropout with keep probability of 0.6
     """
-    return self.broadcast(self.subobject.set_dropout, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_dropout, spec, *args, **kwds)
 #-------------------------------------------------------------------------------
   def set_transfn(self, spec = None, *args, **kwds):
     """
@@ -167,7 +168,7 @@ class stack (stem):
     spec = 'elu': ELU
     other options: 'softmax', and 'sigmoid'
     """
-    argout = self.broadcast(self.subobject.set_transfn, spec, *args, **kwds)
+    argout = self.set_spec(self.subobject.set_transfn, spec, *args, **kwds)
     self.trans_fn = self.subobjects[-1].trans_fn
     return argout
 
@@ -176,35 +177,28 @@ class stack (stem):
     """
     spec = 'same' or 'valid'
     """
-    return self.broadcast(self.subobject.set_padwin, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_padwin, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, spec = None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
-    return self.broadcast(self.subobject.set_kernfn, spec, *args, **kwds)
-
-#-------------------------------------------------------------------------------
-  def set_parinit(self, spec = None, *args, **kwds):
-    """
-    spec = 'vsi' (variance scale initialiser) and/or 'zoi' (zero offset initialiser)
-    """
-    return self.broadcast(self.subobject.set_parinit, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_normal(self, spec = None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
-    return self.broadcast(self.subobject.set_normal, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_normal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_opverge(self, spec = None, *args, **kwds):
     """
     spec = opc is the vergence specification for stream outputs within levels.
     """
-    return self.broadcast(self.subobject.set_opverge, spec, *args, **kwds)
+    return self.set_spec(self.subobject.set_opverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):

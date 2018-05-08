@@ -12,7 +12,9 @@ Deep learning libraries such as TensorFlow and Theano typically require two stag
 
 The first stage can require considerable amounts of coding even for somewhat simple network configurations. Matters
 become much more complicated with multiple hardware devices (e.g. GPUs) to the extent where a minor adjustment to a
-network design can entail a lot of changes in code.
+network design can entail a lot of changes in code. There are very useful libraries that provide convenient wrappers
+around deep learning backends, with more intuitive functions for common network configurations. However, while they
+might reduce of bulk of code, the resulting code remains highly repetitive.
 
 DeepNodal adopts a different approach. It is designed with research science work in mind rather than software
 engineering applications. It abstracts much of engineering components so that the coding can be focussed on network

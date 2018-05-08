@@ -51,7 +51,7 @@ def main():
   # SPECIFY SUPERVISOR AND TRAINING
 
   sup = dn.supervisor()
-  sup.set_optimiser('adam', **optimiser_kwds)
+  sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
   sup.new_regime(learning_rate)
   sup.new_regime(0.1*learning_rate)

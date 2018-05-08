@@ -8,9 +8,9 @@ import datetime
 
 # PARAMETERS
 
-n_epochs = 20
-batch_size = 60
-learning_rate = 0.1
+n_epochs = 50
+batch_size = 120
+learning_rates = {0:0.02, 5:0.01}
 
 input_dims = [32, 32, 3]
 arch = [ [16, [3, 3], [1, 1]] ] * 1                   +\
@@ -36,14 +36,18 @@ skipcv =  [None]                                   +\
           [None, None, None] 
 
 order = ['datn'] + ['dnta']*(len(arch) - 4) + ['datn']*3
-transfn = ['relu'] * (len(arch)-1) + ['softmax']
+transfn = [None] + ['relu'] * (len(arch)-2) + ['softmax']
 kernfn = ['xcorr'] * (len(arch)-3) + ['avg', 'None', None]
 normal = [None] + ['batch_norm'] * (len(arch)-4) + [None, None, None]
-normal_kwds = {'momentum':0.99, 'epsilon':0.001}
+normal_kwds = {'momentum':0.997, 'epsilon':1e-5}
 padwin = 'same'
 weights = 'vsi'
+reguln = 2
+reguln_kwds = {'scale': 0.0001}
 opverge_kwds = {'vergence_fn': 'sum'}
 skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}       
+optimiser = 'mom'
+optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
 
 net_name = 'resnet20_cifar10'
 write_dir = '/tmp/dn_logs/'
@@ -74,20 +78,27 @@ def main():
   net = dn.network(net_name)
   net.set_subnets(mod)
   net.set_inputs(input_dims)
+  net.set_reguln(reguln, **reguln_kwds)
 
   # SPECIFY SUPERVISOR AND TRAINING
 
   sup = dn.hypervisor()
   #sup = dn.hypervisor(devs = 2)
+  sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
-  sup.new_regime(learning_rate)
+  for i in list(learning_rates):
+    sup.new_regime(learning_rates[i])
 
   # TRAIN AND TEST
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   t0 = time()
+  regime = -1
   with sup.new_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
+      if i in learning_rates:
+        regime += 1
+        sup.use_regime(regime)
       for j in range(iterations_per_epoch):
         images, labels = source.train_next_batch(batch_size)
         sup.train(images, labels)
