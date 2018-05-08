@@ -159,7 +159,7 @@ class supervisor (overseer):
 #-------------------------------------------------------------------------------
   def _setup_errors(self):
     self.errors = None
-    if not(len(self.erq_args[0])): # i.e. mse
+    if not(len(self.erq_args)): # i.e. mse
       if self.dev is None:
         self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
       else:
