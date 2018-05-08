@@ -143,7 +143,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
         kwds = dict(args)
         return [func(subobject, spec[i], **kwds) for i, subobject in enumerate(self.subobjects)]
       elif type(args) is self.spec_type:
-        if len(spec_type) != self.n_subjects:
+        if len(args) != self.n_subobjects:
           raise ValueError("Specification arguments incommensurate with number of subobjects")
         return [func(subobject, spec[i], args[i]) for i, subobject in enumerate(self.subobjects)]
       else:
