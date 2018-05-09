@@ -283,7 +283,7 @@ class trainer (slave):
     return self.session
 
 #-------------------------------------------------------------------------------
-  def new_session(self, write_dir = None, *args, **kwds):
+  def new_session(self, write_dir = None, restore_point = None, *args, **kwds):
     if self.outputs is None: self.setup()
 
     # Setup the write_directory logger and saver.
@@ -293,23 +293,23 @@ class trainer (slave):
     session = self.set_session(Creation('session')(*args, **kwds))
 
     # Ideal point to confirm whether self.gvi has been setup and run
-    if session is not None and self.gvi is None: self.init_variables()
+    if session is not None and self.gvi is None: self.init_variables(restore_point)
     return session
 
 #-------------------------------------------------------------------------------
-  def init_variables(self, restorepoint = None):
+  def init_variables(self, restore_point = None):
     if self.session is None:
       raise AttributeError("Cannot initialise variables before calling new_session")
     with Scope('name', self.name):
       self.gvi = Creation('gvi')()
     self.session.run(self.gvi)
-    if restorepoint is not None:
+    if restore_point is not None:
       if self.saver is None:
         raise AttributeError("Cannot load restore point without saver created")
-      self.saver.restore(self.session, restorepoint)
-      load_path = restorepoint + '.tab'
+      self.saver.restore(self.session, restore_point)
+      load_path = restore_point + '.tab'
       with open(load_path, 'rt') as tab_file:
-        tab_reader = csv.read(tab_file, delimiter = '\t')
+        tab_reader = csv.reader(tab_file, delimiter = '\t')
         progress = []
         for row in tab_reader:
           if not(len(progress)):
