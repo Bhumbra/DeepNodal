@@ -48,7 +48,7 @@ their outputs to provide a concatenated input to the next hidden layer, then the
 ```
 
 This illustrates the motivation behind DeepNodal. If a change in design is conceptually simple, the corresponding
-programmateic change should be as simple. DeepNodal is designed to make this possible. The complexity of DeepNodal
+programmatic change should be as simple. DeepNodal is designed to make this possible. The complexity of DeepNodal
 arises from its flexibility to specify practically any architecture (including convolutional, pooling layers, and skip
 connections), regularisation (including regularisation losses and dropout), and multiple training regimes (e.g. with
 different learning rates and/or dropout configurations). However, by adopting simple intuitive commands that do not
@@ -56,9 +56,9 @@ distract the coder with software engineering implementation issues, DeepNodal en
 the network design and learning regimes.
 
 This convenience does come at the cost of hiding the implementation, but DeepNodal provides a flexible interface that
-allows the network designer to over-rule device handling. For now however, the learning facilities of DeepNodal are
-limited to supervised learning and near-supervised learning (e.g. auto-encoders). In the future, DeepNodal will be
-improved to include support for recurrent architectures and reinforcement learning.
+allows the network designer to over-rule function and device handling. For now however, the learning facilities of
+DeepNodal are limited to supervised learning and near-supervised learning (e.g. auto-encoders). In the future, DeepNodal
+will be improved to include support for recurrent architectures and reinforcement learning.
 
 # Installation
 

@@ -156,7 +156,7 @@ class network (stem):
     self.reg = Creation(reg)
     self.reg_args = reg_args
     self.reg_kwds = reg_kwds
-    if self.reg is None and 'scale' in self.reg_kwds:
+    if self.reg is not None and 'scale' not in self.reg_kwds:
       raise ValueError("L1/2 regularisation specification requires scaling coefficient keyword 'scale'")
 
 #-------------------------------------------------------------------------------
@@ -241,6 +241,8 @@ class network (stem):
 #-------------------------------------------------------------------------------
   def _setup_inputs(self):
     self.inp = [None] * self.n_subnets
+    self.inp_args = [None] * self.n_subnets
+    self.inp_kwds = [None] * self.n_subnets
     for i in range(self.n_subnets):
       if self.type_inputs[i] in DEFAULT_INPUT_STRUCTURE_TYPES:
         self.inp[i] = self.inputs[i].ret_out()
@@ -253,13 +255,14 @@ class network (stem):
         inp_dim = [None]
         for dim in self.inputs[i]:
           inp_dim.append(dim)
+        self.inp_args[i] = (kwds['dtype']),
+        self.inp_kwds[i] = {'shape':list(inp_dim)}
+        inp_name = self.name + "/inputs_" + str(i)
         if self.dev is None:
-          self.inp[i] = Creation('tensor')(kwds['dtype'], shape = inp_dim,
-                                           name = self.name + "/inputs_" + str(i))
+          self.inp[i] = Creation('tensor')(*self.inp_args[i], name = inp_name, **self.inp_kwds[i])        
         else:
           with Device(self.dev):
-            self.inp[i] = Creation('tensor')(kwds['dtype'], shape = inp_dim,
-                                         name = self.name + "/inputs_" + str(i))
+            self.inp[i] = Creation('tensor')(*self.inp_args[i], name = inp_name, **self.inp_kwds[i])        
       elif callable(Creation(self.inputs[i])): # the inputs creation is being over-ridden externally
         if self.dev is None:
           self.inp[i] = Creation(self.inputs[i])(self.inputs_args[i],

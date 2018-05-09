@@ -270,7 +270,7 @@ class supervisor (overseer):
         with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
             self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
-                                                               global_step = self.gst)
+                                                           global_step = self.gst)
       else:
         with Device(self.dev):
           with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
@@ -279,7 +279,7 @@ class supervisor (overseer):
           with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
               self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
-                                                                 global_step = self.gst)
+                                                             global_step = self.gst)
       self.train_ops[i] = self.delta_ops[i]
     return self.train_ops
 

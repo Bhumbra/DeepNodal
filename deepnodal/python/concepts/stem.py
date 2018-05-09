@@ -161,7 +161,6 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     but must collate their lists from subobjects, until eventually reaching leaf-derived
     classes each of which may posses an autonomous parameter list associated with
     a single TensorFlow call.
-
     """
     self.params = []
     for subobject in self.subobjects:
@@ -188,7 +187,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       raise ValueError("Parameter specification incommensurate with hierarchical structure")
     else:
       for i, spec in enumerate(param_spec):
-        params += spec.subobject[i].ret_params(spec)
+        params += self.subobjects[i].ret_params(spec)
       for param in params:
         param_name = list(param)[0]
         param_object = param[param_name]
@@ -209,7 +208,6 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     but must collate their lists from subobjects, until eventually reaching leaf-derived
     classes each of which may posses an autonomous output list associated with
     a single TensorFlow call.
-
     """
     self.outputs = []
     for subobject in self.subobjects:
@@ -231,7 +229,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       raise ValueError("Outputs specification incommensurate with hierarchical structure")
     else:
       for i, spec in enumerate(outputs_spec):
-        outputs += spec.subobject[i].ret_outputs(spec)
+        outputs += self.subobjects[i].ret_outputs(spec)
     return outputs
 
 #-------------------------------------------------------------------------------

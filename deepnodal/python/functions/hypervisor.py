@@ -95,6 +95,11 @@ class hypervisor (supervisor, master, stem):
     # Clone networks
     self.clones = [self.work.clone() for i in range(self.n_devs)]
 
+    # Remove weight initialisers from clones (GPUs are less flexible)
+    for clone in self.clones:
+      for subnet in clone.subnets:
+        subnet.set_weights(None)
+
     # Declare clones as subobjects to stem
     self.set_subobjects(self.clones)
 
@@ -363,11 +368,11 @@ class hypervisor (supervisor, master, stem):
       self.slave_grad[j] = [None] * self.n_devs
       for i in range(self.n_devs):
         grad_name = self.name + "/slave_" + str(i) + "/" + self.gradient_names[j]
-        if self.dev is None:
+        if self.slaves[i].dev is None:
           self.slave_grad[j][i] = Creation('aug_dims')(slave_gradients[i][j], 0,
                                   name = grad_name)
         else:
-          with Device(self.dev):
+          with Device(self.slaves[i].dev):
             self.slave_grad[j][i] = Creation('aug_dims')(slave_gradients[i][j], 0,
                                     name = grad_name)
                                  

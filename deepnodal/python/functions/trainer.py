@@ -14,6 +14,7 @@ logging, and saving.
 #-------------------------------------------------------------------------------
 from deepnodal.python.functions.regime import *
 from deepnodal.python.structures.network import *
+import csv
 
 #-------------------------------------------------------------------------------
 class trainer (slave):
@@ -71,6 +72,8 @@ class trainer (slave):
     if self.work is None: return
     if not isinstance(self.work, network) and not issubclass(self.work, network):
       raise TypeError("Only suitable work is a network.")
+    if self.dev is not None:
+      self.work.set_dev(self.dev)
 
 #-------------------------------------------------------------------------------
   def set_progress(self, progress = None):
@@ -318,7 +321,8 @@ class trainer (slave):
     """
     self.save(path) save self.session model to path
     """
-    self.saver.save(self.session, *args, global_step = self.gst, **kwargs)
+    self.saver.save(self.session, *args, global_step = self.gst, **kwds)
+    if not(len(args)): return
     # Could not successfully save batch progress to TensorFlow MetaGraph save points
     # so we save it manually.
     save_path = args[0] + "-" + str(int(self.gst.eval())) + ".tab"

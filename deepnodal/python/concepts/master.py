@@ -19,6 +19,7 @@ class master (function):
   """
 
   def_name = 'master'              # default name
+  devs = None                      # slave devices
   def_subworker = slave            # default subworker class
   def_subworker_name = 'subworker' # default subworker name
   subworkers = None                # subworker instances which may be leaves or stems
@@ -44,11 +45,12 @@ class master (function):
       subworker.set_name(subworker_name)
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev = None, devs = None):
     self.dev = dev
-    if self.subworkers is None: return
-    for subworker in self.subworkers:
-      subworker.set_dev(dev)
+    self.devs = devs
+    if self.subworkers is None or self.devs is None: return
+    for _dev, subworker in zip(self.devs, self.subworkers):
+      subworker.set_dev(_dev)
 
 #-------------------------------------------------------------------------------
   def set_subworker(self, subworker = None, subworker_name = None):

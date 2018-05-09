@@ -48,7 +48,6 @@ opverge_kwds = {'vergence_fn': 'sum'}
 skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}       
 optimiser = 'mom'
 optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
-
 net_name = 'resnet20_cifar10'
 write_dir = '/tmp/dn_logs/'
 
@@ -82,8 +81,7 @@ def main():
 
   # SPECIFY SUPERVISOR AND TRAINING
 
-  sup = dn.hypervisor()
-  #sup = dn.hypervisor(devs = 2)
+  sup = dn.hypervisor(devs = devs)
   sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
   for i in list(learning_rates):
