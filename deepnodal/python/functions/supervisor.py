@@ -295,7 +295,7 @@ class supervisor (overseer):
     if train_scalar_names is None:
       train_scalar_names = [self.name+"/COST_TRAIN", self.name+"/LOSS_TRAIN"]
       if self.errors is not None:
-        if self.erq != Creation("in_top_k_error"):
+        if Creation(self.erq) != Creation("in_top_k_error"):
           train_scalar_names.append(self.name+"/ERRQ_TRAIN")
         else:
           for i, err in enumerate(self.errors):
