@@ -19,8 +19,7 @@ transfn = ['relu'] * (len(arch)-1) + ['softmax']
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
 
-if True:
-#def main():
+def main():
 
   # INPUT DATA
 
@@ -58,8 +57,6 @@ if True:
       summary_str = sup.test(source.test_images, source.test_labels)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
-"""
 if __name__ == '__main__':
   main()
-"""  
 
