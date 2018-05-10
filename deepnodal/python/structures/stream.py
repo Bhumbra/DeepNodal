@@ -8,7 +8,7 @@ import numpy as np
 from deepnodal.python.structures.chain import *
 
 #-------------------------------------------------------------------------------
-DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for identity architectures.
+DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for absent architectures.
 DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
@@ -90,7 +90,7 @@ class stream (chain):
       if len(arch) == 0:
         self.type_arch = 'identity'
         self.type_adim = self.type_arch
-      if len(self.arch) == 1:
+      elif len(self.arch) == 1:
         raise ValueError("List length of 1 reserved (for recurrent architectures)")
       elif len(self.arch) > 3:
         raise ValueError("Unknown architecture specification")
@@ -99,8 +99,14 @@ class stream (chain):
           raise ValueError("Unknown architecture specification")
         self.type_arch = 'pool' if type(self.arch[0]) is list else 'conv'
         self.type_adim = self.type_arch + str(len(self.arch[1])) + "d"
-        if self.type_arch == 'conv' and len(self.arch) == 2: # default to unit stride
-          self.arch = [self.arch[0], self.arch[1], [1]*len(self.arch[1])]
+        if self.type_arch == 'conv': # default to unit stride
+          if len(self.arch) == 2:
+            self.arch = [self.arch[0], self.arch[1], 1]
+          if type(self.arch[2]) is int:
+            self.arch[2] = [self.arch[2]] * len(self.arch[1])
+        if self.type_arch == 'pool':
+          if type(self.arch[1]) is int:
+            self.arch[1] = [self.arch[1]] * len(self.arch[0])
 
     # Default bare essentials
     self.set_order()
@@ -124,7 +130,7 @@ class stream (chain):
     """
     if order is None:
       order = DEFAULT_STREAM_ORDER
-      if self.type_arch is 'none' or self.type_arch is 'identity':
+      if self.type_arch is 'none':
         order = 'a'
     self.order = order
 
@@ -365,6 +371,8 @@ class stream (chain):
     if self.nor is None: return self.ret_out()
     kwds = dict(self.nor_kwds)
     if Creation(self.nor) == Creation('batch_norm'):
+      # Official batch_norm is broken...
+      """
       if 'training' not in kwds:
         if self.ist is None:
           raise ValueError("Cannot setup batch_norm before setting training flag.")
@@ -372,6 +380,17 @@ class stream (chain):
           kwds.update({'training': self.ist})
       if 'name' not in kwds:
         kwds.update({'name': self.name + "/batch_norm"})
+      """
+      # Official batch_norm is broken...
+      if 'is_training' not in kwds:
+        if self.ist is None:
+          raise ValueError("Cannot setup batch_norm before setting training flag.")
+        else:
+          kwds.update({'is_training': self.ist})
+      if 'update_collections' not in kwds:
+        kwds.update({'updates_collections': None})
+      if 'scope' not in kwds:
+        kwds.update({'scope': self.name + "/batch_norm"})
     self.add_link(Creation(self.nor), *self.nor_args, **kwds)
     return self.ret_out()
 

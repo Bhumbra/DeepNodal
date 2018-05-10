@@ -6,6 +6,7 @@
 import tensorflow as tf
 from tensorflow import name_scope, variable_scope
 from tensorflow.contrib.framework import arg_scope
+from tensorflow.contrib.layers import batch_norm
 from tensorflow.python.ops.init_ops import VarianceScaling
 from deepnodal.python.interfaces.tf_extended import *
 
@@ -55,7 +56,8 @@ creation_dict = {'identity': tf.identity,
                  'pool3d': {'max':tf.layers.max_pooling3d,
                             'avg':tf.layers.average_pooling3d},
                  'flatten': tf.layers.flatten,
-                 'batch_norm': tf.layers.batch_normalization,
+                 #'batch_norm': tf.layers.batch_normalization,
+                 'batch_norm': batch_norm,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,

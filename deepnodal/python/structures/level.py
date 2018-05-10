@@ -38,7 +38,7 @@ class level (stem):
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
-    self.set_arch()    # defaults to an identity
+    self.set_arch()    # defaults to absence
     self.set_ipverge() # sets ipv_args and ipv_kwds
     self.set_opverge() # sets ipv_args and ipv_kwds
     self.setup()
@@ -51,9 +51,8 @@ class level (stem):
     element within the tuple specifies the stream architecture.
     """
     self.arch = arch
-    if self.arch is None: return
     if type(self.arch) is not tuple:
-      if type(self.arch) is int or type(self.arch) is list:
+      if self.arch is None or type(self.arch) is int or type(self.arch) is list:
         self.arch = (self.arch,)
       elif type(self.arch) is not tuple:
         raise TypeError("Unknown level architecture: " + str(self.arch))
@@ -111,16 +110,14 @@ class level (stem):
   def set_spec(self, func, spec = None, *args, **kwds): # overloads stem.broadcast
     """
     We overload here because here we 'None' any broadcast specifications to
-    identity architectures.
-
-    There's nothing to stop designers from over-ruling this by providing
-    full list specifications but they would really want to.
+    'none' architectures.
+    
+    To over-rule this effect, use [] ('identity') rather than None ('none').
     """
-    #if type(spec) is not list: spec = [spec] * self.n_subobjects
     if type(spec) is not self.spec_type:
       spec = [spec] * self.n_subobjects
       for i in range(self.n_subobjects):
-        if self.subobjects[i].type_adim == 'identity':
+        if self.subobjects[i].type_adim == 'none':
           spec[i] = None
       spec = self.spec_type(spec)
     return stem.set_spec(self, func, spec, *args, **kwds)

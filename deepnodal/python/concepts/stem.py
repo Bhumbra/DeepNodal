@@ -133,10 +133,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
         elif len(args) != self.n_subobjects:
           raise ValueError("Specification arguments incommensurate with number of subobjects")
         return [func(subobject, spec[i], args[i], **kwds) for i, subobject in enumerate(self.subobjects)]
-      elif not(len(args)):
-        return [func(subobject, spec[i], **kwds) for i, subobject in enumerate(self.subobjects)]
-      else:
+      elif len(args):
         return [func(subobject, spec[i], *args, **kwds) for i, subobject in enumerate(self.subobjects)]
+      else:
+        return [func(subobject, spec[i], **kwds) for i, subobject in enumerate(self.subobjects)]
     elif len(args) == 1:
       args = args[0]
       if type(args) is dict:
@@ -148,10 +148,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
         return [func(subobject, spec[i], args[i]) for i, subobject in enumerate(self.subobjects)]
       else:
         return [func(subobject, spec[i], args) for i, subobject in enumerate(self.subobjects)]
-    elif not(len(args)):
-      return [func(subobject, spec[i]) for i, subobject in enumerate(self.subobjects)]
-    else:
+    elif len(args):
       return [func(subobject, spec[i], args) for i, subobject in enumerate(self.subobjects)]
+    else:
+      return [func(subobject, spec[i]) for i, subobject in enumerate(self.subobjects)]
 
 #-------------------------------------------------------------------------------
   def setup_params(self):
