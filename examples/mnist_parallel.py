@@ -13,13 +13,14 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = [100, (100, None, 100), (100, None, 100), 10]
+arch = [100, (100, 100, None), (100, 100, None), 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
 
-def main():
+if True:
+#def main():
 
   # INPUT DATA
 
@@ -57,6 +58,8 @@ def main():
       summary_str = sup.test(source.test_images, source.test_labels)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
+"""
 if __name__ == '__main__':
   main()
+"""  
 

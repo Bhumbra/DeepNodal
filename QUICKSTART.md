@@ -204,16 +204,16 @@ is evident only in one line of the code:
 
 ```python
 ...
-arch = [100, (100, None, 100), (100, None, 100), 10]
+arch = [100, (100, 100, None), (100, 100, None), 10]
 ...
 ```
 
-This architecture specification means that the second and third levels comprises of three streams, the first sharing a
-common input from the first level. Since the last level has only a single stream, DeepNodal can only make sense of this
-stack design by introducing an input vergence (`con` by default) for this last level. Notice how the first and third
-stream of the middle levels comprise simple dense layers whereas the middle stream has an architecture of `None`, which
-correponds to an `identity`. This approach therefore provides an alternative way of creating skip connection vergences
-between levels.
+This architecture specification means that the second and third levels comprises of three streams. The output of the
+first level is shared as a common to the streams of the second. Since the last level has only a single stream, DeepNodal
+can only make sense of this stack design by introducing an input vergence (`con` by default) for this last level. Notice
+how the first and second stream of the middle levels comprise simple dense layers whereas the final stream has an
+architecture of `None`, which effectively bypasses any transformations. This approach therefore provides an alternative
+way of creating skip connection vergences between levels. 
 
 ## Multi-layer perceptron with regularisation and batch-normalisation example
 

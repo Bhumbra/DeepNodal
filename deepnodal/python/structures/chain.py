@@ -80,7 +80,7 @@ class chain (stem):
 #-------------------------------------------------------------------------------
   def setup(self, inp = None):
     self.inp = inp
-    self.out = None
+    self.out = inp
     if self.links is None: return
     for _link in self.links:
       inp = _link.setup(inp)

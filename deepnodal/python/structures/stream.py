@@ -59,7 +59,7 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def __init__(self, name = 'stream', dev = None):
     chain.__init__(self, name, dev)
-    self.set_arch() # defaults to an identity
+    self.set_arch() # defaults to 'none'
     self.setup()
 
 #-------------------------------------------------------------------------------
@@ -73,13 +73,13 @@ class stream (chain):
     # Note links are not created here because they are added sequentially at
     # the stream.setup(inp) stage.
 
-    self.arch = arch # arch = None is the default signifying an identity
+    self.arch = arch # arch = None is the default signifying a 'none'
     self.arch_link = None
     self.arch_out = None
     self.type_arch = None
     self.type_adim = None
     if self.arch is None:
-      self.type_arch = 'identity'
+      self.type_arch = 'none'
       self.type_adim = self.type_arch
     elif type(self.arch) is int:
       self.type_arch = 'dense'
@@ -123,7 +123,9 @@ class stream (chain):
     order = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
     if order is None:
-      order = 'a' if self.type_arch is 'identity' else DEFAULT_STREAM_ORDER
+      order = DEFAULT_STREAM_ORDER
+      if self.type_arch is 'none' or self.type_arch is 'identity':
+        order = 'a'
     self.order = order
 
 #-------------------------------------------------------------------------------
@@ -312,6 +314,8 @@ class stream (chain):
 
 #-------------------------------------------------------------------------------
   def _setup_arch(self):
+    if self.type_adim == 'none':
+      return self.ret_out()
     if self.type_adim == 'identity':
       self.add_link(Creation(self.type_adim), name = self.name + "/" + self.type_adim)
       return self.ret_out()
