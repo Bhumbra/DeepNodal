@@ -286,7 +286,7 @@ class supervisor (overseer):
 #-------------------------------------------------------------------------------
   def _setup_scalars(self, scalars = None, scalar_names = None,
                            train_scalars = None, train_scalar_names = None, 
-                           test_scalars = None, test_scalar_names = None):
+                           tests_scalars = None, tests_scalar_names = None):
     overseer._setup_scalars(self, scalars, scalar_names)
     if train_scalars is None:
       train_scalars = [self.cost, self.loss]
@@ -300,35 +300,38 @@ class supervisor (overseer):
         else:
           for i, err in enumerate(self.errors):
             train_scalar_names.append(self.name+"/ERRQ_TRAIN_"+str(self.erq_args[0][i]))
-    if test_scalars is None:
-      test_scalars = [self.cost, self.loss]
+    if tests_scalars is None:
+      tests_scalars = [self.cost, self.loss]
       if self.errors is not None:
-        test_scalars += self.errors
-    if test_scalar_names is None:
-      test_scalar_names = [self.name+"/COST_TEST", self.name+"/LOSS_TEST"]
+        tests_scalars += self.errors
+    if tests_scalar_names is None:
+      tests_scalar_names = [self.name+"/COST_TEST", self.name+"/LOSS_TEST"]
       if self.errors is not None:
         if Creation(self.erq) != Creation("in_top_k_error"):
-          test_scalar_names.append(self.name+"/ERRQ_TEST")
+          tests_scalar_names.append(self.name+"/ERRQ_TEST")
         else:
           for i, err in enumerate(self.errors):
-            test_scalar_names.append(self.name+"/ERRQ_TEST_"+str(self.erq_args[0][i]))
+            tests_scalar_names.append(self.name+"/ERRQ_TEST_"+str(self.erq_args[0][i]))
     self.train_scalars, self.train_scalar_names = train_scalars, train_scalar_names
-    self.test_scalars, self.test_scalar_names = test_scalars, test_scalar_names
+    self.tests_scalars, self.tests_scalar_names = tests_scalars, tests_scalar_names
     self.train_scalar_logs = []
+
     for scalar, scalar_name in zip(self.train_scalars, self.train_scalar_names):
       if scalar is not None:
         self.train_scalar_logs.append(Summary('scalar')(scalar_name, scalar))
     self.test_scalar_logs = []
-    for scalar, scalar_name in zip(self.test_scalars, self.test_scalar_names):
-      if scalar is not None:
-        self.test_scalar_logs.append(Summary('scalar')(scalar_name, scalar))
-    self.scalars_summary = [None] * (len(self.scalars) + len(self.test_scalars))
+    self.test_scalars = [None] * len(tests_scalars)
+    for i, scalar_name in enumerate(self.tests_scalar_names):
+      if self.tests_scalars[i] is not None:
+        self.test_scalars[i] = Creation('var')(0., name=self.name+"/metrics/test_scalar_"+str(i))
+        self.test_scalar_logs.append(Summary('scalar')(scalar_name, self.test_scalars[i]))
+    self.scalars_summary = [None] * ((len(self.scalars) + len(self.test_scalars)))
     self.summary_names = [None] * len(self.scalars_summary)
     for i, summary in enumerate(self.summary_names):
       if i < len(self.scalar_names):
         summary_name = self.scalar_names[i]
       else:
-        summary_name = self.test_scalar_names[i - len(self.scalar_names)]
+        summary_name = self.tests_scalar_names[i - len(self.scalar_names)]
       self.summary_names[i] = summary_name.replace(self.name + "/", "")
     return self.scalars
 
@@ -394,18 +397,25 @@ class supervisor (overseer):
     return self.scalars_summary
 
 #-------------------------------------------------------------------------------
-  def test(self, *args):
+  def test(self, *args, **kwds):
     """
     Call using: self.test(inputs_data, labels_data)
     """
     if self.session is None:
       raise AttributeError("Cannot test without first invoking new_session")
-    feed_dict = self.set_feed_dict(False, args[0], args[1])
-    scalars_num_log = self.session.run(self.test_scalars + self.test_scalar_logs, feed_dict = feed_dict)
+    split = 1 if 'split' not in kwds else kwds['split']
     n_scalars = len(self.test_scalars)
-    scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
+    test_scalars = np.empty([split, n_scalars], dtype = np.float32)
+    arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
+    for i in range(split):
+      feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
+      test_scalars[i, :] = self.session.run(self.tests_scalars, feed_dict = feed_dict)
+    test_scalars = np.mean(test_scalars, axis = 0)
+    for i in range(n_scalars):
+      self.session.run(self.test_scalars[i].assign(test_scalars[i]))
+    scalars_log = self.session.run(self.test_scalar_logs)
     self.add_logs(scalars_log)
-    self.scalars_summary[len(self.scalars):] = scalars_num
+    self.scalars_summary[len(self.scalars):] = test_scalars
     summary_strs = [name + "=" + str(num) for name, num in zip(self.summary_names, self.scalars_summary)]
     return ', '.join(summary_strs)
 

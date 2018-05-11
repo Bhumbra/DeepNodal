@@ -79,7 +79,7 @@ current path in bash by invoking python3:
 $ python3 examples/mnist_softmax.py
 ```
 
-# Examples
+# MNIST Examples
 
 The MNIST examples download and extract (as necessary) the MNIST data to /tmp/mnist/ and save their logs and models to
 /tmp/dn_logs/.
@@ -344,4 +344,176 @@ seen if you look at the corresponding TensorBoard graph. Increased overheads mea
 necessarily result in a speed up in computation, and indeed in this example it will probably be slower. But the
 advantage of distributing computations across multiple devices is the increased freedom of constructing deeper and
 complex networks without running into memory limitation problems.
+
+# CIFAR Examples
+
+The simple MNIST examples above really only scratch the surface of DeepNodal since this is a quickstart guide. Some of the
+more advanced functions of DeepNodal is provided in the CIFAR examples. The CIFAR examples download and extract (as
+necessary) the CIFAR data to /tmp/cifar/ and save their logs and models to /tmp/dn_logs/. Depending on your hardware,
+you may be at risk of running out of GPU memory, but the examples are highly tweakable (e.g. adjusting the number of GPU
+devices to use, or the complexity of architecture.
+
+## Wide ResNet CIFAR10 example
+
+Residual networks are conceptually simple yet many ResNet coding examples are long and far from straightforward. This
+runs counter to DeepNodal philosophy, and in examples/cifar10_wide_resnet, a fully featured wide ResNet example is
+provided that includes a dynamic model design, multiple learning rate regimens, and a checkpoint saver/loader. And this
+is all performed by a single program file with less than 150 lines of code! Most of coding features you will be familiar
+with from the examples above but there are some additional features here.
+
+```python 
+...
+k, N = 6, 4
+k16, k32, k64, N2 = k*16, k*32, k*64, N*2
+arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
+       [ [k16, [3, 3], [1, 1]] ] * N2                   +\
+       [ [] ]                                           +\
+       [([k32, [3, 3], [2, 2]], None)]                  +\
+       [([k32, [3, 3], [1, 1]], [k32, [1, 1], [2, 2]])] +\
+       [ [k32, [3, 3], [1, 1]] ] * (N2 - 2)             +\
+       [ [] ]                                           +\
+       [([k64, [3, 3], [2, 2]], None)]                  +\
+       [([k64, [3, 3], [1, 1]], [k64, [1, 1], [2, 2]])] +\
+       [ [k64, [3, 3], [1, 1]] ] * (N2 - 2)             +\
+       [ [[8, 8], [1, 1]], 
+         10 ]
+...
+```
+
+This architectural description is concise and clear. Note however the level specifications given as `[ [] ]` (which
+in full notation would be `[ ([]) ]`. Previously you might remember the architecture `None` referring to an equality
+resulting in a skip connection. The `[]` specification is very similar since it means `identity` to DeepNodal, but
+without default exclusion of other stream operations, such as batch normalisation or a transfer function. This allows
+simple specification of levels without any dense multiplication, convolution, or pooling. Since these levels are
+followed by multi-stream levels it is clear how the shortcut connections are specified. Rather than leaving DeepNodal
+to make sense of how combine multistream and unistream levels, we specify it manually.
+
+```python 
+...
+opverge = [None]                   +\
+          [None] * N2              +\
+          [None, None, True]       +\
+          [None] * (N2 - 2)        +\
+          [None, None, True]       +\
+          [None] * (N2 - 2)        +\
+          [None, None]            
+...
+```
+
+But that still leaves the majority of skip connections unaccounted for. The next specification provides that information:
+
+```python 
+...
+skipcv =  [None]                   +\
+          [None, None]             +\
+          [None, -1] * (N - 1)     +\
+          [None, None, None]       +\
+          [None, -1] * (N - 1)     +\
+          [None, None, None]       +\
+          [None, -1] * (N - 1)     +\
+          [None, None]
+...
+```
+You will notice that source of each skip connection is `-1` rather than `-2`. The reason for this becomes clear if you
+look at the remainder of the code relevant to skip connections:
+
+```python 
+...
+opverge_kwds = {'vergence_fn': 'sum'}
+skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}       
+...
+  mod.set_skipcv(skipcv, **skipcv_kwds)
+  mod.set_opverge(opverge, **opverge_kwds)
+...
+```
+
+The `vergence_fn` has be changed from the default convergence ('con') to summation ('sum') for both output vergences and
+skip connection vergences. But an additional specification for the skip connection vergences has been given as
+`'skip_end': 'inp'` where by default setting is `'skip_end': 'out'`. This change means that source of the skip
+connection is to be taken from _input_ rather than _output_ of the referenced level. It is for this reason that skip
+connection specification given above uses `-1` rather than `-2`. It is sometimes desirable (and in this case necessary)
+to do this when mixing skip connection vergences and output vergences.
+
+As well as skip connections, a peculiar feature of wide residual networks is switching the order of convolution,
+transfer function, and batch normalisation operations around. These switches are specified next:
+
+```python 
+...
+order =   ['ant']                  +\
+          ['ant', 'a']             +\
+          ['nta', 'nta'] * (N - 1) +\
+          ['nt', 'ant', 'a']       +\
+          ['nta', 'nta'] * (N - 1) +\
+          ['nt', 'ant', 'a']       +\
+          ['nta', 'nta'] * (N - 1) +\
+          ['nta', 'dat']
+...          
+  mod.set_order(order)
+...
+```
+
+The letters 'datn' stand for 'dropout', 'architecture', 'transfer function', and 'normalisation' respectively. The order
+specification is incredibly powerful because not only does it allow assignment of the order of operations but also
+allows specific exclusion of operations. For example, 'a' allows only an architectural operation (here a convolution)
+and excludes all other types of operations. Since ResNets do not generalise well with adaptive learning rate optimisers,
+a momentum optimiser is specified:
+
+```python 
+...
+optimiser = 'mom'
+optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
+...
+```
+
+Another difference from previous examples, is the specification of splitting the test data.
+
+```python 
+...
+test_split = 10
+...
+      summary_str = sup.test(source.test_images, source.test_labels, split = test_split)
+...
+```
+
+By default, DeepNodal does not split up the test data into separate test batches. This default however is vulnerable to
+memory overloads. Using hypervisor with `devs = num_gpus` reduces this risk my distributing the batches over separate
+graphics units. However, this may still not be enough of a reduction. As a result the lines above further split the test
+batch (into 10 in this case). Changing the split does not affect the summary test results, but it is the responsibility
+of the coder to make sure the number of test data is divisible by `(num_gpus * test_split)`.
+
+Finally for this example, we include the how to save and load of checkpoints.
+
+```python 
+...
+save_interval = 10
+...
+  modfiler = dn.helpers.model_filer(write_dir, net_name)
+  restore_point = modfiler.interview()
+...
+  now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
+  log_out = None if write_dir is None else write_dir+net_name+"_"+now
+  mod_out = None if write_dir is None else log_out + "/" + net_name
+  regime = -1
+  epoch_0 = 0
+  t0 = time()
+
+  with sup.new_session(log_out, restore_point):
+    if restore_point is not None:
+      epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
+      for i in range(epoch_0):
+        if i in learning_rates:
+          regime += 1
+          sup.use_regime(regime)
+    for i in range(epoch_0, n_epochs):
+...
+      if i and mod_out is not None:
+        if not(i % save_interval) or i == n_epochs -1:
+          sup.save(mod_out)
+...
+```
+From the last few lines of the code, you can see the model is saved after a defined interval of epochs (set here to 10)
+and again at the end. These checkpoints can be loaded by specificying a restore point when creating a new session. For
+convenience, a model filer lists checkpoints that _may_ be suitable. Note that what is offered is based solely on
+filename and no checks are made to ensure that the checkpoints match the network and learning specifications. Using
+checkpoints however allows training to be broken up conveniently into separate sessions.
 

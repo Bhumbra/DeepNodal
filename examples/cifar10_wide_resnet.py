@@ -11,14 +11,14 @@ import datetime
 
 n_epochs = 150
 batch_size = 120
-lr0 = 0.01
+test_split = 10
+lr0 = 0.1
 learning_rates = {0:lr0, 60:lr0*0.2, 120:lr0*0.04}
-devs = 2 # set to None if using only one devices
+devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
-k, N = 4, 4
+k, N = 6, 4
 k16, k32, k64, N2 = k*16, k*32, k*64, N*2
-
 arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
        [ [k16, [3, 3], [1, 1]] ] * N2                   +\
        [ [] ]                                           +\
@@ -119,11 +119,11 @@ def main():
   # TRAIN AND TEST
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-  t0 = time()
   log_out = None if write_dir is None else write_dir+net_name+"_"+now
   mod_out = None if write_dir is None else log_out + "/" + net_name
   regime = -1
   epoch_0 = 0
+  t0 = time()
 
   with sup.new_session(log_out, restore_point):
     if restore_point is not None:
@@ -139,7 +139,7 @@ def main():
       for j in range(iterations_per_epoch):
         images, labels = source.train_next_batch(batch_size, rand_horz_flip, rand_bord_crop)
         sup.train(images, labels)
-      summary_str = sup.test(source.test_images, source.test_labels)
+      summary_str = sup.test(source.test_images, source.test_labels, split = test_split)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
       if i and mod_out is not None:
         if not(i % save_interval) or i == n_epochs -1:

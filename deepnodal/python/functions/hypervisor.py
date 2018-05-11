@@ -450,10 +450,10 @@ class hypervisor (supervisor, master, stem):
     return self.train_ops
 
 #-------------------------------------------------------------------------------
-  def test(self, *args): # overloading supervisor.test(*args)
+  def test(self, *args, **kwds): # overloading supervisor.test(*args)
     if self.param_ops is not None: # all we need to do update the slave parameters
       self.session.run(self.param_ops, feed_dict = {})
-    return supervisor.test(self, *args)
+    return supervisor.test(self, *args, **kwds)
 
 #-------------------------------------------------------------------------------
 
