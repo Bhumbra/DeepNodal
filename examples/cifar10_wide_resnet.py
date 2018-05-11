@@ -6,18 +6,19 @@ An example of a wide resnet network with Nestorov-momentum back-prop on CIFAR10 
 import deepnodal as dn
 from time import time
 import datetime
+import numpy as np
 
 # PARAMETERS
 
-n_epochs = 150
+n_epochs = 180
 batch_size = 120
-test_split = 10
+test_split = 20
 lr0 = 0.1
-learning_rates = {0:lr0, 60:lr0*0.2, 120:lr0*0.04}
+learning_rates = {0:lr0, 60:lr0*0.2, 120:lr0*0.04, 160:lr0*0.008}
 devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
-k, N = 6, 4
+k, N = 6, 3
 k16, k32, k64, N2 = k*16, k*32, k*64, N*2
 arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
        [ [k16, [3, 3], [1, 1]] ] * N2                   +\
