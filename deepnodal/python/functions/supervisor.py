@@ -411,8 +411,8 @@ class supervisor (overseer):
       feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
       test_scalars[i, :] = self.session.run(self.tests_scalars, feed_dict = feed_dict)
     test_scalars = np.mean(test_scalars, axis = 0)
-    for i in range(n_scalars):
-      self.session.run(self.test_scalars[i].assign(test_scalars[i]))
+    for i in range(len(self.test_scalars)):
+      self.session.run(self.test_scalars[i].assign(test_scalars[i]), feed_dict = {})
     scalars_log = self.session.run(self.test_scalar_logs)
     self.add_logs(scalars_log)
     self.scalars_summary[len(self.scalars):] = test_scalars
