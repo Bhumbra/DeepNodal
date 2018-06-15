@@ -262,13 +262,13 @@ class stream (chain):
     """
 
     # This sets the TensorFlow calls but does not create the graph objects,
-    # with the exception of self._setup_dropout() which creates scalar
+    # with the exception of self._call_dropout() which creates scalar
     # objects if required.
 
     self._call_input(inp)    # specify flatten object if necessary
     if self._inp is None: return self._inp # nothing in, nothing out
 
-    # Note we don't actually call anything is this for-loop until chain.__call__()
+    # Note we don't actually call anything in this for-loop until chain.__call__()
     for _order in self.order:
       order = _order.lower()
       if order == 'd':

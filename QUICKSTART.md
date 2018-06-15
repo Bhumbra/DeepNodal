@@ -145,8 +145,7 @@ default `vergence_fn='con'` for convergence) specifies whether the inputs or out
 
 In the example above, a single input is shared by two streams in parallel. The parallel architectures of the two streams
 are specified by the tuple argument (5, 5). The vergence at the output stage is specified by the line
-`mod.set_opverge(True)`. If desired, the `stream` components can be accessed in code: `mod.streams[i]`, where `i` is the
-index.
+`mod.set_opverge(True)`. If desired, the `stream` components can be accessed in code: `mod[i]`, where `i` is the index.
 
 By default, a DeepNodal `supervisor` adopts a mean-cross entropy `('mce')` cost function, but notice how here it has been
 specified to be the mean-squared error in the line `sup.set_costfn('mse')`. Again, inspection of the resulting graph in
@@ -190,8 +189,8 @@ the penultimate layer. The negative sign specifies a relative skip connection ve
 penultimate level with the level two levels earlier in the stack. Have a look at the graph in TensorBoard to visualise
 the nature of the concatenation. 
 
-If desired, the `level` components can be accessed in code: `mod.levels[i]`, where `i` is the index. Note however how
-the architecture specification comprises a list of integers in this case with no tuples in sight despite in the previous
+If desired, the `level` components can be accessed in code: `mod[i]`, where `i` is the index. Note however how the
+architecture specification comprises a list of integers in this case with no tuples in sight despite in the previous
 example where a level architecture is expressed as a tuple. DeepNodal is able to interpret this architecture
 specification as a series of single-stream levels. In effect `arch = [100, 100, 100, 10]` is equivalent to `arch =
 [(100), (100), (100), (10)]`. However if a design includes multiple parallel streams, then tuples are required for those

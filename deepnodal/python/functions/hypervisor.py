@@ -434,7 +434,7 @@ class hypervisor (supervisor, master, stem):
         with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
           self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-        with variable_scope(self.name + "/regimens/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
             self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
                                                                global_step = self.gst)

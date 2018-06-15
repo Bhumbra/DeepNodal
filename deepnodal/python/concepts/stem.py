@@ -14,7 +14,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
   A stem is a structure that supports and broadcasts specifications to many subobjects.
   Note a subobject may be another stem or a leaf (the default).
 
-  The stem class is abstract and inheriting classes must define self.setup(inp)
+  The stem class is abstract and inheriting classes must define self.__call__(inp)
   to be instantiated.
   """
 

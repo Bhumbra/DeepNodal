@@ -14,7 +14,7 @@ class slave (function):
   """
   A plan is a class that represents the conceptual training unit of a training 
   schedule. It is abstract and inheriting classes can only be instantiated when 
-  self.__call__ is defined. The properties define the specification for the
+  self.__call__() is defined. The properties define the specification for the
   optimiser and learning rate, and progress.
   """
 

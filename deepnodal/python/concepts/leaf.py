@@ -15,7 +15,7 @@ class leaf (structure):
   initiator of parameters where self.params comprise a list of dictionaries.
 
   A leaf is an abstract class and requires an inheriting class with an explicit
-  self.setup function for instantiation.
+  self.__call__(inp) function for instantiation.
   """
   # public
   def_name = 'leaf'   # default name

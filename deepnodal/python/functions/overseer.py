@@ -10,6 +10,7 @@ with multiple learning regimen.
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.functions.trainer import *
+from deepnodal.python.functions.regime import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_LEARNING_RATE = 0.01

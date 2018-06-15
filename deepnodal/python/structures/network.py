@@ -1,6 +1,6 @@
 """
 Network module for Tensorflow. A network is list of inter-connected stacks, 
-levels, or streams with accompanying inputs. Network archectures must not
+levels, or streams with accompanying inputs. Network architectures cannot
 be specified directly since they do not recognise hierarchical structures.
 """
 
@@ -19,7 +19,7 @@ class network (stem):
   A network comprises of a list of inter-connected subnets. A subnet may be a 
   stack, level, or stream. The architecture of subnets cannot be specified 
   through network instances but must be defined separately and fed
-  to a network instance using self.set_subnets([__list_of_subnets__])
+  to a network instance using self.set_subnets([_list_of_subnets_])
 
   Inputs are specified using network.set_inputs([_list_of_inputs__]) where each
   input may either be a dimension specification, or an instance of a subnet
@@ -59,7 +59,7 @@ class network (stem):
     self.name = name if name is not None else self.def_name
     if self.subnets is None: return
     for i, _subnet in enumerate(self.subnets):
-      # no point re-naming subnets if unit_subnet true 
+      # no point re-naming subnets if unit_subnet is true 
       subnet_name = self.name if self.unit_subnet else self.name + "/subnet" + "_" + str(i)
       _subnet.set_name(subnet_name)
 
@@ -140,18 +140,6 @@ class network (stem):
       elif isinstance(inp, stack) or issubclass(inp, stack):
         self.type_inputs[i] = 'stack'
     return self.type_inputs
-
-#-------------------------------------------------------------------------------
-  def set_reguln_obsolete(self, reg = None, *reg_args, **reg_kwds):
-    """
-    reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
-    """
-    if type(reg) is int: reg = 'l' + str(reg) + '_reg'
-    self.reg = Creation(reg)
-    self.reg_args = reg_args
-    self.reg_kwds = reg_kwds
-    if self.reg is not None and 'scale' not in self.reg_kwds:
-      raise ValueError("L1/2 regularisation specification requires scaling coefficient keyword 'scale'")
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, ist = None):
@@ -279,36 +267,6 @@ class network (stem):
 
     return self.ret_out()
 
-#-------------------------------------------------------------------------------
-  def _setup_reguln_obsolete(self):
-    self.reg_loss = None
-    if self.reg is None: return
-    self.reg_param_names = []
-    self.reg_params = []
-    param_reg = list(Param_Reg)[0]
-    for param in self._params:
-      param_name = list(param)[0]
-      if param_reg in param_name:
-        self.reg_params.append(param[param_name])
-        self.reg_param_names.append(param_name.replace(param_reg, Param_Reg[param_reg]))
-    if not(len(self.reg_params)): return self.reguln
-    self.reg_losses = [None] * len(self.reg_params)
-    for i in range(len(self.reg_params)):
-      if self.dev is None:
-        self.reg_losses[i] = Creation(self.reg)(self.reg_params[i], 
-                             self.reg_param_names[i] + "/reg_loss")
-      else:
-        with Device(self.dev):
-          self.reg_losses[i] = Creation(self.reg)(self.reg_params[i], 
-                               self.reg_param_names[i] + "/reg_loss")
-    if self.dev is None:
-      with Scope('var', self.name+"/reg_loss", Flag("auto_reuse")):
-        self.reg_loss = Creation('multiply')(Creation('add_ewise')(self.reg_losses), self.reg_kwds['scale'])
-    else:
-      with Device(self.dev):
-        with Scope('var', self.name+"/reg_loss", Flag("auto_reuse")):
-          self.reg_loss = Creation('multiply')(Creation('add_ewise')(self.reg_losses), self.reg_kwds['scale'])
-    
 #-------------------------------------------------------------------------------
   def _setup_reguln(self):
     self._reguln = []

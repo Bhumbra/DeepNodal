@@ -12,9 +12,10 @@ logging, and saving.
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.python.functions.regime import *
-from deepnodal.python.structures.network import *
 import csv
+from deepnodal.python.structures.network import *
+from deepnodal.python.concepts.slave import *
+from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
 class trainer (slave):
@@ -60,9 +61,6 @@ class trainer (slave):
 #-------------------------------------------------------------------------------
   def set_global_step(self, gst = None):
     self.gst = gst
-    if self.regimes is None: return
-    for _regimes in self.regimes:
-      _regimes.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, ist = None):
@@ -181,7 +179,9 @@ class trainer (slave):
       else:
         self.set_global_step(gst)
 
-    # Setup the learning_rate - this is a copy-paste from regime.py but for good reason
+    # Call for the learning_rate - this is a copy-paste from regime.py but for 
+    # good reason, since we want it to have the same capabilities even without
+    # the multiple regimes provided by overseer.
 
     lrn = Creation(self._lrn)
     args = self._lrn_args

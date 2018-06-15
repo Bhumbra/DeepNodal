@@ -256,7 +256,7 @@ class stack (stem):
 #-------------------------------------------------------------------------------
   def _call_skipcv(self, inp, index):
     """
-    3 stages (not save headaches for the network designer): 
+    3 stages (in attempt to save headaches for the network designer): 
 
     1. Return if not relevant 
     2. Check specification with any errors trying to be informative 
