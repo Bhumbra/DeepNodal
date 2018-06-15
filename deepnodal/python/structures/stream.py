@@ -33,11 +33,12 @@ class stream (chain):
   self.set_`function' sets parameters involved with the stream design but does not
   create any TensorFlow objects.
 
-  self._setup_`function' generates TensorFlow objects but should only be called via
-  self.setup(inp), which should be inkoved by a function-derived class.
+  self.__call__`function' generates TensorFlow objects but should only be called via
+  self.__call__(inp), which should be inkoved by a function-derived class.
   """
 
-  def_name = 'stream'
+  # public
+  def_name = 'stream' # default name
   arch = None         # architecture
   arch_link = None    # architecture link
   arch_out = None     # architecture output (i.e. raw weighted sum or pool result)
@@ -52,15 +53,18 @@ class stream (chain):
   win = None          # Padding window
   kfn = None          # Kernel function (for convolution and pooling layers)
   nor = None          # Normalisation
-  trans_fn = None     # Identical to tfn
+  reg = None          # Regularisation
   vsi = None          # An instance of custom weights initialiser class if needed
-  dropout_quotient = None
+  trans_fn = None     # trans_fn = tfn, used as a summary tf by higher objects
+  dropout_quotient = None # Graph object for the dropout coefficient
+
+  # protected
+  _reguln = None      # list of dictionaries with parameter regularisation spec
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = 'stream', dev = None):
     chain.__init__(self, name, dev)
     self.set_arch() # defaults to 'none'
-    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_arch(self, arch = None):
@@ -241,7 +245,16 @@ class stream (chain):
     self.nor_kwds = dict(nor_kwds)
 
 #-------------------------------------------------------------------------------
-  def setup(self, inp = None):
+  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+    """
+    nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
+    """
+    self.reg = reg if type(reg) is not int else 'l'+str(reg)+'_reg'
+    self.reg_args = reg_args
+    self.reg_kwds = dict(reg_kwds)
+
+#-------------------------------------------------------------------------------
+  def __call__(self, inp = None):
     """
     inp must be a single tensor.
 
@@ -252,54 +265,59 @@ class stream (chain):
     # with the exception of self._setup_dropout() which creates scalar
     # objects if required.
 
-    self._setup_input(inp)    # specify flatten object if necessary
-    if self.inp is None: return self.inp # nothing in, nothing out
+    self._call_input(inp)    # specify flatten object if necessary
+    if self._inp is None: return self._inp # nothing in, nothing out
+
+    # Note we don't actually call anything is this for-loop until chain.__call__()
     for _order in self.order:
       order = _order.lower()
       if order == 'd':
-        self._setup_dropout()
+        self._call_dropout()
       elif order == 'a':
-        self._setup_arch()
+        self._call_arch()
       elif order == 't':
-        self._setup_transfer()
+        self._call_transfer()
       elif order == 'n':
-        self._setup_norm()
+        self._call_norm()
       else:
         raise ValueError("Unknown order specification: " + str(order))
 
     # Declare the links as subobjects to have access to their respective parameters
-    self.set_subobjects(self.links)
+    self.set_subobjects(self._links)
 
     # Now create the objects
-    chain.setup(self, self.inp)
+    chain.__call__(self, self._inp)
 
     # Flag the tensor from the architecture-dependent link in the chain
     if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
 
     # Collate architectural parameters
-    self.setup_params()
+    self._setup_params()
+
+    # Collate regularisation parameters
+    self._setup_reguln()
 
     # Set outputs dictionary
-    self.setup_outputs()
+    self._setup_outputs()
 
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _setup_input(self, inp = None):
+  def _call_input(self, inp = None):
     # stream claims no ownership over input
-    self.inp = inp
-    self.out = None
-    if self.inp is None: return self.inp
-    if type(self.inp) is not Dtype('tensor'):
+    self._inp = inp
+    self._out = None
+    if self._inp is None: return self._inp
+    if type(self._inp) is not Dtype('tensor'):
       raise TypeError("Input type must be a tensor.")
 
     # but will claim ownership over any needed flattening operation
-    if len(Shape(self.inp)) > 2 and self.type_arch == 'dense':
+    if len(Shape(self._inp)) > 2 and self.type_arch == 'dense':
       self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
     return inp
 
 #-------------------------------------------------------------------------------
-  def _setup_dropout(self):
+  def _call_dropout(self):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
     if self.dev is None:
@@ -319,7 +337,7 @@ class stream (chain):
                          name = self.name + "/dropout", **kwds)
 
 #-------------------------------------------------------------------------------
-  def _setup_arch(self):
+  def _call_arch(self):
     if self.type_adim == 'none':
       return self.ret_out()
     if self.type_adim == 'identity':
@@ -359,7 +377,7 @@ class stream (chain):
     return self.arch_link
 
 #-------------------------------------------------------------------------------
-  def _setup_transfer(self):
+  def _call_transfer(self):
     if self.tfn is None: return self.ret_out()
     kwds = dict(self.tfn_kwds)
     if 'var_scope' not in kwds:
@@ -367,7 +385,7 @@ class stream (chain):
     return self.add_link(Creation(self.tfn), *self.tfn_args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def _setup_norm(self):
+  def _call_norm(self):
     if self.nor is None: return self.ret_out()
     kwds = dict(self.nor_kwds)
     if Creation(self.nor) == Creation('batch_norm'):
@@ -395,23 +413,38 @@ class stream (chain):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def setup_params(self):
-    self.params = []
-    self.n_params = len(self.params)
-    if self.arch_link is None: return self.params
-    self.params = self.arch_link.setup_params()
-    self.n_params = len(self.params)
-    return self.params
+  def _setup_params(self):
+    self._params = []
+    self._n_params = len(self._params)
+    if self.arch_link is None: return self._params
+    self._params = self.arch_link._setup_params()
+    self._n_params = len(self._params)
+    return self._params
 
 #-------------------------------------------------------------------------------
-  def setup_outputs(self): 
+  def _setup_reguln(self):
+    self._reguln = []
+    if self.reg is None: return self._reguln
+    param_reg = list(Param_Reg)[0]
+    for param in self._params:
+      param_name = list(param)[0]
+      if param_reg in param_name:
+        self._reguln.append(param.copy())
+        self._reguln[-1].update({'reg': self.reg, 
+                                 'reg_args': self.reg_args, 
+                                 'reg_kwds': self.reg_kwds,
+                                 'name': param_name})
+    return self._reguln
+
+#-------------------------------------------------------------------------------
+  def _setup_outputs(self): 
     # a stream should really have only one output so is more leaf-like here
-    self.outputs = []
-    self.n_outputs = len(self.outputs)
-    if self.out is None: return self.outputs
-    self.outputs = [{self.name + "/output": self.out}]
-    self.n_outputs = len(self.outputs)
-    return self.outputs
+    self._outputs = []
+    self._n_outputs = len(self._outputs)
+    if self._out is None: return self._outputs
+    self._outputs = [{self.name + "/output": self.ret_out()}]
+    self._n_outputs = len(self._outputs)
+    return self._outputs
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
@@ -419,7 +452,7 @@ class stream (chain):
       other = stream()
     elif not isinstance(other, stream) and not issubclass(other, stream):
       raise TypeError("Cannot clone to target class " + str(other))
-    elif other.links is not None and self.arch != other.arch:
+    elif other._links is not None and self.arch != other.arch:
       raise AttributeError("Cannot clone to a target instance with differing architecture")
 
     # Clone the architecture - does not create links because they are add-appended
@@ -439,6 +472,7 @@ class stream (chain):
     if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
     if self.kfn is not None: other.set_kernfn(self.kfn, *self.kfn_args, **self.kfn_kwds)
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
+    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
 
     # Copy over the summary transfer function
 

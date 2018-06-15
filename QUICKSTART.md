@@ -233,8 +233,7 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
 ...
   mod.set_dropout(dropout)
   mod.set_normal(normal, **normal_kwds)
-...
-  net.set_reguln(reguln, **reguln_kwds)
+  mod.set_reguln(reguln, **reguln_kwds)
 ...
   sup = dn.supervisor()
   sup.set_optimiser('adam', **optimiser_kwds)
@@ -245,7 +244,7 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
   sup.new_regime(0.01*learning_rate)
   sup.set_regime(3, False) # disable dropout
 ...
-  with sup.new_session(write_dir+net_name+"_"+now):
+  with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       if i == n_epochs // 4:
         sup.use_regime(1)
@@ -256,14 +255,14 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
 ...
 ```
 
-Since the syntax is consistent with previous examples, the code should be self-explanatory. Notice how dropout is
-applied to the last layer, at the `stack` specification stage whereas L2 regularisation is specified at the `network`
-stage. Like dropout, batch-normalisation is specified to the stack, in this case only affecting the first level. And
-unlike previous examples, for which the default stochastic gradient descent `('sgd')` optimiser was employed by the
-supervisor, here an Adam optimiser is used `('adam')`. Finally, four training regimes (indexed 0 to 3) have been created
-with decreasing learning rates, with the last (3) disabling all dropout. Note how in the execution code, each of the
-`sup.use_regime(i)` lines is invoked at particular epochs to switch training regimens. The default regime index is 0,
-and so there is no need for an additional line for the first training regime.
+Since the syntax is consistent with previous examples, the code should be self-explanatory. Notice how at the `stack`
+specification stage, dropout is applied to the last layer whereas L2 regularisation applied to all layers. Like dropout,
+batch-normalisation is specified to the stack, in this case only affecting the first level.  And unlike previous
+examples, for which the default stochastic gradient descent `('sgd')` optimiser was employed by the supervisor, here an
+Adam optimiser is used `('adam')`. Finally, four training regimes (indexed 0 to 3) have been created with decreasing
+learning rates, with the last (3) disabling all dropout. Note how in the execution code, each of the `sup.use_regime(i)`
+lines is invoked at particular epochs to switch training regimens. The default regime index is 0, and so there is no
+need for an additional line for the first training regime.
 
 ## Convolutional network example
 
@@ -497,7 +496,7 @@ save_interval = 10
   epoch_0 = 0
   t0 = time()
 
-  with sup.new_session(log_out, restore_point):
+  with sup.call_session(log_out, restore_point):
     if restore_point is not None:
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
       for i in range(epoch_0):

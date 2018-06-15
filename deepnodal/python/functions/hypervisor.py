@@ -130,10 +130,10 @@ class hypervisor (supervisor, master, stem):
     return [_slave.set_costfn(cfn, *cfn_args, **cfn_kwds) for _slave in self.slaves]
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_metrics = False, **kwds):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, **kwds):
     if self.work is None: return
     if self.unit_dev:
-      argout = supervisor.setup(self, ist, gst, skip_metrics, **kwds)
+      argout = supervisor.__call__(self, ist, gst, skip_metrics, **kwds)
       return argout
 
     """
@@ -141,10 +141,11 @@ class hypervisor (supervisor, master, stem):
 
     1. Setup the original network - there is no reason for it to be changed even if some
        class member properties are redundant at this stage (e.g. network.outputs)
-    2. While setting up the hypervisor as an overseer and trainer, overload _setup_functions
-       to include specification parameters (including identity operations for split
-       inputs) for slave specifications commanded by the hypervisor (e.g. inputs, optimiser, 
-       regimes), and while setting up as a supervisor, the same for the labels.
+    2. While setting up the hypervisor as an overseer and trainer, call overloaded 
+       __call__ functions to include specification parameters (including identity 
+       operations for split inputs) for slave specifications commanded by the hypervisor 
+       (e.g. inputs, optimiser, regimes), and while setting up as a supervisor, the same 
+       for the labels.
     3. Re-assign the original network outputs with concatenated outputs from those slaves
     4. Before setting up hypersupervisor performance metrics (e.g. cost, loss, gradients),
        complete the setup of all slaves and associated clones.
@@ -153,26 +154,26 @@ class hypervisor (supervisor, master, stem):
     """
 
     # 1. and 2. 
-    supervisor.setup(self, ist, gst, True, **kwds)
+    supervisor.__call__(self, ist, gst, True, **kwds)
 
     # 3. and 4.
-    [_slave.setup(self.ist, self.gst, skip_metrics, **kwds) for _slave in self.slaves]
-    self._setup_outputs(True)
+    [_slave.__call__(self.ist, self.gst, skip_metrics, **kwds) for _slave in self.slaves]
+    self._call_outputs(True)
 
     # 5. and 6.
-    self._setup_metrics(skip_metrics)
+    self._call_metrics(skip_metrics)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_is_training(self, ist = None): # overloading trainer._setup_is_training(self, ist)
-    argout = supervisor._setup_is_training(self, ist)
+  def _call_is_training(self, ist = None): # overloading trainer._call_is_training(self, ist)
+    argout = supervisor._call_is_training(self, ist)
     if self.unit_dev: return argout
-    return [_slave._setup_is_training(self.ist) for _slave in self.slaves]
+    return [_slave._call_is_training(self.ist) for _slave in self.slaves]
 
 #-------------------------------------------------------------------------------
-  def _setup_inputs(self): # overloading trainer._setup_inputs()
-    argout = supervisor._setup_inputs(self)
+  def _call_inputs(self): # overloading trainer._call_inputs()
+    argout = supervisor._call_inputs(self)
     if self.unit_dev: return argout
 
     # Setup inputs_to_clones through diverging by splitting input batch
@@ -197,12 +198,12 @@ class hypervisor (supervisor, master, stem):
     for _inputs, _clone in zip(self.inputs_by_clones, self.clones):
       _clone.set_inputs(_inputs) 
 
-    # Now the clones will take care of the rest at the network._setup_inputs() stage
+    # Now the clones will take care of the rest at the network._call_inputs() stage
     return argout
     
 #-------------------------------------------------------------------------------
-  def _setup_outputs(self, reassign = False): # overloading trainer._setup_outputs()
-    argout = supervisor._setup_outputs(self)
+  def _call_outputs(self, reassign = False): # overloading trainer._call_outputs()
+    argout = supervisor._call_outputs(self)
     if self.unit_dev: return argout
     if not(reassign): return argout
     slave_outputs = [_slave.outputs for _slave in self.slaves]
@@ -224,19 +225,19 @@ class hypervisor (supervisor, master, stem):
     return self.outputs
 
 #-------------------------------------------------------------------------------
-  def _setup_learning_rate(self, gst = None): # overloading trainer._setup_learning_rate
-    argout = supervisor._setup_learning_rate(self, gst)
+  def _call_learning_rate(self, gst = None): # overloading trainer._call_learning_rate
+    argout = supervisor._call_learning_rate(self, gst)
     if self.unit_dev: return argout
     for _slave in self.slaves:
-      _slave.set_learning_rate(self.lrn, *self.lrn_args, **self.lrn_kwds)
+      _slave.set_learning_rate(self._lrn, *self._lrn_args, **self._lrn_kwds)
     return argout
 
 #-------------------------------------------------------------------------------
-  def _setup_optimiser(self): # overloading trainer._setup_optimiser()
-    argout = supervisor._setup_optimiser(self)
+  def _call_optimiser(self): # overloading trainer._call_optimiser()
+    argout = supervisor._call_optimiser(self)
     if self.unit_dev: return argout
     for _slave in self.slaves:
-      _slave.set_optimiser(self.opt, *self.opt_args, **self.opt_kwds)
+      _slave.set_optimiser(self._opt, *self._opt_args, **self._opt_kwds)
     return argout
 
 #-------------------------------------------------------------------------------
@@ -263,8 +264,8 @@ class hypervisor (supervisor, master, stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def _setup_labels(self): # overloading supervisor._setup_labels()
-    argout = supervisor._setup_labels(self)
+  def _call_labels(self): # overloading supervisor._call_labels()
+    argout = supervisor._call_labels(self)
     if self.unit_dev: return argout
 
     # Setup labels_to_slaves through diverging by splitting label batch
@@ -284,9 +285,9 @@ class hypervisor (supervisor, master, stem):
     return argout
     
 #-------------------------------------------------------------------------------
-  def _setup_errors(self): # overloading supervisor._setup_costfn()
+  def _call_errors(self): # overloading supervisor._call_errors()
     if self.unit_dev:
-      return supervisor._setup_errors(self)
+      return supervisor._call_errors(self)
 
     # If not(self.unit_dev), hypervisor doesn't care about its own hat values
     # because it never evaluates them.
@@ -325,9 +326,9 @@ class hypervisor (supervisor, master, stem):
     return self.errors
 
 #-------------------------------------------------------------------------------
-  def _setup_costfn(self): # overloading supervisor._setup_costfn()
+  def _call_costfn(self): # overloading supervisor._call_costfn()
     if self.unit_dev:
-      return supervisor._setup_costfn(self)
+      return supervisor._call_costfn(self)
       
     slave_costs = [_slave.cost for _slave in self.slaves]
     if self.dev is None:
@@ -342,9 +343,9 @@ class hypervisor (supervisor, master, stem):
     return self.cost
 
 #-------------------------------------------------------------------------------
-  def _setup_losses(self): # overloading supervisor._setup_losses()
+  def _call_losses(self): # overloading supervisor._call_losses()
     if self.unit_dev:
-      return supervisor._setup_losses(self)
+      return supervisor._call_losses(self)
       
     slave_losses = [_slave.loss for _slave in self.slaves]
     if self.dev is None:
@@ -359,8 +360,8 @@ class hypervisor (supervisor, master, stem):
     return self.loss
 
 #-------------------------------------------------------------------------------
-  def _setup_gradients(self): # overloading supervisor._setup_gradients()
-    argout = supervisor._setup_gradients(self)
+  def _call_gradients(self): # overloading supervisor._call_gradients()
+    argout = supervisor._call_gradients(self)
     if self.unit_dev: return argout
     slave_gradients = [_slave.gradients for _slave in self.slaves]
     self.slave_grad = [None] * self.n_params
@@ -394,7 +395,7 @@ class hypervisor (supervisor, master, stem):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _setup_train_ops(self): # overloading supervisor._setup_train_ops()
+  def _call_train_ops(self): # overloading supervisor._call_train_ops()
     """
     For multidevice superivsed learning, this comprises of three stages:
 
@@ -405,7 +406,7 @@ class hypervisor (supervisor, master, stem):
     - only step 1 needs particularly special treatment
     """
     if self.unit_dev: 
-      return supervisor._setup_train_ops(self)
+      return supervisor._call_train_ops(self)
 
     # 1. Assign clones with parameters (weights & biases) of original model.
     self.param_ops = [None] * self.n_devs * self.n_params

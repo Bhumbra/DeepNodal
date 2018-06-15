@@ -36,7 +36,6 @@ class overseer (trainer):
   def __init__(self, name = None, dev = None):
     trainer.__init__(self, name, dev)
     self.set_regimes()
-    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -90,30 +89,31 @@ class overseer (trainer):
     return self.regimes[regime_index]
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_metrics = False):
+  def __call__(self, ist = None, gst = None, skip_metrics = False):
 
-    # Setup the regimes
-    gst = self._setup_regimes(gst)
+    # Call the regimes
+    gst = self._call_regimes(gst)
 
-    # Setup all trainer objects except the metrics
-    ist, gst = trainer.setup(self, ist, gst, True)
+    # Call all trainer objects except the metrics
+    ist, gst = trainer.__call__(self, ist, gst, True)
 
     # Collate the regimen parameter indices 
     self.regime_param_indices = [None] * self.n_regimes
+
     for i, _regime in enumerate(self.regimes):
-      _regime.setup(self.gst)
+      _regime.__call__(self.gst)
       self.regime_param_indices[i] = self.work.ret_params(_regime.par, True)
 
-    self._setup_metrics(skip_metrics)
+    self._call_metrics(skip_metrics)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_regimes(self, gst = None): # this sets up the regime learning rate graph objects
+  def _call_regimes(self, gst = None): # this sets up the regime learning rate graph objects
 
     # Establish the global-step flag
     if self.gst is None: self.set_global_step(gst)
-    if self.gst is None: self._setup_global_step()
+    if self.gst is None: self._call_global_step()
 
     # Set up the regime index scalar - at the time of coding, not GPU-compatible
     """
@@ -129,8 +129,8 @@ class overseer (trainer):
     if not(self.n_regimes):
       self.new_regime(DEFAULT_LEARNING_RATE)
 
-    # Setup the regime instances
-    for _regime in self.regimes: _regime.setup(self.gst)
+    # Call the regime instances
+    for _regime in self.regimes: _regime.__call__(self.gst)
 
     # Construct learning rate specifications suitable for regimens
     if self.n_regimes == -1:
@@ -141,14 +141,14 @@ class overseer (trainer):
     return self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_scalars(self, scalars = None, scalar_names = None):
+  def _call_scalars(self, scalars = None, scalar_names = None):
     if scalars is None:
       scalars = [self.batch_size, self.learning_rate, self.regime_index]
     if scalar_names is None:
       scalar_names = [self.name + "/BATCH_SIZE",
                       self.name + "/LEARNING_RATE",
                       self.name + "/REGIME"]
-    return trainer._setup_scalars(self, scalars, scalar_names)
+    return trainer._call_scalars(self, scalars, scalar_names)
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None):

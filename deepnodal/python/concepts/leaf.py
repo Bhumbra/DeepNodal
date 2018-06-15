@@ -17,11 +17,14 @@ class leaf (structure):
   A leaf is an abstract class and requires an inheriting class with an explicit
   self.setup function for instantiation.
   """
-  inp = None         # input
-  out = None         # output
-  def_name = 'leaf'  # default name
-  params = None      # a list of dictionaries containing parameter objects.
-  n_params = None    # number of parameters
+  # public
+  def_name = 'leaf'   # default name
+
+  # protected
+  _inp = None         # input
+  _out = None         # output
+  _params = None      # a list of dictionaries containing parameter objects.
+  _n_params = None    # number of parameters
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -39,45 +42,45 @@ class leaf (structure):
 
 #-------------------------------------------------------------------------------
   @abstractmethod
-  def setup(self, inp = None): # this function is for creating graph objects
+  def __call__(self, inp = None): # this function is for calling graph objects
     pass
 
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
-    self.inp = inp
-    self.out = None
-    return self.inp
+    self._inp = inp
+    self._out = None
+    return self._inp
 
 #-------------------------------------------------------------------------------
   def ret_inp(self):
-    return self.inp
+    return self._inp
 
 #-------------------------------------------------------------------------------
   def ret_out(self):
-    return self.out
+    return self._out
 
 #-------------------------------------------------------------------------------
   def setup_params(self, params = None):
-    self.params = params
-    if self.params is None: self.params = []
-    self.n_params = len(self.params)
-    if self.n_params:
-      for param_dict in self.params:
+    self._params = params
+    if self._params is None: self._params = []
+    self._n_params = len(self._params)
+    if self._n_params:
+      for param_dict in self._params:
         if type(param_dict) is not dict:
           raise TypeError("Only dictionaries are accepted parameters.")
-    return ret_params()
+    return self.ret_params()
 
 #-------------------------------------------------------------------------------
   def add_param(self, param_dict):
     if type(param_dict) is not dict:
       raise TypeError("Only dictionaries are accepted parameters.")
-    self.params.append(param_dict)
-    self.n_params = len(self.params)
+    self._params.append(param_dict)
+    self._n_params = len(self._params)
     return self.ret_params()
 
 #-------------------------------------------------------------------------------
   def ret_params(self):
-    return self.params
+    return self._params
 
 #-------------------------------------------------------------------------------
 

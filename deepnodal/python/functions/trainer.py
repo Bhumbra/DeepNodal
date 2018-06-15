@@ -30,12 +30,13 @@ class trainer (slave):
   """
   def_name = 'trainer'
   def_write_intervals = [10, 1000, False] # write intervals [scalar, distro, model]
+  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)]
   gst = None                       # global_step
   ist = None                       # is training flag
   work = None                      # network instance to train
   inputs = None                    # work input
   params = None                    # parameters of work as list of dictionaries
-  outputs = None                   # outputs of work as a lsit
+  outputs = None                   # outputs of work as a list
   variables = None                 # entire list of parameter variables
   variable_names = None            # list of variable names          
   scalars = None                   # list of summary scalars
@@ -53,6 +54,7 @@ class trainer (slave):
     self.set_global_step()
     self.set_is_training()
     self.set_work()
+    self.set_progress()
     self.set_write_intervals()
 
 #-------------------------------------------------------------------------------
@@ -93,32 +95,38 @@ class trainer (slave):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_metrics = False):
+  def __call__(self, ist = None, gst = None, skip_metrics = False):
     if self.work is None: return 
 
-    # Setup variables and outputs
-    self._setup_is_training(ist)
-    self._setup_inputs()
-    self._setup_variables()
-    self._setup_outputs()
+    # Call is_training and network
+    self._call_is_training(ist)
+    self._call_inputs()
 
-    # Setup the trainer
-    self._setup_batch_size()
-    self._setup_learning_rate(gst)
-    self._setup_optimiser()
-    self._setup_metrics(skip_metrics)
+    # Call the trainer
+    self._call_batch_size()
+    self._call_learning_rate(gst)
+    self._call_optimiser()
+
+    # Call variables, regularisation, and architectural outputs
+    self._call_variables()
+    self._call_reguln()
+    self._call_outputs()
+
+    # Call scalars and distros
+    self._call_metrics(skip_metrics)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_metrics(self, skip_metrics = False):
+  def _call_metrics(self, skip_metrics = False):
+
     # Setup the scalar and distribution summaries
     if skip_metrics: return
-    self._setup_scalars()
-    self._setup_distros()
+    self._call_scalars()
+    self._call_distros()
 
 #-------------------------------------------------------------------------------
-  def _setup_is_training(self, ist = None):
+  def _call_is_training(self, ist = None):
     if self.ist is None:
       if ist is None:
         pass
@@ -134,19 +142,97 @@ class trainer (slave):
     return self.ist
 
 #-------------------------------------------------------------------------------
-  def _setup_inputs(self):
+  def _call_inputs(self): 
 
     # Setup the work and inputs
-    self.work.setup(self.ist)
+    self.work.__call__(self.ist)
     if self.work.inputs is None:
       raise AttributeError("Cannot setup trainer without network inputs specified.")
-    if len(self.work.inp) != 1:
+    if len(self.work._inp) != 1:
       raise ValueError("Current only single subnet network input supported.")
-    self.inputs = self.work.inp
+
+    self.inputs = self.work.ret_inp()
     return self.inputs
 
 #-------------------------------------------------------------------------------
-  def _setup_variables(self): # this creates no graph objects
+  def _call_batch_size(self):
+    # At the time of coding, batch_size evaluation is not GPU-compatible
+    """
+    if self.dev is None:
+      self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
+      with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
+        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+    else:
+      with Device(self.dev):
+        self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
+        with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
+          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+    """
+    self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
+    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
+      self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+
+#-------------------------------------------------------------------------------
+  def _call_learning_rate(self, gst = None): # this sets up self.learning_rate
+    # Setup global_step first
+    if self.gst is None: 
+      if gst is None:
+        self.__call__global_step()
+      else:
+        self.set_global_step(gst)
+
+    # Setup the learning_rate - this is a copy-paste from regime.py but for good reason
+
+    lrn = Creation(self._lrn)
+    args = self._lrn_args
+    kwds = dict(self._lrn_kwds)
+    if 'name' not in kwds:
+      kwds.update({'name': self.name + '/learning_rate'})
+
+    if not callable(lrn):
+      if self.dev is None:
+        self.learning_rate = Creation('var')(lrn, *args, **kwds)
+      else:
+        with Device(self.dev):
+          self.learning_rate = Creation('var')(lrn, *args, **kwds)
+    else:
+      if lrn == Creation('var'):
+        if self.dev is None:
+          self.learning_rate = lrn(*args, dtype=Dtype('float32'), **kwds)
+        else:
+          with Device(self.dev):
+            self.learning_rate = lrn(*args, dtype=Dtype('float32'), **kwds)
+      elif lrn == Creation('identity'):
+        if self.dev is None:
+          self.learning_rate = lrn(*args, **kwds)
+        else:
+          with Device(self.dev):
+            self.learning_rate = lrn(*args, **kwds)
+      else:
+        if self.dev is None:
+          self.learning_rate = lrn(*args, global_step = self.gst, **kwds)
+        else:
+          with Device(self.dev):
+            self.learning_rate = lrn(*lrn_args, global_step = self.gst, **kwds)
+
+#-------------------------------------------------------------------------------
+  def _call_global_step(self): # global_step is not device dependent
+    self.gst = Creation('var')(0, trainable=False, name=self.name + "/global_step")
+    self.set_global_step(self.gst)
+
+#-------------------------------------------------------------------------------
+  def _call_optimiser(self):
+    kwds = dict(self._opt_kwds)
+    if self.dev is None:
+      with Scope('var', self.name, reuse=Flag('auto_reuse')):
+        self.optimiser = Creation(self._opt)(*self._opt_args, learning_rate=self.learning_rate, **kwds)
+    else:
+      with Device(self.dev):
+        with Scope('var', self.name, reuse=Flag('auto_reuse')):
+          self.optimiser = Creation(self._opt)(*self._opt_args, learning_rate=self.learning_rate, **kwds)
+
+#-------------------------------------------------------------------------------
+  def _call_variables(self): # this creates no graph objects but inheriting classes might
     """
     self.params is list of dictionaries in the form:
     self.param[i] = {self.variable_names[i]: self.variables}
@@ -165,93 +251,54 @@ class trainer (slave):
     return self.variables
 
 #-------------------------------------------------------------------------------
-  def _setup_outputs(self): # this creates no graph objects
-    self.n_outputs = len(self.work.outputs)
+  def _call_reguln(self):
+    self.reg_losses = []
+    self.reg_loss = None
+    _reguln = self.work.ret_reguln()
+    self.n_reguln = len(_reguln)
+    if not(self.n_reguln): return self.reg_loss
+
+    # Collate losses
+    var_scope = self.name + "/reg_loss"
+    self.reg_losses = [None] * self.n_reguln
+
+    for i, reguln in enumerate(_reguln):
+      reg = reguln['reg']
+      reg_name = reguln['name']
+      reg_args = reguln['reg_args']
+      reg_kwds = reguln['reg_kwds']
+      if self.dev is None:
+        self.reg_losses[i] = Creation(reg)(reguln[reg_name], *reg_args,
+                               name = var_scope + "/" + reg_name, **reg_kwds)
+      else:
+        with Device(self.dev):
+          self.reg_losses[i] = Creation(reg)(reguln[reg_name], *reg_args,
+                                 name = var_scope + "/" + reg_name, **reg_kwds)
+    # Summate losses
+    if self.dev is None:
+      with Scope('var', var_scope, Flag("auto_reuse")):
+        self.reg_loss = Creation('add_ewise')(self.reg_losses)
+    else:
+      with Device(self.dev):
+        with Scope('var', var_scope, Flag("auto_reuse")):
+          self.reg_loss = Creation('add_ewise')(self.reg_losses)
+
+    return self.reg_loss
+
+#-------------------------------------------------------------------------------
+  def _call_outputs(self): # this creates no graph objects but inheriting classes might
+    _outputs = self.work.ret_outputs()
+    self.n_outputs = len(_outputs)
     self.output_names = [None] * self.n_outputs
     self.outputs = [None] * self.n_outputs
-    for i, output_dict in enumerate(self.work.outputs):
+    for i, output_dict in enumerate(_outputs):
       self.output_names[i] = list(output_dict)[0]
       self.outputs[i] = output_dict[self.output_names[i]]
     return self.outputs
 
-#-------------------------------------------------------------------------------
-  def _setup_batch_size(self):
-    # At the time of coding, batch_size evaluation is not GPU-compatible
-    """
-    if self.dev is None:
-      self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-      with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
-    else:
-      with Device(self.dev):
-        self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-        with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
-    """
-    self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-      self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
 
 #-------------------------------------------------------------------------------
-  def _setup_learning_rate(self, gst = None): # this sets up self.learning_rate
-    # Setup global_step first
-    if self.gst is None: 
-      if gst is None:
-        self._setup_global_step()
-      else:
-        self.set_global_step(gst)
-
-    # Setup the learning_rate - this is a copy-paste from regime.py but for good reason
-
-    lrn = Creation(self.lrn)
-    kwds = dict(self.lrn_kwds)
-    if 'name' not in kwds:
-      kwds.update({'name': self.name + '/learning_rate'})
-
-    if not callable(lrn):
-      if self.dev is None:
-        self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
-      else:
-        with Device(self.dev):
-          self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
-    else:
-      if lrn == Creation('var'):
-        if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
-        else:
-          with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
-      elif lrn == Creation('identity'):
-        if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, **kwds)
-        else:
-          with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, **kwds)
-      else:
-        if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, global_step = self.gst, **kwds)
-        else:
-          with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, global_step = self.gst, **kwds)
-
-#-------------------------------------------------------------------------------
-  def _setup_global_step(self): # global_step is not device dependent
-    self.gst = Creation('var')(0, trainable=False, name=self.name + "/global_step")
-    self.set_global_step(self.gst)
-
-#-------------------------------------------------------------------------------
-  def _setup_optimiser(self):
-    kwds = dict(self.opt_kwds)
-    if self.dev is None:
-      with Scope('var', self.name, reuse=Flag('auto_reuse')):
-        self.optimiser = Creation(self.opt)(*self.opt_args, learning_rate=self.learning_rate, **kwds)
-    else:
-      with Device(self.dev):
-        with Scope('var', self.name, reuse=Flag('auto_reuse')):
-          self.optimiser = Creation(self.opt)(*self.opt_args, learning_rate=self.learning_rate, **kwds)
-
-#-------------------------------------------------------------------------------
-  def _setup_scalars(self, scalars = None, scalar_names = None):
+  def _call_scalars(self, scalars = None, scalar_names = None):
     if scalars is None:
       scalars = [self.batch_size, self.learning_rate]
     if scalar_names is None:
@@ -265,7 +312,7 @@ class trainer (slave):
     return self.scalars
 
 #-------------------------------------------------------------------------------
-  def _setup_distros(self, distros = None, distro_names = None):
+  def _call_distros(self, distros = None, distro_names = None):
     if distros is None:
       distros = self.outputs + self.variables + self.gradients 
     if distro_names is None:
@@ -278,26 +325,56 @@ class trainer (slave):
     return self.distros
 
 #-------------------------------------------------------------------------------
+  def set_write_dir(self, write_dir = None):
+    """
+    This creates no graph objects but should be called from new_session()
+    """
+    self.write_dir = write_dir
+    return self.write_dir
+
+#-------------------------------------------------------------------------------
   def set_session(self, session = None):
+    """
+    This creates no graph objects but should be called from new_session()
+    """
     self.session = session
     return self.session
 
 #-------------------------------------------------------------------------------
-  def new_session(self, write_dir = None, restore_point = None, *args, **kwds):
-    if self.outputs is None: self.setup()
+  def call_session(self, write_dir = None, restore_point = None, *args, **kwds):
 
-    # Setup the write_directory logger and saver.
-    self._setup_write_dir(write_dir)
-    self._setup_logger()
-    self._setup_saver()
-    session = self.set_session(Creation('session')(*args, **kwds))
+    # Call the write_directory logger and saver.
+    if self.write_dir is None: self.set_write_dir(write_dir)
+    if self.outputs is None: self.__call__()
+    if self.logger is None: self._call_logger()
+    if self.saver is None: self._call_saver()
+
+    session = self._call_session(*args, **kwds)
 
     # Ideal point to confirm whether self.gvi has been setup and run
-    if session is not None and self.gvi is None: self.init_variables(restore_point)
+    if session is not None and self.gvi is None: 
+      self._init_variables(restore_point)
     return session
 
 #-------------------------------------------------------------------------------
-  def init_variables(self, restore_point = None):
+  def _call_session(self, *args, **kwds):
+    session = self.set_session(Creation('session')(*args, **kwds))
+    return session
+
+#-------------------------------------------------------------------------------
+  def _call_logger(self, logger='logger'):
+    self.logger = None
+    if self.write_dir is None: return self.logger
+    self.logger = Creation(logger)(self.write_dir, Creation('defaults')())
+
+#-------------------------------------------------------------------------------
+  def _call_saver(self, saver = 'saver'):
+    # This will create a saver whether or not a write directory is given
+    self.saver = None
+    self.saver = Creation(saver)(name = self.name + "/saver")
+
+#-------------------------------------------------------------------------------
+  def _init_variables(self, restore_point = None):
     if self.session is None:
       raise AttributeError("Cannot initialise variables before calling new_session")
     with Scope('name', self.name):
@@ -332,7 +409,7 @@ class trainer (slave):
       tab_writer.writerow(progress)
 
 #-------------------------------------------------------------------------------
-  def add_logs(self, logs_str):
+  def _add_logs(self, logs_str):
     if self.logger is None: return
     if type(logs_str) is str: logs_str = [log_str]
     for log_str in logs_str:
@@ -352,14 +429,14 @@ class trainer (slave):
       scalars_num_log = self.session.run(self.scalars + self.scalar_logs, feed_dict = self.feed_dict)
       n_scalars = len(self.scalars)
       scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
-      self.add_logs(scalars_logs)
+      self._add_logs(scalars_logs)
 
     # Distros
     calc_distros = self.write_intervals[1]
     calc_distros = calc_distros if type(calc_distros) is bool else not(self.progress[0] % calc_distros)
     if calc_distros:
       distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
-      self.add_logs(distros_log)
+      self._add_logs(distros_log)
 
     return scalars_num
 
@@ -377,26 +454,6 @@ class trainer (slave):
       self.progress[1] += len(feed_inputs) # sum(batch_sizes)
 
     return feed_dict
-   
-#-------------------------------------------------------------------------------
-  def _setup_write_dir(self, write_dir = None):
-    """
-    This creates no graph objects but should be called from new_session()
-
-    """
-    self.write_dir = write_dir
-
-#-------------------------------------------------------------------------------
-  def _setup_logger(self):
-    self.logger = None
-    if self.write_dir is None: return self.logger
-    self.logger = Creation('logger')(self.write_dir, Creation('defaults')())
-
-#-------------------------------------------------------------------------------
-  def _setup_saver(self, saver = 'saver'):
-    # This will create a saver whether or not a write directory is given
-    self.saver = None
-    self.saver = Creation(saver)(name = self.name + "/saver")
 
 #-------------------------------------------------------------------------------
   @abstractmethod
@@ -409,9 +466,9 @@ class trainer (slave):
     Returns a list of parameters as numpy arrays
     if return_names is True, returns parameter_names, parameter_values
     """
-    param_lbl = [None] * self.n_params
-    param_val = [None] * self.n_params
-    for i, param in enumerate(self.params):
+    param_lbl = [None] * self._n_params
+    param_val = [None] * self._n_params
+    for i, param in enumerate(self._params):
       param_lbl[i] = list(param)[0]
       param_val[i] = param[param_lbl[i]].eval()
 

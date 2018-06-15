@@ -21,23 +21,23 @@ class stack (stem):
   # to one or more stacks at both input and output ends. Therefore in principle,
   # multiple stacks should be all that is necessary to design any network.
 
+  # public
   def_name = 'stack'
   def_subobject_name = 'level'
   def_subobject = level
   arch = None             # architecture
   type_arch = None        # level architectures if all stream types are the same
-  levels = None           # provides a friendly UI to the list of subobjects
-  spec_type = list        # specification type
   trans_fn = None         # transfer function of last level if identical for all streams
   arch_out = None         # archecture output of last level if unit_stream
   scv = None              # Skip vergence specification (across levels)
 
+  # protected
+  _spec_type = list        # specification type
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
     self.set_arch()   # defaults to an identity
     self.set_skipcv() # sets scv_args and scv_kwds
-    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_arch(self, arch = None):
@@ -51,11 +51,10 @@ class stack (stem):
       else:
         raise TypeError("Unknown level architecture: " + str(self.arch))
     self.set_subobjects(len(self.arch))
-    self.type_arch = [None] * self.n_subobjects
+    self.type_arch = [None] * self._n_subobjects
     for i, arch in enumerate(self.arch):
-      self.subobjects[i].set_arch(arch)
-      self.type_arch[i] = self.subobjects[i].type_arch
-    self.levels = self.subobjects
+      self._subobjects[i].set_arch(arch)
+      self.type_arch[i] = self._subobjects[i].type_arch
     return self.type_arch
 
 #-------------------------------------------------------------------------------
@@ -111,7 +110,7 @@ class stack (stem):
     # levels vergences so this must wait until setup stage).
     if type(self.scv) is not list:
       raise TypeError("Skip vergence specification must be None or a list")
-    elif len(self.scv) != self.n_subobjects:
+    elif len(self.scv) != self._n_subobjects:
       raise ValueError("Skip vergence specification list length must equal number of levels")
 
 
@@ -120,21 +119,21 @@ class stack (stem):
     """
     spec = ipv is the vergence specification for stream inputs within levels.
     """
-    return self.set_spec(self.subobject.set_ipverge, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_ipverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
     """
     spec = is_training must be set to handle some operations (e.g. batch normalisation)
     """
-    return self.set_spec(self.subobject.set_is_training, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_is_training, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_order(self, spec = None, *args, **kwds):
     """
     spec = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
-    return self.set_spec(self.subobject.set_order, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_biases(self, spec = None, *args, **kwds):
@@ -143,7 +142,7 @@ class stack (stem):
     None (default bias settings), False/True, disable/enable biases,
     or Bias initializer (e.g. 'zoi'): use bias with this initialiser
     """
-    return self.set_spec(self.subobject.set_biases, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_biases, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_weights(self, spec = None, *args, **kwds):
@@ -151,7 +150,7 @@ class stack (stem):
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
     """
-    return self.set_spec(self.subobject.set_weights, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, spec = None, *args, **kwds):
@@ -160,7 +159,8 @@ class stack (stem):
     spec = 0.: Full dropout (i.e. useless)
     spec = 0.4: dropout with keep probability of 0.6
     """
-    return self.set_spec(self.subobject.set_dropout, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_dropout, spec, *args, **kwds)
+
 #-------------------------------------------------------------------------------
   def set_transfn(self, spec = None, *args, **kwds):
     """
@@ -168,8 +168,8 @@ class stack (stem):
     spec = 'elu': ELU
     other options: 'softmax', and 'sigmoid'
     """
-    argout = self.set_spec(self.subobject.set_transfn, spec, *args, **kwds)
-    self.trans_fn = self.subobjects[-1].trans_fn
+    argout = self._set_spec(self._subobject.set_transfn, spec, *args, **kwds)
+    self.trans_fn = self[-1].trans_fn
     return argout
 
 #-------------------------------------------------------------------------------
@@ -177,28 +177,35 @@ class stack (stem):
     """
     spec = 'same' or 'valid'
     """
-    return self.set_spec(self.subobject.set_padwin, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_padwin, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, spec = None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
-    return self.set_spec(self.subobject.set_kernfn, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_normal(self, spec = None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
-    return self.set_spec(self.subobject.set_normal, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_normal, spec, *args, **kwds)
+
+#-------------------------------------------------------------------------------
+  def set_reguln(self, spec = None, *args, **kwds):
+    """
+    spec = 'l1_reg' or 'l2_reg' with accompanying keywords (scale) required.
+    """
+    return self._set_spec(self._subobject.set_reguln, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_opverge(self, spec = None, *args, **kwds):
     """
     spec = opc is the vergence specification for stream outputs within levels.
     """
-    return self.set_spec(self.subobject.set_opverge, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_opverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
@@ -208,13 +215,13 @@ class stack (stem):
       raise TypeError("Cannot clone to target class " + str(other))
 
     # Clone the architecture - this _will_ create new instances of streams
-    if other.subobjects is None:
+    if other._subobjects is None:
       other.set_arch(self.arch)
     elif self.arch != other.arch:
       raise AttributeError("Cannot clone to a target instance with differing architecture")
 
     # Clone the streams
-    for self_subobject, other_subobject in zip(self.subobjects, other.subobjects):
+    for self_subobject, other_subobject in zip(self._subobjects, other._subobjects):
       self_subobject.clone(other_subobject)
 
     # Now the rest of the stack-rank specifications
@@ -231,23 +238,23 @@ class stack (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def setup(self, inp = None):
+  def __call__(self, inp = None):
     # stack really doesn't care about nursemaiding inputs and outputs
     # because that's the job of levels. But we have to deal with skip
     # connection vergences.
-    self.inp = inp
-    if self.inp is None: return self.inp # nothing in, nothing out
-    self.skip_verge = [None] * self.n_subobjects
-    for i in range(self.n_subobjects):
-      inp = self.subobjects[i].setup(inp)
-      inp = self._setup_skipcv(inp, i)
-    self.arch_out = self.subobjects[-1].arch_out
-    self.out = inp
-    self.setup_outputs() # concatenate output list of dictionaries
+    self._inp = inp
+    if self._inp is None: return self._inp # nothing in, nothing out
+    self.skip_verge = [None] * self._n_subobjects
+    for i in range(self._n_subobjects):
+      inp = self._subobjects[i].__call__(inp)
+      inp = self._call_skipcv(inp, i)
+    self.arch_out = self[-1].arch_out
+    self._out = inp
+    self._setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _setup_skipcv(self, inp, index):
+  def _call_skipcv(self, inp, index):
     """
     3 stages (not save headaches for the network designer): 
 
@@ -298,9 +305,9 @@ class stack (stem):
         # Now check unit-skip if required
         if check_unit_skip:
           if self.scv_kwds['skip_end'] == 'out':
-            n_skips = len(self.levels[scv_spec[0]].ret_out())
+            n_skips = len(self._subobjects[scv_spec[0]].ret_out())
           elif self.scv_kwds['skip_end'] == 'inp':
-            n_skips = len(self.levels[scv_spec[0]].ret_inp())
+            n_skips = len(self._subobjects[scv_spec[0]].ret_inp())
           else:
             raise ValueError("Unknown skip end specification: " + str(self.scv_kwds['skip_end']))
           if n_skips != 1:
@@ -316,9 +323,9 @@ class stack (stem):
         if self.scv[i][j] is not None:
           IJ = self.scv[i][j]
           if self.scv_kwds['skip_end'] == 'out':
-            skip_inputs = list(self.subobjects[IJ[0]].ret_out())
+            skip_inputs = list(self._subobjects[IJ[0]].ret_out())
           elif self.scv_kwds['skip_end'] == 'inp':
-            skip_inputs = list(self.subobjects[IJ[0]].ret_inp())
+            skip_inputs = list(self._subobjects[IJ[0]].ret_inp())
           else:
             raise ValueError("Unknown skip end specification: " + str(self.scv_kwds['skip_end']))
           inputs = [Inp[j], skip_inputs[IJ[1]]]
@@ -326,13 +333,22 @@ class stack (stem):
           kwds = dict(self.scv_kwds)
           kwds.pop('vergence_fn')
           kwds.pop('skip_end')
-          skip_name = self.name + "/" + self.subobject_name + "s_"
+          skip_name = self.name + "/" + self._subobject_name + "s_"
           skip_name += str(i) + "_and_" + str(IJ[0]) + "_skip/" 
           skip_name += func + "vergence_" + str(j)
           self.skip_verge[i][j] = Creation(func)(inputs, *self.scv_args, 
                                   name = skip_name, **kwds)
           Inp[j] = self.skip_verge[i][j]
     return tuple(Inp)
+
+#-------------------------------------------------------------------------------
+  def _setup_reguln(self):
+    self._reguln = []
+    for subobject in self._subobjects:
+      subobject._setup_reguln()
+      self._reguln += subobject._reguln
+    self._n_reguln = len(self._reguln)
+    return self._n_reguln
     
 #-------------------------------------------------------------------------------
 

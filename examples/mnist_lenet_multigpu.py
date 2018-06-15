@@ -58,7 +58,7 @@ def main():
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   t0 = time()
-  with sup.new_session(write_dir+net_name+"_"+now):
+  with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       for j in range(iterations_per_epoch):
         images, labels = source.train_next_batch(batch_size)

@@ -41,42 +41,42 @@ class regime (slave):
     self.par = par
 
 #-------------------------------------------------------------------------------
-  def setup(self, gst = None): 
+  def __call__(self, gst = None): 
     # this creates the graph nodes for the learning rate
     if self.gst is None and gst is not None: self.set_global_step(gst)
 
-    lrn = Creation(self.lrn)
-    kwds = dict(self.lrn_kwds)
+    lrn = Creation(self._lrn)
+    args = self._lrn_args
+    kwds = dict(self._lrn_kwds)
     if 'name' not in kwds:
       kwds.update({'name': self.name + '/learning_rate'})
 
     if not callable(lrn):
       if self.dev is None:
-        self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
+        self.learning_rate = Creation('var')(lrn, *args, **kwds)
       else:
         with Device(self.dev):
-          self.learning_rate = Creation('var')(lrn, *self.lrn_args, **kwds)
+          self.learning_rate = Creation('var')(lrn, *args, **kwds)
     else:
       if lrn == Creation('var'):
         if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+          self.learning_rate = lrn(*args, dtype=Dtype('float32'), **kwds)
         else:
           with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, dtype=Dtype('float32'), **kwds)
+            self.learning_rate = lrn(*args, dtype=Dtype('float32'), **kwds)
       elif lrn == Creation('identity'):
         if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, **kwds)
+          self.learning_rate = lrn(*args, **kwds)
         else:
           with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, **kwds)
+            self.learning_rate = lrn(*args, **kwds)
       else:
         if self.dev is None:
-          self.learning_rate = lrn(*self.lrn_args, global_step = self.gst, **kwds)
+          self.learning_rate = lrn(*args, global_step = self.gst, **kwds)
         else:
           with Device(self.dev):
-            self.learning_rate = lrn(*self.lrn_args, global_step = self.gst, **kwds)
+            self.learning_rate = lrn(*args, global_step = self.gst, **kwds)
     return self.learning_rate
-
 
 #-------------------------------------------------------------------------------
 

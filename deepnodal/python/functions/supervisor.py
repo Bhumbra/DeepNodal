@@ -99,50 +99,39 @@ class supervisor (overseer):
     if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, gst = None, skip_metrics = False, **kwds):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, **kwds):
 
     if self.work is None: return
-    if self.opt is None: self.set_optimiser(DEFAULT_OPTIMISER)
+    if self._opt is None: self.set_optimiser(DEFAULT_OPTIMISER)
 
     # Setup learning rate, optimiser, and work network
-    overseer.setup(self, ist, gst, True, **kwds)
+    overseer.__call__(self, ist, gst, True, **kwds)
     
     # Setup supervisor labels objects and metrics
-    self._setup_labels()
-    self._setup_metrics(skip_metrics)
+    self._call_labels()
+    self._call_metrics(skip_metrics)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _setup_metrics(self, skip_metrics = False):
+  def _call_metrics(self, skip_metrics = False):
     if skip_metrics: return
 
-    # Setup hat values and errors
+    # Setup hat values and call errors
     self._setup_hatval()
-    self._setup_errors()
+    self._call_errors()
 
-    # Setup cost and loss objects
-    self._setup_costfn()
-    self._setup_losses()
+    # Call cost and loss objects
+    self._call_costfn()
+    self._call_losses()
 
-    # Setup gradient computations and parameter update operations
-    self._setup_gradients()
-    self._setup_train_ops()
+    # Call gradient computations and parameter update operations
+    self._call_gradients()
+    self._call_train_ops()
 
-    # Setup summary scalars and distributions
-    self._setup_scalars()
-    self._setup_distros()
-
-#-------------------------------------------------------------------------------
-  def _setup_labels(self):
-    if callable(Creation(self.lbl)):
-      if self.dev is None:
-        self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
-      else:
-        with Device(self.dev):
-          self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
-    else:
-      self.labels = self.lbl
+    # Call summary scalars and distributions
+    self._call_scalars()
+    self._call_distros()
 
 #-------------------------------------------------------------------------------
   def _setup_hatval(self):
@@ -157,7 +146,18 @@ class supervisor (overseer):
         self.hatval = list(self.hatval)[0]
 
 #-------------------------------------------------------------------------------
-  def _setup_errors(self):
+  def _call_labels(self):
+    if callable(Creation(self.lbl)):
+      if self.dev is None:
+        self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
+      else:
+        with Device(self.dev):
+          self.labels = Creation(self.lbl)(*self.lbl_args, **self.lbl_kwds)
+    else:
+      self.labels = self.lbl
+
+#-------------------------------------------------------------------------------
+  def _call_errors(self):
     self.errors = None
     if not(len(self.erq_args)): # i.e. mse
       if self.dev is None:
@@ -174,7 +174,7 @@ class supervisor (overseer):
     return self.errors
 
 #-------------------------------------------------------------------------------
-  def _setup_costfn(self):
+  def _call_costfn(self):
     self.arch_out = self.work.outnets
     self.cost = None
     if len(self.arch_out) != 1:
@@ -223,8 +223,7 @@ class supervisor (overseer):
     return self.cost
 
 #-------------------------------------------------------------------------------
-  def _setup_losses(self):
-    self.reg_loss = self.work.reg_loss
+  def _call_losses(self):
     if self.reg_loss is None:
       if self.dev is None:
         self.loss = Creation('identity')(self.cost, name = self.name + "/metrics/loss")
@@ -240,7 +239,7 @@ class supervisor (overseer):
     return self.loss
 
 #-------------------------------------------------------------------------------
-  def _setup_gradients(self):
+  def _call_gradients(self):
     # We calculate all parameter gradients, whether regime-specified or not
     if self.dev is None:
       with Scope('var', self.name + "/", reuse = Flag('auto_reuse')):
@@ -254,7 +253,7 @@ class supervisor (overseer):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _setup_train_ops(self):
+  def _call_train_ops(self):
     # Parameter updates are regime-dependent
     self.regime_grad_and_vars = [None] * self.n_regimes
     self.lrate_ops = [None] * self.n_regimes # learning rate ops
@@ -284,10 +283,10 @@ class supervisor (overseer):
     return self.train_ops
 
 #-------------------------------------------------------------------------------
-  def _setup_scalars(self, scalars = None, scalar_names = None,
-                           train_scalars = None, train_scalar_names = None, 
-                           tests_scalars = None, tests_scalar_names = None):
-    overseer._setup_scalars(self, scalars, scalar_names)
+  def _call_scalars(self, scalars = None, scalar_names = None,
+                          train_scalars = None, train_scalar_names = None, 
+                          tests_scalars = None, tests_scalar_names = None):
+    overseer._call_scalars(self, scalars, scalar_names)
     if train_scalars is None:
       train_scalars = [self.cost, self.loss]
       if self.errors is not None:
@@ -386,14 +385,14 @@ class supervisor (overseer):
       n_scalars = len(self.scalars) + len(self.train_scalars)
       scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
       self.scalars_summary[:len(self.scalars)] = scalars_num[:len(self.scalars)]
-      self.add_logs(scalars_log)
+      self._add_logs(scalars_log)
 
     # Distros
     calc_distros = self.write_intervals[1]
     calc_distros = calc_distros if type(calc_distros) is bool else not(self.progress[0] % calc_distros)
     if calc_distros:
       distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
-      self.add_logs(distros_log)
+      self._add_logs(distros_log)
     return self.scalars_summary
 
 #-------------------------------------------------------------------------------
@@ -414,7 +413,7 @@ class supervisor (overseer):
     for i in range(len(self.test_scalars)):
       self.session.run(self.test_scalars[i].assign(test_scalars[i]), feed_dict = {})
     scalars_log = self.session.run(self.test_scalar_logs)
-    self.add_logs(scalars_log)
+    self._add_logs(scalars_log)
     self.scalars_summary[len(self.scalars):] = test_scalars
     summary_strs = [name + "=" + str(num) for name, num in zip(self.summary_names, self.scalars_summary)]
     return ', '.join(summary_strs)

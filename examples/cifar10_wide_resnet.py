@@ -64,7 +64,7 @@ normal_kwds = {'decay':0.997, 'epsilon':1e-5}
 padwin = 'same'
 weights = 'vsi'
 reguln = 2
-reguln_kwds = {'scale': 2e-4}
+reguln_kwds = {'scale': 1e-4}
 opverge_kwds = {'vergence_fn': 'sum'}
 skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}       
 optimiser = 'mom'
@@ -96,13 +96,13 @@ def main():
   mod.set_padwin(padwin)
   mod.set_normal(normal, **normal_kwds)
   mod.set_weights(weights)
+  mod.set_reguln(reguln, **reguln_kwds)
 
   # SPECIFY NETWORK
 
   net = dn.network(net_name)
   net.set_subnets(mod)
   net.set_inputs(input_dims)
-  net.set_reguln(reguln, **reguln_kwds)
 
   # SPECIFY SUPERVISOR AND TRAINING
 
@@ -126,7 +126,7 @@ def main():
   epoch_0 = 0
   t0 = time()
 
-  with sup.new_session(log_out, restore_point):
+  with sup.call_session(log_out, restore_point):
     if restore_point is not None:
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
       for i in range(epoch_0):

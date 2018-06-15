@@ -40,13 +40,13 @@ def main():
   mod.set_transfn(transfn)
   mod.set_dropout(dropout)
   mod.set_normal(normal, **normal_kwds)
+  mod.set_reguln(reguln, **reguln_kwds)
 
   # SPECIFY NETWORK
 
   net = dn.network(net_name)
   net.set_subnets(mod)
   net.set_inputs(input_dims)
-  net.set_reguln(reguln, **reguln_kwds)
 
   # SPECIFY SUPERVISOR AND TRAINING
 
@@ -63,7 +63,7 @@ def main():
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   t0 = time()
-  with sup.new_session(write_dir+net_name+"_"+now):
+  with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       if i == n_epochs // 4:
         sup.use_regime(1)

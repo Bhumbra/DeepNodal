@@ -33,9 +33,6 @@ class network (stem):
 
   Using network.set_subnets() will override the names and devices according
   of the subnet components according to settings of the network class instance.
-  
-  L1 and L2 regularisation can be specified at the level of the network using
-  the network.set_reguln(reg, *reg_args, **reg_kwds) function.
   """
 
   def_name = 'network'
@@ -48,14 +45,11 @@ class network (stem):
   unit_outnet = None           # n_outnet == 1
   inputs = None                # Inputs ordered to matching subnets
   type_inputs = None           # 'stack', 'level', 'stream', or 'arch'
-  reg = None                   # L1/2 regularisation
-  reguln = None                # L1/2 regularisation object
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
     self.set_subnets() # defaults to nothing
-    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -148,7 +142,7 @@ class network (stem):
     return self.type_inputs
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+  def set_reguln_obsolete(self, reg = None, *reg_args, **reg_kwds):
     """
     reg = 'l1_reg' or 'l2_reg', with keyword: scale=scale
     """
@@ -206,9 +200,6 @@ class network (stem):
     
     other.set_inputs(other_inputs)
 
-    # Copy the remaining properties
-    if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
-
     # Rename and redevice
     other.set_name(self.name)
     other.set_dev(self.dev)
@@ -216,37 +207,38 @@ class network (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def setup(self, ist = None, **kwds):
-    if self.reg is None: self.set_reguln()
+  def __call__(self, ist = None, **kwds):
+
     if self.inputs is None: return
+
     self.set_is_training(ist)
 
-    # Setup inputs
-    self._setup_inputs()
+    # Call inputs
+    self._call_inputs()
 
-    # Declare the subnets as subobjects to have access to their respective parameters
-    self.set_subobjects(self.subnets) 
+    # Call subnets
+    self._call_subnets()
 
     # Collate architectural parameters
-    self.setup_params()
+    self._setup_params()
+
+    # Collate regularisation parameters
+    self._setup_reguln()
 
     # Collate list of outputs
-    self.setup_outputs()
-
-    # Collate regularisation losses
-    self._setup_reguln()
+    self._setup_outputs()
 
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _setup_inputs(self):
-    self.inp = [None] * self.n_subnets
-    self.inp_args = [None] * self.n_subnets
-    self.inp_kwds = [None] * self.n_subnets
+  def _call_inputs(self):
+    self._inp = [None] * self.n_subnets
+    self._inp_args = [None] * self.n_subnets
+    self._inp_kwds = [None] * self.n_subnets
     for i in range(self.n_subnets):
       if self.type_inputs[i] in DEFAULT_INPUT_STRUCTURE_TYPES:
-        self.inp[i] = self.inputs[i].ret_out()
-        if self.inp[i] is None:
+        self._inp[i] = self.inputs[i].ret_out()
+        if self._inp[i] is None:
           raise ValueError("Sequential input logic violated.")
       elif self.type_inputs[i] == 'arch':
         kwds = dict(self.inputs_kwds)
@@ -255,38 +247,46 @@ class network (stem):
         inp_dim = [None]
         for dim in self.inputs[i]:
           inp_dim.append(dim)
-        self.inp_args[i] = (kwds['dtype']),
-        self.inp_kwds[i] = {'shape':list(inp_dim)}
+        self._inp_args[i] = (kwds['dtype']),
+        self._inp_kwds[i] = {'shape':list(inp_dim)}
         inp_name = self.name + "/inputs_" + str(i)
         if self.dev is None:
-          self.inp[i] = Creation('tensor')(*self.inp_args[i], name = inp_name, **self.inp_kwds[i])        
+          self._inp[i] = Creation('tensor')(*self._inp_args[i], name = inp_name, **self._inp_kwds[i])        
         else:
           with Device(self.dev):
-            self.inp[i] = Creation('tensor')(*self.inp_args[i], name = inp_name, **self.inp_kwds[i])        
+            self._inp[i] = Creation('tensor')(*self._inp_args[i], name = inp_name, **self._inp_kwds[i])        
       elif callable(Creation(self.inputs[i])): # the inputs creation is being over-ridden externally
         if self.dev is None:
-          self.inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
-                                                 name = self.name + "/inputs_" + str(i),
-                                                 **self.inputs_kwds)
-        else:
-          with Device(self.dev):
-            self.inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
+          self._inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
                                                   name = self.name + "/inputs_" + str(i),
                                                   **self.inputs_kwds)
+        else:
+          with Device(self.dev):
+            self._inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
+                                                    name = self.name + "/inputs_" + str(i),
+                                                    **self.inputs_kwds)
       else:
-        self.inp[i] = self.inputs[i]
-
-      self.subnets[i].setup(self.inp[i])
-    self.out = [subnet.ret_out() for subnet in self.subnets]
+        self._inp[i] = self.inputs[i]
 
 #-------------------------------------------------------------------------------
-  def _setup_reguln(self):
+  def _call_subnets(self):
+    for i in range(self.n_subnets):
+      self.subnets[i].__call__(self._inp[i])
+    self._out = [subnet.ret_out() for subnet in self.subnets]
+
+    # Declare the subnets as subobjects to have access to their respective parameters
+    self.set_subobjects(self.subnets) 
+
+    return self.ret_out()
+
+#-------------------------------------------------------------------------------
+  def _setup_reguln_obsolete(self):
     self.reg_loss = None
     if self.reg is None: return
     self.reg_param_names = []
     self.reg_params = []
     param_reg = list(Param_Reg)[0]
-    for param in self.params:
+    for param in self._params:
       param_name = list(param)[0]
       if param_reg in param_name:
         self.reg_params.append(param[param_name])
@@ -309,5 +309,18 @@ class network (stem):
         with Scope('var', self.name+"/reg_loss", Flag("auto_reuse")):
           self.reg_loss = Creation('multiply')(Creation('add_ewise')(self.reg_losses), self.reg_kwds['scale'])
     
+#-------------------------------------------------------------------------------
+  def _setup_reguln(self):
+    self._reguln = []
+    for subobject in self._subobjects:
+      subobject._setup_reguln()
+      self._reguln += subobject._reguln
+    self._n_reguln = len(self._reguln)
+    return self._n_reguln
+
+#-------------------------------------------------------------------------------
+  def ret_reguln(self):
+    return self._reguln
+
 #-------------------------------------------------------------------------------
 

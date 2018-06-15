@@ -25,9 +25,18 @@ def tf_max_norm_regularizer(clip_norm, axes = 1., name = "max_norm", collection 
   return maxnorm
 
 #-------------------------------------------------------------------------------
-def tf_l1_loss(t, name=None):
+def tf_l1_loss(t, name=None, scale = 1.):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
-    return tf.reduce_sum(tf.abs(t))
+    if scale == 1.:
+      return tf.reduce_sum(tf.abs(t))
+    return tf.multiply(tf.reduce_sum(tf.abs(t)), scale)
+
+#-------------------------------------------------------------------------------
+def tf_l2_loss(t, name=None, scale = 1.):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    if scale == 1.:
+      return tf.nn.l2_loss(t)
+    return tf.multiply(tf.nn.l2_loss(t), scale)
 
 #-------------------------------------------------------------------------------
 def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):

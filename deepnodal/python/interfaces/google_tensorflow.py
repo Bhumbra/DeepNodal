@@ -21,6 +21,7 @@ except AttributeError:
 # Creation dictionary
 
 creation_dict = {'identity': tf.identity,
+                 'ret_var': tf.get_variable,
                  'add': tf.add,
                  'add_ewise': tf.add_n,
                  'aug_dims': tf.expand_dims,
@@ -61,7 +62,7 @@ creation_dict = {'identity': tf.identity,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,
-                 'l2_reg': tf.nn.l2_loss,
+                 'l2_reg': tf_l2_loss,
                  'max_norm': tf_max_norm_regularizer,
                  'relu': tf.nn.relu,
                  'elu': tf.nn.elu,

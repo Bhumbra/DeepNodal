@@ -21,6 +21,7 @@ class level (stem):
   #
   # Therefore each input and output is a tuple.
 
+  # public
   def_name = 'level'
   def_subobject_name = 'stream'
   def_subobject = stream
@@ -28,20 +29,20 @@ class level (stem):
   type_arch = None         # architecture if all stream archectures are the same
   arch_out = None          # architecture output for a single stream
   trans_fn = None          # transfer function if identical for all streams
-  streams = None           # provides a friendly UI to the list of subobjects
-  spec_type = tuple        # specification type
   ipv = None               # Input vergence specification (across streams)
   opv = None               # Output vergence specification (across streams)
   Inp = None               # post_vergence input (a tuple)
-  Out = None               # pre_coalesence output (a tuple)
+  Out = None               # pre_vergence output (a tuple)
+
+  # protected
+  _spec_type = tuple        # specification type
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
     self.set_arch()    # defaults to absence
     self.set_ipverge() # sets ipv_args and ipv_kwds
-    self.set_opverge() # sets ipv_args and ipv_kwds
-    self.setup()
+    self.set_opverge() # sets opv_args and opv_kwds
 
 #-------------------------------------------------------------------------------
   def set_arch(self, arch = None): 
@@ -59,11 +60,10 @@ class level (stem):
     self.set_subobjects(len(self.arch))
     self.type_arch = []
     for i, arch in enumerate(self.arch):
-      self.subobjects[i].set_arch(arch)
-      type_arch = self.subobjects[i].type_arch
+      self._subobjects[i].set_arch(arch)
+      type_arch = self._subobjects[i].type_arch
       if type_arch not in self.type_arch:
         self.type_arch.append(type_arch)
-    self.streams = self.subobjects
     self.type_arch = ','.join(self.type_arch)
     return self.type_arch
 
@@ -73,7 +73,7 @@ class level (stem):
     ipv is a vergence specification that unites inputs expressed as a tuple with a
     length corresponding to that of the number of streams.
 
-    ipv may be True if there is a single stream, specifying all inputs to be coalesced.
+    ipv may be True if there is a single stream, specifying all inputs to be verged.
 
     By default, convergence ('con') is assumed, but under `kwds', 'vergence_fn'
     may be 'sum'.
@@ -89,14 +89,14 @@ class level (stem):
       if not(self.ipv):
         self.ipv = None
         return
-      elif self.unit_subobject:
+      elif self._unit_subobject:
         pass # we'll just have to find out the number of inputs later
       else:
         raise ValueError('Non-unitary stream levels require list-based set_ipverge specifications')
-    elif type(self.ipv) is not(self.spec_type):
+    elif type(self.ipv) is not(self._spec_type):
       raise TypeError("Specification type must be either None, a boolean, or tuple")
     else:
-      if len(self.ipv) != self.n_subobjects:
+      if len(self.ipv) != self._n_subobjects:
         raise TypeError('Tuple length for set_ipverge specification must match number of streams')
     if 'vergence_fn' not in self.ipv_kwds:
       self.ipv_kwds.update({'vergence_fn': DEFAULT_VERGENCE_FUNCTION})
@@ -107,34 +107,34 @@ class level (stem):
       self.ipv_kwds.update({'axis': ax})
 
 #-------------------------------------------------------------------------------
-  def set_spec(self, func, spec = None, *args, **kwds): # overloads stem.broadcast
+  def _set_spec(self, func, spec = None, *args, **kwds): # overloads stem._set_spec
     """
     We overload here because here we 'None' any broadcast specifications to
     'none' architectures.
     
     To over-rule this effect, use [] ('identity') rather than None ('none').
     """
-    if type(spec) is not self.spec_type:
-      spec = [spec] * self.n_subobjects
-      for i in range(self.n_subobjects):
-        if self.subobjects[i].type_adim == 'none':
+    if type(spec) is not self._spec_type:
+      spec = [spec] * self._n_subobjects
+      for i in range(self._n_subobjects):
+        if self._subobjects[i].type_adim == 'none':
           spec[i] = None
-      spec = self.spec_type(spec)
-    return stem.set_spec(self, func, spec, *args, **kwds)
+      spec = self._spec_type(spec)
+    return stem._set_spec(self, func, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, spec = None, *args, **kwds):
     """
     spec = is_training must be set to handle some operations (e.g. batch normalisation)
     """
-    return self.set_spec(self.subobject.set_is_training, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_is_training, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_order(self, spec = None, *args, **kwds):
     """
     spec = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
-    return self.set_spec(self.subobject.set_order, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_biases(self, spec = None, *args, **kwds):
@@ -143,7 +143,7 @@ class level (stem):
     None (default bias settings), False/True, disable/enable biases,
     or Bias initializer (e.g. 'zoi'): use bias with this initialiser
     """
-    return self.set_spec(self.subobject.set_biases, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_biases, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_weights(self, spec = None, *args, **kwds):
@@ -151,7 +151,7 @@ class level (stem):
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
     """
-    return self.set_spec(self.subobject.set_weights, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, spec = None, *args, **kwds):
@@ -160,7 +160,7 @@ class level (stem):
     spec = 0.: Full dropout (i.e. useless)
     spec = 0.4: dropout with keep probability of 0.6
     """ 
-    return self.set_spec(self.subobject.set_dropout, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_dropout, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_transfn(self, spec = None, *args, **kwds):
@@ -169,11 +169,11 @@ class level (stem):
     spec = 'elu': ELU
     other options: 'softmax', and 'sigmoid'
     """
-    argout = self.set_spec(self.subobject.set_transfn, spec, *args, **kwds)
-    for i, subobj in enumerate(self.subobjects):
+    argout = self._set_spec(self._subobject.set_transfn, spec, *args, **kwds)
+    for i, subobj in enumerate(self[:]):
       if not(i):
-        self.trans_fn = self.subobjects[i].tfn
-      elif self.subobjects[i].tfn != self.trans_fn:
+        self.trans_fn = self[i].tfn
+      elif self[i].tfn != self.trans_fn:
         self.trans_fn = None
     return argout
 
@@ -182,21 +182,28 @@ class level (stem):
     """
     spec = 'same' or 'valid'
     """
-    return self.set_spec(self.subobject.set_padwin, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_padwin, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, spec = None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
-    return self.set_spec(self.subobject.set_kernfn, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_normal(self, spec = None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
-    return self.set_spec(self.subobject.set_normal, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_normal, spec, *args, **kwds)
+
+#-------------------------------------------------------------------------------
+  def set_reguln(self, spec = None, *args, **kwds):
+    """
+    spec = 'l1_reg' or 'l2_reg' with accompanying keywords (scale) required.
+    """
+    return self._set_spec(self._subobject.set_reguln, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_opverge(self, opv = None, *opv_args, **opv_kwds):
@@ -204,7 +211,7 @@ class level (stem):
     opv is a vergence specification that unites outputs expressed as a tuple of
     a length that may differ to that of the number of streams.
 
-    opv may be True, specifying all streams outputs to be coalesced within the level.
+    opv may be True, specifying all streams outputs to be verged within the level.
 
     ...or opv may be a list of lists where the outer dimension is the number of
     vergences and inner dimension for each is the index of streams to verge.
@@ -227,14 +234,14 @@ class level (stem):
       if not(self.opv):
         self.opv = None
         return
-      elif self.unit_subobject:
-        print('Specification include attempting to coalesce a single stream')
+      elif self._unit_subobject:
+        print('Specification include attempting to verge a single stream')
         self.opv = None
         return
       else:
-        self.opv = self.spec_type([list(range(self.n_subobjects))])
+        self.opv = self._spec_type([list(range(len(self)))])
 
-    if type(self.opv) is self.spec_type:
+    if type(self.opv) is self._spec_type:
       if not(len(self.opv)):
         self.opv = None
         return
@@ -256,13 +263,13 @@ class level (stem):
       raise TypeError("Cannot clone to target class " + str(other))
 
     # Clone the architecture - this _will_ create new instances of streams
-    if other.subobjects is None:
+    if other._subobjects is None:
       other.set_arch(self.arch)
     elif self.arch != other.arch:
       raise AttributeError("Cannot clone to a target instance with differing architecture")
 
     # Clone the streams
-    for self_subobject, other_subobject in zip(self.subobjects, other.subobjects):
+    for self_subobject, other_subobject in zip(self._subobjects, other._subobjects):
       self_subobject.clone(other_subobject)
 
     # Now the rest of the level-rank specifications
@@ -280,53 +287,53 @@ class level (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def setup(self, inp = None):
-    inp = self._setup_input(inp)  # does not touch self.subobjects
-    if self.inp is None: return self.inp # nothing in, nothing out
-    for _inp, subobject in zip(list(inp), self.subobjects):
-      subobject.setup(_inp)
-    Out = [subobject.ret_out() for subobject in self.subobjects]
-    self.arch_out = None if not self.unit_subobject else self.subobjects[0].arch_out
-    return self._setup_output(tuple(Out)) # does not touch self.subobjects
+  def __call__(self, inp = None):
+    inp = self._call_input(inp)  # does not touch self.subobjects
+    if self._inp is None: return self._inp # nothing in, nothing out
+    for _inp, subobject in zip(list(inp), self._subobjects):
+      subobject.__call__(_inp)
+    Out = [subobject.ret_out() for subobject in self._subobjects]
+    self.arch_out = None if not self._unit_subobject else self[0].arch_out
+    return self._call_output(tuple(Out)) # does not touch self.subobjects
 
 #-------------------------------------------------------------------------------
-  def _setup_input(self, inp = None):
+  def _call_input(self, inp = None):
     # inp may either be a level or a tuple of inputs.
     # self.inp -> vergence (if specified) -> self.Inp
     if self.ipv is None: self.set_ipverge()
-    self.inp = inp
-    self.Inp = self.inp
-    self.out = None
+    self._inp = inp
+    self.Inp = self._inp
+    self._out = None
     self.Out = None
-    if self.inp is None: return self.Inp
-    if type(self.inp) is list:
+    if self._inp is None: return self.Inp
+    if type(self._inp) is list:
       raise TypeError("Input setup argument must be a tuple, a class, but not a list")
-    elif isinstance(self.inp, self.subobject):
+    elif isinstance(self._inp, self._subobject):
       # we have no interest in remembering the identity of input class sources
-      inp = tuple([subobject.inp for subobject in self.inp])
-      self.inp = inp
-    elif type(self.inp) is not tuple: # give the benefit of the doubt here
-      self.inp = tuple([self.inp] * self.n_subobjects)
-    elif len(self.inp) == 1 and not(self.unit_subobject):
-      self.inp = tuple([self.inp[0]] * self.n_subobjects)
+      inp = tuple([subobject._inp for subobject in self._inp])
+      self._inp = inp
+    elif type(self._inp) is not tuple: # give the benefit of the doubt here
+      self._inp = tuple([self._inp] * self._n_subobjects)
+    elif len(self._inp) == 1 and not(self._unit_subobject):
+      self._inp = tuple([self._inp[0]] * self._n_subobjects)
     if self.ipv is None: # Attempt an input concentation if input multiple
-      if len(self.inp) > 1:
-        if self.unit_subobject:
+      if len(self._inp) > 1:
+        if self._unit_subobject:
           self.set_ipverge(True, *self.ipv_args, **self.ipv_kwds)
-        elif len(self.inp) != self.n_subobjects:
+        elif len(self._inp) != self._n_subobjects:
           raise ValueError("Number of input verge specificaitons incommensurate with number of streams")
     if type(self.ipv) is bool:
       if self.ipv:
-        self.ipv = self.spec_type([list(range(len(self.inp)))])
-    self.Inp = self.inp
+        self.ipv = self._spec_type([list(range(len(self._inp)))])
+    self.Inp = self._inp
     if self.ipv is None: return self.Inp
-    if len(self.ipv) != self.n_subobjects:
+    if len(self.ipv) != self._n_subobjects:
       raise ValueError("Input vergence specification incommensurate with number of streams")
 
     # Here if specified we create the graph object(s) for input vergence.
     Inp = [None] * len(self.ipv)
     for i, ipv in enumerate(self.ipv):
-      inp = [self.inp[j] for j in ipv]
+      inp = [self._inp[j] for j in ipv]
       func = self.ipv_kwds['vergence_fn']
       kwds = dict(self.ipv_kwds)
       kwds.pop('vergence_fn')
@@ -336,20 +343,20 @@ class level (stem):
     return self.Inp
 
 #-------------------------------------------------------------------------------
-  def _setup_output(self, Out = None):
+  def _call_output(self, Out = None):
     # Out is expected to be tuple of size self.n_streams. Optionally it may be
     # a single graph object for single stream levels.
     if self.opv is None: self.set_opverge()
     self.Out = Out
-    self.out = self.Out
-    if self.out is None: return self.ret_out()
+    self._out = self.Out
+    if self._out is None: return self.ret_out()
     if type(self.Out) is list:
       raise TypeError("Output setup argument must be a tuple and not a list")
     elif type(self.Out) is not tuple:
       self.Out = tuple(self.Out)
-    if len(self.Out) != self.n_subobjects:
+    if len(self.Out) != self._n_subobjects:
       raise ValueError("len(self.Out) must match number of streams")
-    self.out = self.Out
+    self._out = self.Out
     if self.opv is None: return self.ret_out()
     out = [None] * len(self.opv)
     for i, opv in enumerate(self.opv):
@@ -359,9 +366,18 @@ class level (stem):
       kwds.pop('vergence_fn')
       out[i] = Creation(func)(Out, *self.opv_args,
                name = self.name + "/output_" + func + "vergence_" + str(i), **kwds)
-    self.out = tuple(out)
-    self.setup_outputs() # concatenate output list of dictionaries
+    self._out = tuple(out)
+    self._setup_outputs() # concatenate output list of dictionaries
     return self.ret_out()
+
+#-------------------------------------------------------------------------------
+  def _setup_reguln(self):
+    self._reguln = []
+    for subobject in self._subobjects:
+      subobject._setup_reguln()
+      self._reguln += subobject._reguln
+    self._n_reguln = len(self._reguln)
+    return self._n_reguln
 
 #-------------------------------------------------------------------------------
 

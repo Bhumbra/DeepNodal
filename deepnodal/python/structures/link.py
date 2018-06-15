@@ -1,11 +1,11 @@
 """
 Base class for single input and output functionality to play nicely with TensorFlow.
 
-It inherits from abstract class leaf. One leaf optinally supports a list of  parameters,
+It inherits from abstract class leaf. One leaf optionally supports a list of  parameters,
 stored as a list of dictionaries in the form {'parameter_name', parameter_value}.
 
 Each link is associated with with a creation which TensorFlow creations a `node' on the graph
-which is not created until link.setup() is invoked.
+which is not called until link.__call__() is invoked.
 """
 #
 # Gary Bhumbra
@@ -20,69 +20,72 @@ class link (leaf):
   A link is a leaf connecting an input to an output via a creation. It has no
   hierarchical substructure (i.e. no subobjects).
   """
+  # public 
   def_name = 'link'
-  out = None
-  creation = None
-  args = None
-  kwds = None
-  var_scope = None
+
+  # protected 
+  _inp = None
+  _out = None
+  _creation = None
+  _args = None
+  _kwds = None
+  _var_scope = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     leaf.__init__(self, name, dev)
     self.set_creation()
-    self.setup()
 
 #-------------------------------------------------------------------------------
   def set_creation(self, creation = None, *args, **kwds):
-    self.creation = Creation(creation)
-    self.args = args
-    self.kwds = dict(kwds)
+    self._creation = Creation(creation)
+    self._args = args
+    self._kwds = dict(kwds)
 
 #-------------------------------------------------------------------------------
-  def setup(self, inp = None):
+  def __call__(self, inp = None):
     inp = self.set_inp(inp)
-    kwds = dict(self.kwds)
-    self.var_scope = None
+    kwds = dict(self._kwds)
+    self._var_scope = None
     if 'var_scope' in kwds:
-      self.var_scope = kwds['var_scope']
+      self._var_scope = kwds['var_scope']
       kwds.pop('var_scope')
     elif 'name' in kwds:
-      self.var_scope = self.kwds['name']
-    elif 'scope' in self.kwds:
-      self.var_scope = self.kwds['scope']
-    if self.inp is None or self.creation is None: return self.ret_out()
-    if 'var_scope' in self.kwds:
+      self._var_scope = self._kwds['name']
+    elif 'scope' in self._kwds:
+      self._var_scope = self._kwds['scope']
+    if self._inp is None or self._creation is None: return self.ret_out()
+    if 'var_scope' in self._kwds:
       if self.dev is None:
-        with Scope('var', self.var_scope, reuse=Flag('auto_reuse')):
-          self.out = self.creation(self.inp, *self.args, **kwds)
+        with Scope('var', self._var_scope, reuse=Flag('auto_reuse')):
+          self._out = self._creation(self._inp, *self._args, **kwds)
       else:
         with Device(self.dev):
-          with Scope('var', self.var_scope, reuse=Flag('auto_reuse')):
-            self.out = self.creation(self.inp, *self.args, **kwds)
+          with Scope('var', self._var_scope, reuse=Flag('auto_reuse')):
+            self._out = self._creation(self._inp, *self._args, **kwds)
     else:
       if self.dev is None:
-        self.out = self.creation(self.inp, *self.args, **self.kwds)
+        self._out = self._creation(self._inp, *self._args, **self._kwds)
       else:
         with Device(self.dev):
-          self.out = self.creation(self.inp, *self.args, **self.kwds)
+          self._out = self._creation(self._inp, *self._args, **self._kwds)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def setup_params(self):
-    self.params = []
-    self.n_params = 0
-    if self.var_scope is None: return self.params
+  def _setup_params(self):
+    self._params = []
+    self._n_params = 0
+    if self._var_scope is None: return self._params
     for Param in list(Param_Dict):
-      with Scope('var', self.var_scope, reuse=True):
+      with Scope('var', self._var_scope, reuse=True):
         try:
-          param = tf.get_variable(Param)
+          param = Creation('ret_var')(Param)
         except ValueError:
           param = None
         if param is not None:
-          self.add_param({self.var_scope+"/"+Param_Dict[Param]: param})
-    self.n_params = len(self.params)
-    return self.params
+          self.add_param({self._var_scope+"/"+Param_Dict[Param]: param})
+    self._n_params = len(self._params)
+    return self.ret_params()
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
@@ -96,7 +99,7 @@ class link (leaf):
     other.set_dev(self.dev)
 
     # ... before setting the creation in case this influences self.var_scope
-    other.set_creation(self.creation, *self.args, **self.kwds)
+    other.set_creation(self._creation, *self._args, **self._kwds)
     return other
 
 #-------------------------------------------------------------------------------
