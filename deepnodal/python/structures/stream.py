@@ -6,6 +6,7 @@
 #-------------------------------------------------------------------------------
 import numpy as np
 from deepnodal.python.structures.chain import *
+from deepnodal.python.concepts.structure import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for absent architectures.
@@ -71,8 +72,11 @@ class stream (chain):
     """
     arch = None or []:  identity
     arch = integer:     dense
+    arch = list of 1:   recurrent
     arch = list of 2:   pool
     arch = list of 3:   conv
+    arch = set:         lookup without step
+    arhc = dict:        lookup with step dimensions
     """
     # Note links are not created here because they are added sequentially at
     # the stream.setup(inp) stage.
@@ -354,6 +358,31 @@ class stream (chain):
         vsi_kwds.pop('kernel_initializer')
         self.vsi = Creation(self.wgt)(**vsi_kwds)
         self.wgt_kwds = {'kernel_initializer': self.vsi}
+      elif isinstance(self.wgt, structure):  # Use a pre-created weight matrix
+        source_params = self.wgt.ret_params()
+        param_index = None
+        for i, param in enumerate(source_params):
+          if 'weights' in list(param)[0]:
+            if param_index is None:
+              param_index = i
+            else:
+              raise ValueError("Source of weight parameters ambiguous in specification.")
+        if param_index is None:
+          raise ValueError("Specification of shared weights must ordered in creation order.")
+        if 'transpose' not in self.wgt_kwds:
+          self.wgt_kwds.update({'transpose': False})
+        param = source_params[param_index]
+        param_name = list(param)[0]
+        if not self.wgt_kwds['transpose']:
+          weights = param[param_name]
+        else:
+          weights_name = param_name.replace('weights', 'kernel') +"/transpose"
+          if self.dev is None:
+            weights = Creation('transpose')(param[param_name], name=weights_name)
+          else:
+            with self.dev:
+              weights = Creation('transpose')(param[param_name], name=weights_name)
+        self.wgt_kwds = {'kernel_initializer': weights}
     kwds = {'name': self.name + "/" + self.type_adim}
     if self.type_arch == 'dense':
       kwds.update({'units': self.arch})

@@ -161,10 +161,12 @@ class supervisor (overseer):
     self.errors = None
     if not(len(self.erq_args)): # i.e. mse
       if self.dev is None:
-        self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
+        with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
+          self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
       else:
         with Device(self.dev):
-          self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
+          with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
+            self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
     else:
       self.errors = [None] * len(self.erq_args)
       # at the time of coding, "in_top_k" was not supported by GPU devices

@@ -2,12 +2,10 @@
 
 # Gary Bhumbra
 
-import tensorflow as tf
 import numpy as np
 import math
 from scipy import stats
-from tensorflow.contrib.layers import max_pool2d, avg_pool2d
-average_pooling2d = tf.layers.average_pooling2d
+from deepnodal.python.interfaces.tf_layers import *
 from tensorflow import name_scope, variable_scope
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops

@@ -21,6 +21,7 @@ except AttributeError:
 # Creation dictionary
 
 creation_dict = {'identity': tf.identity,
+                 'transpose': tf.transpose,
                  'ret_var': tf.get_variable,
                  'add': tf.add,
                  'add_ewise': tf.add_n,
@@ -40,7 +41,7 @@ creation_dict = {'identity': tf.identity,
                  'cast': tf.cast,
                  'diverge': tf.split,
                  'verge': tf_vergence,
-                 'dense': tf.layers.dense,
+                 'dense': tf_dense,
                  'conv1d': {'xcorr': tf.layers.conv1d,
                             'sconv': tf.layers.separable_conv1d,
                             'tconv': None}, # Force an error

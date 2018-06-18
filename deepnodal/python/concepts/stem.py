@@ -181,6 +181,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 
 #-------------------------------------------------------------------------------
   def ret_params(self, param_spec = None, ret_indices = False):
+    if self._params is None:
+      self._setup_params()
+    elif not(len(self._params)):
+      self._setup_params()
     if param_spec is None:
       if not ret_indices:
         return self._params
