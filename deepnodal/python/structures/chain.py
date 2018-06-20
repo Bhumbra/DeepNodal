@@ -81,13 +81,14 @@ class chain (stem):
     return self._links[-1]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None):
+  def __call__(self, inp = None, _called = True):
     self._inp = inp
     self._out = inp
     if self._links is None: return
     for _link in self._links:
       inp = _link.__call__(inp)
     self._out = inp
+    self._called = _called
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

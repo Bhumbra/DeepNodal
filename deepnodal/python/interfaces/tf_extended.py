@@ -149,6 +149,7 @@ class tf_variance_scaling_initialiser (Initializer):
         'fan': self.fan,
         'locan': self.locan,
         'scale': self.scale,
+        'shape': self.shape,
         'seed': self.seed,
         'dtype': self.dtype,
     }

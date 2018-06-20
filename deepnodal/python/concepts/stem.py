@@ -36,11 +36,13 @@ class stem (structure): # we inherit structure because a stem is never a leaf
   _n_params = None                  # len(parameters)
   _outputs = None                   # parameters - collated from subobjects
   _n_outputs = None                 # len(parameters)
+  _ex_outputs = False               # flag to include exhaustive list of all outputs
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     self.set_name(name)
     self.set_dev(dev)
+    self.set_ex_outputs() # Note this flag is only pertinent the function classes
     self.set_subobject()
     self.set_subobjects()
 
@@ -59,6 +61,14 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     if self._subobjects is None: return
     for subobject in self._subobjects:
       subobject.set_dev(dev)
+
+#-------------------------------------------------------------------------------
+  def set_ex_outputs(self, _ex_outputs = False):
+    self.ex_outputs = _ex_outputs
+
+#-------------------------------------------------------------------------------
+  def ret_ex_outputs(self, _ex_outputs = False):
+    return self.ex_outputs
 
 #-------------------------------------------------------------------------------
   def set_subobject(self, subobject = None, subobject_name = None):
@@ -129,6 +139,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     ...or...
     any such combination.
     """
+    if type(spec) is tuple:
+      if len(spec) > 0:
+        if isinstance(spec[0], structure):
+          return [func(subobject, spec, *args, **kwds) for subobject in self._subobjects]
     if self._spec_type is None:
       return [func(subobject, spec, *args, **kwds) for i, subobject in enumerate(self._subobjects)]
     if type(spec) is not self._spec_type:
@@ -181,6 +195,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 
 #-------------------------------------------------------------------------------
   def ret_params(self, param_spec = None, ret_indices = False):
+    if not(self._called): return self, stem.ret_params, param_spec, ret_indices
     if self._params is None:
       self._setup_params()
     elif not(len(self._params)):
@@ -197,6 +212,11 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       if param_spec:
         params = self._params
         indices = list(range(len(self._params)))
+    elif type(param_spec) is str:
+      for i, param in enumerate(self._params):
+        if param_spec in list(param)[0]:
+          params.append(param)
+          indices.append(i)
     elif len(param_spec) != self._n_subobjects:
       raise ValueError("Parameter specification incommensurate with hierarchical structure")
     else:

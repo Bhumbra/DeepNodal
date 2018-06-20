@@ -43,7 +43,7 @@ class link (leaf):
     self._kwds = dict(kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None):
+  def __call__(self, inp = None, _called = True):
     inp = self.set_inp(inp)
     kwds = dict(self._kwds)
     self._var_scope = None
@@ -69,6 +69,7 @@ class link (leaf):
       else:
         with Device(self.dev):
           self._out = self._creation(self._inp, *self._args, **self._kwds)
+    self._called = _called
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

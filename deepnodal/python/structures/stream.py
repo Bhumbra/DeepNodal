@@ -75,8 +75,9 @@ class stream (chain):
     arch = list of 1:   recurrent
     arch = list of 2:   pool
     arch = list of 3:   conv
-    arch = set:         lookup without step
-    arhc = dict:        lookup with step dimensions
+    arch = dict  {sparse_length: [outer_dim, inner_dim]}: lookup
+    arch = set: lookdown (i.e. dense, but with an expected sparse output)
+
     """
     # Note links are not created here because they are added sequentially at
     # the stream.setup(inp) stage.
@@ -92,6 +93,21 @@ class stream (chain):
     elif type(self.arch) is int:
       self.type_arch = 'dense'
       self.type_adim = self.type_arch
+    elif type(self.arch) is set:
+      self.type_arch = 'lookdown'
+      self.type_adim = self.type_arch
+    elif type(self.arch) is dict:
+      self.type_arch = 'lookup'
+      if len(self.arch) != 1:
+        raise ValueError("Sparse to dense specification requires one dictionary element")
+      arch_key = list(self.arch)[0]
+      arch_val = self.arch[arch_key]
+      arch_dim = 1
+      if type(arch_val) is list:
+        arch_dim = len(arch_val)
+        if arch_dim != 1 and arch_dim != 2:
+          raise ValueError("Dense specification must be one or two dimensional")
+      self.type_adim = self.type_arch + str(arch_dim) + 'd'
     elif type(self.arch) is not list:
       raise ValueError("Unknown architecture specification")
     else:
@@ -258,7 +274,7 @@ class stream (chain):
     self.reg_kwds = dict(reg_kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None):
+  def __call__(self, inp = None, _called = True):
     """
     inp must be a single tensor.
 
@@ -290,7 +306,7 @@ class stream (chain):
     self.set_subobjects(self._links)
 
     # Now create the objects
-    chain.__call__(self, self._inp)
+    chain.__call__(self, self._inp, False)
 
     # Flag the tensor from the architecture-dependent link in the chain
     if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
@@ -303,6 +319,8 @@ class stream (chain):
 
     # Set outputs dictionary
     self._setup_outputs()
+
+    self._called = _called
 
     return self.ret_out()
 
@@ -347,32 +365,56 @@ class stream (chain):
     if self.type_adim == 'identity':
       self.add_link(Creation(self.type_adim), name = self.name + "/" + self.type_adim)
       return self.ret_out()
+
+    # Initialise padding/kernel settings
     if self.type_arch == 'conv' or self.type_arch == 'pool':
       if self.win is None: self.set_padwin()
       if self.kfn is None: self.set_kernfn()
+
+    # Initialise parameter settings
+    using_biases = False
+    using_weights = False
     if self.type_arch == 'dense' or self.type_arch == 'conv':
+      using_biases = True
+      using_weights = True
+    if 'look' in self.type_arch:
+      using_biases = self.type_arch == 'lookdown' 
+      using_weights = True
+    if using_biases:
       if self.bia is None: self.set_biases()
+    if using_weights:
       if self.wgt is None: self.set_weights()
       if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
         vsi_kwds = dict(self.wgt_kwds)
         vsi_kwds.pop('kernel_initializer')
         self.vsi = Creation(self.wgt)(**vsi_kwds)
         self.wgt_kwds = {'kernel_initializer': self.vsi}
-      elif isinstance(self.wgt, structure):  # Use a pre-created weight matrix
-        source_params = self.wgt.ret_params()
-        param_index = None
-        for i, param in enumerate(source_params):
-          if 'weights' in list(param)[0]:
-            if param_index is None:
-              param_index = i
+      elif type(self.wgt) is list or type(self.wgt) is tuple or isinstance(self.wgt, structure):
+        if type(self.wgt) is list:
+          param = self.wgt[0] if len(self.wgt) == 1 else self.wgt
+          param_name = list(self.wgt)[0]
+        else:
+          if type(self.wgt) is tuple:
+            if len(self.wgt) < 1:
+              raise ValueError("Minimum weights specification size for tuple is one.")
+            elif not isinstance(self.wgt[0], structure): 
+              raise TypeError("Unrecognised tuple format.")
+            if len(self.wgt) < 2:
+              params = self.wgt[0].ret_params('weights')
             else:
-              raise ValueError("Source of weight parameters ambiguous in specification.")
-        if param_index is None:
-          raise ValueError("Specification of shared weights must ordered in creation order.")
-        if 'transpose' not in self.wgt_kwds:
-          self.wgt_kwds.update({'transpose': False})
-        param = source_params[param_index]
-        param_name = list(param)[0]
+              if not(callable(self.wgt[1])):
+                raise TypeError("Unrecognised tuple format.")
+              params = self.wgt[1](self.wgt[0], *self.wgt[2:])
+          else:
+            params = self.wgt.ret_params('weights')
+          if type(params) is tuple:
+            raise ValueError("Specification of shared weights must ordered in creation order.")
+          elif not(len(params)):
+            raise ValueError("Cannot find weights in structure object specified in self.set_weights(structure).")
+          elif len(params) > 1:
+            raise ValueError("Source of weight parameters ambiguous in specification.")
+          param = params[0]
+          param_name = list(param)[0]
         if not self.wgt_kwds['transpose']:
           weights = param[param_name]
         else:
@@ -383,7 +425,11 @@ class stream (chain):
             with self.dev:
               weights = Creation('transpose')(param[param_name], name=weights_name)
         self.wgt_kwds = {'kernel_initializer': weights}
+      elif type(self.wgt) == tf.Variable:
+        self.wgt_kwds = {'kernel_initializer': self.wgt}
     kwds = {'name': self.name + "/" + self.type_adim}
+
+    # Call layers
     if self.type_arch == 'dense':
       kwds.update({'units': self.arch})
       kwds.update({'activation': None})
@@ -401,6 +447,13 @@ class stream (chain):
       kwds.update({'pool_size': self.arch[0], 'strides': self.arch[1]})
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
+    elif self.type_arch == 'lookup':
+      arch_key = list(self.arch)[0]
+      arch_val = self.arch[arch_key]
+      kwds.update({'cardinality': arch_key})
+      kwds.update({'units': arch_val})
+      kwds.update(self.wgt_kwds)
+      self.arch_link = self.add_link(Creation(self.type_arch), **kwds)
     else:
       raise ValueError("Unknown architecture type: " + self.type_arch)
     return self.arch_link

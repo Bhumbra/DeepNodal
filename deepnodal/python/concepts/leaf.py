@@ -80,6 +80,7 @@ class leaf (structure):
 
 #-------------------------------------------------------------------------------
   def ret_params(self):
+    if not(self._called): return self, leaf.ret_params
     if self._params is None: self.set_params()
     return self._params
 

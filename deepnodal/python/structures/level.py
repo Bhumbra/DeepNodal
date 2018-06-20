@@ -287,14 +287,16 @@ class level (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None):
+  def __call__(self, inp = None, _called = True):
     inp = self._call_input(inp)  # does not touch self._subobjects
     if self._inp is None: return self._inp # nothing in, nothing out
     for _inp, subobject in zip(list(inp), self._subobjects):
       subobject.__call__(_inp)
     Out = [subobject.ret_out() for subobject in self._subobjects]
     self.arch_out = None if not self._unit_subobject else self[0].arch_out
-    return self._call_output(tuple(Out)) # does not touch self._subobjects
+    argout = self._call_output(tuple(Out)) # does not touch self._subobjects
+    self._called = _called
+    return argout
 
 #-------------------------------------------------------------------------------
   def _call_input(self, inp = None):

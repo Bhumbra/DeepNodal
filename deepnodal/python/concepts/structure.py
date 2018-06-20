@@ -11,6 +11,9 @@ class structure (ABC):
   name = "structure"
   dev = None
 
+  # protected
+  _called = False
+
 #-------------------------------------------------------------------------------
   @abstractmethod
   def set_name(self, name = None):
@@ -20,5 +23,8 @@ class structure (ABC):
   @abstractmethod
   def set_dev(self, name = None):
     self.dev = dev
+#-------------------------------------------------------------------------------
+  def ret_called(self):
+    return self._called
 
 #-------------------------------------------------------------------------------

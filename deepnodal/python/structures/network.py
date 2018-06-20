@@ -195,7 +195,7 @@ class network (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, **kwds):
+  def __call__(self, ist = None, _called = True, **kwds):
 
     if self.inputs is None: return
 
@@ -215,6 +215,8 @@ class network (stem):
 
     # Collate list of outputs
     self._setup_outputs()
+
+    self._called = _called
 
     return self.ret_out()
 

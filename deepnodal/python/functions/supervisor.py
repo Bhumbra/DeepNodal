@@ -36,15 +36,19 @@ class supervisor (overseer):
   gradients = None             # gradients
   grad_and_vars = None         # gradients and variables
   regime_grad_and_vars = None  # grad_and_vars relevant to each regime
-  hatval = None            # object to compare labels for error calculations
+  hatval = None                # object to compare labels for error calculations
   arch_out = None              # object to compare labels for cost calculations 
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     overseer.__init__(self, name, dev)
-    self.set_labels()
-    self.set_errorq()
-    self.set_costfn()
+
+#-------------------------------------------------------------------------------
+  def set_work(self, work = None): # overloading trainer.set_work() to set defaults
+    trainer.set_work(self, work)
+    if self.lbl is None: self.set_labels()
+    if self.cfn is None: self.set_costfn()
+    if self.erq is None: self.set_errorq()
 
 #-------------------------------------------------------------------------------
   def set_labels(self, lbl = None, *lbl_args, **lbl_kwds):
@@ -62,10 +66,22 @@ class supervisor (overseer):
       self.lbl_kwds.update({'name': self.name + "/batch/labels"})
     
 #-------------------------------------------------------------------------------
+  def set_costfn(self, cfn = None, *cfn_args, **cfn_kwds):
+    """
+    cfn = 'mse' (mean squared error) or 'mce' (mean cross entropy)
+    """
+    self.cfn = cfn
+    self.cfn_args = cfn_args
+    self.cfn_kwds = dict(cfn_kwds)
+    if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
+    if Creation(self.cfn) == Creation("nce"):
+      pass
+
+#-------------------------------------------------------------------------------
   def set_errorq(self, erq = None, *erq_args, **erq_kwds):
     """
 
-    erq = 'mse' or 'in_top_k_error'
+    erq = 'mse' or 'in_top_k_error' or None
 
     erq_args =  list of values for k, 
                [1] for top_k for k = 1, 
@@ -87,16 +103,6 @@ class supervisor (overseer):
           self.erq_kwds.update({'name': self.name + "/metrics/error_quotient"})
       elif type(self.erq_args[0]) is not list:
         self.erq_args = [self.erq_args[0]],
-
-#-------------------------------------------------------------------------------
-  def set_costfn(self, cfn = None, *cfn_args, **cfn_kwds):
-    """
-    cfn = 'mse' (mean squared error) or 'mce' (mean cross entropy)
-    """
-    self.cfn = cfn
-    self.cfn_args = cfn_args
-    self.cfn_kwds = dict(cfn_kwds)
-    if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
 
 #-------------------------------------------------------------------------------
   def __call__(self, ist = None, gst = None, skip_metrics = False, **kwds):
@@ -159,6 +165,7 @@ class supervisor (overseer):
 #-------------------------------------------------------------------------------
   def _call_errors(self):
     self.errors = None
+    if self.erq is None: return self.errors
     if not(len(self.erq_args)): # i.e. mse
       if self.dev is None:
         with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
@@ -203,24 +210,27 @@ class supervisor (overseer):
           with Device(self.dev):
             with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
               self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
-      elif Creation(self.cfn) == Creation('mse') and ndim_hatval == 2 and ndim_labels == 1:
-        # Here we attempt to create an interface that allows sparse labels to be converted to one-hot dense tensors
+      elif ndim_hatval == 2 and ndim_labels == 1:
+        # Here we attempt to create an interface that allows sparse labels to be converted to one-hot tensors
         if self.dev is None:
-          self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
-                                                   name=self.name+"/batch/labels/dense")
+          self._labels = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
+                                                   name=self.name+"/batch/labels/onehot")
         else:
           with Device(self.dev):
-            self.labels_dense = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
-                                                     name=self.name+"/batch/labels/dense")
+            self._labels = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
+                                                     name=self.name+"/batch/labels/onehot")
         if self.dev is None:
           with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
-            self.cost = Creation(self.cfn)(self.hatval, self.labels_dense,
+            self.cost = Creation(self.cfn)(self.hatval, self._labels,
                                            *self.cfn_args, **self.cfn_kwds)
         else:
           with Device(self.dev):
             with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
-              self.cost = Creation(self.cfn)(self.hatval, self.labels_dense,
+              self.cost = Creation(self.cfn)(self.hatval, self._labels,
                                              *self.cfn_args, **self.cfn_kwds)
+      else:
+        raise ValueError("Hat values and labels dimensionality incommensurate: " +
+                         str(ndim_hatval) + "-D vs " + str(ndim_labels) + "-D")
 
     return self.cost
 

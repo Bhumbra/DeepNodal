@@ -238,7 +238,7 @@ class stack (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None):
+  def __call__(self, inp = None, _called = True):
     # stack really doesn't care about nursemaiding inputs and outputs
     # because that's the job of levels. But we have to deal with skip
     # connection vergences.
@@ -251,6 +251,7 @@ class stack (stem):
     self.arch_out = self[-1].arch_out
     self._out = inp
     self._setup_outputs() # concatenate output list of dictionaries
+    self._called = _called
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
