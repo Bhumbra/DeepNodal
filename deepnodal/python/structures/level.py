@@ -40,32 +40,57 @@ class level (stem):
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     stem.__init__(self, name, dev)
-    self.set_arch()    # defaults to absence
+    self.set_arch()    # defaults to absence of streams
     self.set_ipverge() # sets ipv_args and ipv_kwds
     self.set_opverge() # sets opv_args and opv_kwds
 
 #-------------------------------------------------------------------------------
-  def set_arch(self, arch = None): 
+  def set_arch(self, arch = None):
     """
     Here, arch is a tuple of architecture specifications of a length that
     corresponds to the number of streams within the level, since each
     element within the tuple specifies the stream architecture.
     """
     self.arch = arch
+    if self.arch is None:
+      self.set_subobjects()
+      self.type_arch = None
+      return self.type_arch
+
     if type(self.arch) is not tuple:
-      if self.arch is None or type(self.arch) is int or type(self.arch) is list:
-        self.arch = (self.arch,)
-      elif type(self.arch) is not tuple:
-        raise TypeError("Unknown level architecture: " + str(self.arch))
-    self.set_subobjects(len(self.arch))
+      self.arch = (self.arch,)
+    set_arch_from_index = 0
+    if self._subobjects is None:
+      self.set_subobjects(len(self.arch))
+    else:
+      set_arch_from_index = self._n_subobjects
+      for i, subobject in enumerate(self._subobjects):
+        if self.arch[i] != subobject.arch:
+          set_arch_from_index = i
+      self.add_subobjects(len(self.arch) - len(self._subobjects))
     self.type_arch = []
+    for i in range(set_arch_from_index, len(self.arch)):
+      self._subobjects[i].set_arch(self.arch[i])
     for i, arch in enumerate(self.arch):
-      self._subobjects[i].set_arch(arch)
       type_arch = self._subobjects[i].type_arch
       if type_arch not in self.type_arch:
         self.type_arch.append(type_arch)
     self.type_arch = ','.join(self.type_arch)
     return self.type_arch
+
+#-------------------------------------------------------------------------------
+  def add_arch(self, arch = None):
+    output_list = True
+    if type(arch) is not tuple:
+      arch = (arch,)
+      output_list = False
+    new_arch = [] if self.arch is None else list(self.arch)
+    new_arch += arch
+    self.set_arch(tuple(new_arch))
+    if output_list:
+      return self._subobjects[-len(arch):]
+    else:
+      return self._subobjects[-1]
 
 #-------------------------------------------------------------------------------
   def set_ipverge(self, ipv = None, *ipv_args, **ipv_kwds):
@@ -111,7 +136,7 @@ class level (stem):
     """
     We overload here because here we 'None' any broadcast specifications to
     'none' architectures.
-    
+
     To over-rule this effect, use [] ('identity') rather than None ('none').
     """
     if type(spec) is not self._spec_type:
@@ -159,7 +184,7 @@ class level (stem):
     spec = None: No dropout
     spec = 0.: Full dropout (i.e. useless)
     spec = 0.4: dropout with keep probability of 0.6
-    """ 
+    """
     return self._set_spec(self._subobject.set_dropout, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------

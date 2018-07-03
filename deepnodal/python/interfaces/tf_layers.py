@@ -102,7 +102,7 @@ def tf_dense(
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
-def tf_lookdown(
+def tf_dense2map(
   inputs, units,
   activation=None,
   use_bias=True,
@@ -117,10 +117,10 @@ def tf_lookdown(
   name=None,
   reuse=None):
   if type(units) is not set:
-    raise TypeError("Lookdown units specification must of set type")
+    raise TypeError("Layer dense2hl units specification must of set type")
   units = list(units)
   if len(units) != 1:
-    raise ValueError("Lookdown units set specification must have one element")
+    raise ValueError("Layer dense2hl units set specification must have one element")
   units = units[0]
   
   layer = tf_Dense(units,
@@ -141,7 +141,7 @@ def tf_lookdown(
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
-class tf_Lookup (base.Layer):
+class tf_Map2dense(base.Layer):
   """Sparse-to-dense lookup layer class
 
   This layer implements the operation
@@ -163,13 +163,15 @@ class tf_Lookup (base.Layer):
 #------------------------------------------------------------------------------- 
   def __init__(self, cardinality, units,
                kernel_initializer=None,
+               kernel_dtype = tf.float32,
                trainable=True,
                name=None,
                **kwds):
-    super(tf_Lookup, self).__init__(trainable=trainable, name=name, **kwds)
+    super(tf_Map2dense, self).__init__(trainable=trainable, name=name, **kwds)
     self.cardinality = cardinality
     self.units = units
     self.kernel_initializer = kernel_initializer
+    self.kernel_dtype = kernel_dtype
     self.lookup_kwds = dict(kwds)
     self.input_spec = base.InputSpec(min_ndim=2)
 
@@ -180,13 +182,13 @@ class tf_Lookup (base.Layer):
     if input_shape[-1].value is None:
       raise ValueError('The last dimension of the inputs to `Lookup` '
                        'should be defined. Found `None`.')
-    self.input_spec = base_inputSpec(min_ndim=2, axes={-1:input_shape[-1].value})
+    self.input_spec = base.InputSpec(min_ndim=2, axes={-1:input_shape[-1].value})
 
-    kernel_width = units if type(self.units) is int else units[-1]
+    kernel_width = self.units if type(self.units) is int else self.units[-1]
     self.kernel = self.add_variable('kernel',
                                     shape=[self.cardinality, kernel_width],
+                                    dtype=self.kernel_dtype,
                                     initializer=self.kernel_initializer,
-                                    dtype=self.dtype,
                                     trainable=True)
     self.built = True
 
@@ -197,8 +199,8 @@ class tf_Lookup (base.Layer):
     unit_lookup = True if type(self.units) is int else len(self.units) == 1
     if unit_lookup:
       self.outputs = tf.nn.embedding_lookup(self.kernel, inputs, **self.lookup_kwds)
-      self.output = self.outputs
-      return self.output
+      self._output = self.outputs
+      return self._output
     n_lookups = self.units[0]
     self.outputs = [None] * n_lookups
     for i in range(n_lookups):
@@ -208,12 +210,11 @@ class tf_Lookup (base.Layer):
       self._outputs = [None] * n_lookups
       for i in range(n_lookups):
         self._outputs[i] = tf.expand_dims(self.outputs[i], axis = 0)
-      self._output = tf.concat(self._outputs, axis = 0)
-      self.output = tf.reduce_sum(self._output, axis = 0)
-      return self.output
+      self._output = tf.reduce_sum(tf.concat(self._outputs, axis = 0), axis = 0)
+      return self._output
     
-    self.output = tf.concat(self.outputs, axis = -1)
-    return self.output
+    self._output = tf.concat(self.outputs, axis = -1)
+    return self._output
 
 #------------------------------------------------------------------------------- 
   def compute_output_shape(self, input_shape):
@@ -226,7 +227,7 @@ class tf_Lookup (base.Layer):
 
 #------------------------------------------------------------------------------- 
 #------------------------------------------------------------------------------- 
-def tf_lookup(inputs, cardinality, units, *args, **kwds):
+def tf_map2dense(inputs, cardinality, units, *args, **kwds):
   """ 
   tf_lookup - functional form of tf_Lookup
   inputs: inputs (integer data type)
@@ -239,7 +240,7 @@ def tf_lookup(inputs, cardinality, units, *args, **kwds):
     `GraphKeys.TRAINABLE_VARIABLES`
   name: String
   """
-  layer = tf_Lookup(cardinality, units, *args, **kwds)
+  layer = tf_Map2dense(cardinality, units, *args, **kwds)
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 

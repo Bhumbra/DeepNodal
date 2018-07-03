@@ -7,7 +7,8 @@ be specified directly since they do not recognise hierarchical structures.
 # Gary Bhumbra
 #-------------------------------------------------------------------------------
 DEFAULT_INPUT_STRUCTURE_TYPES = ['stream', 'level', 'stack']
-DEFAULT_INPUT_DATA_TYPE = 'float32'
+DEFAULT_INPUT_INT_DATA_TYPE = 'int32'
+DEFAULT_INPUT_FLOAT_DATA_TYPE = 'float32'
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.concepts.stem import stem
@@ -129,7 +130,7 @@ class network (stem):
       raise ValueError("Number of inputs must match number of subnets")
     self.type_inputs = ['unspecified'] * self.n_subnets
     for i, inp in enumerate(self.inputs):
-      if type(inp) is list or type(inp) is tuple or type(inp) is int:
+      if type(inp) is list or type(inp) is tuple or type(inp) is int or type(inp) is set or type(inp) is dict:
         self.type_inputs[i] = 'arch'
       elif type(inp) is str:
         self.type_inputs[i] = str(inp)
@@ -139,6 +140,8 @@ class network (stem):
         self.type_inputs[i] = 'level'
       elif isinstance(inp, stack) or issubclass(inp, stack):
         self.type_inputs[i] = 'stack'
+      elif callable(inp):
+        self.type_inputs[i] = 'callable'
     return self.type_inputs
 
 #-------------------------------------------------------------------------------
@@ -233,8 +236,14 @@ class network (stem):
       elif self.type_inputs[i] == 'arch':
         kwds = dict(self.inputs_kwds)
         if 'dtype' not in kwds:
-          kwds.update({'dtype': Dtype(DEFAULT_INPUT_DATA_TYPE)})
+          if type(self.inputs[i]) is set or type(self.inputs[i]) is dict:
+            kwds.update({'dtype': Dtype(DEFAULT_INPUT_INT_DATA_TYPE)})
+          else:
+            kwds.update({'dtype': Dtype(DEFAULT_INPUT_FLOAT_DATA_TYPE)})
         inp_dim = [None]
+        if type(self.inputs[i]) is set:
+          if len(self.inputs[i]) > 1:
+            raise TypeError("Input set specification must contain no more than 1 element")
         for dim in self.inputs[i]:
           inp_dim.append(dim)
         self._inp_args[i] = (kwds['dtype']),

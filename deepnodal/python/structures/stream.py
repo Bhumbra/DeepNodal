@@ -28,8 +28,8 @@ class stream (chain):
 
   there is strictly only one input and one output.
 
-  There may be a maximum of 5 rather than 4 links in the chain since input flattening
-  may precede the above list.
+  There may be a maximum of 5 rather than 4 links in the chain since input
+  redimensionalisation may precede the above list.
 
   self.set_`function' sets parameters involved with the stream design but does not
   create any TensorFlow objects.
@@ -41,6 +41,8 @@ class stream (chain):
   # public
   def_name = 'stream' # default name
   arch = None         # architecture
+  arch_args = None    # optional archetectural args for when arch is callable
+  arch_kwds = None    # optional archetectural kwds for when arch is callable
   arch_link = None    # architecture link
   arch_out = None     # architecture output (i.e. raw weighted sum or pool result)
   type_arch = None    # architecture type without dimension
@@ -75,8 +77,8 @@ class stream (chain):
     arch = list of 1:   recurrent
     arch = list of 2:   pool
     arch = list of 3:   conv
-    arch = dict  {sparse_length: [outer_dim, inner_dim]}: lookup
-    arch = set: lookdown (i.e. dense, but with an expected sparse output)
+    arch = dict  {sparse_length: [outer_dim, inner_dim]}: map2dense
+    arch = set: dense2map
 
     """
     # Note links are not created here because they are added sequentially at
@@ -90,14 +92,19 @@ class stream (chain):
     if self.arch is None:
       self.type_arch = 'none'
       self.type_adim = self.type_arch
+    elif callable(self.arch):
+      self.type_arch = 'callable'
+      self.type_adim = self.arch
     elif type(self.arch) is int:
       self.type_arch = 'dense'
       self.type_adim = self.type_arch
     elif type(self.arch) is set:
-      self.type_arch = 'lookdown'
-      self.type_adim = self.type_arch
+      self.type_arch = 'dense'
+      self.type_adim = 'dense2map'
+      if len(self.arch) != 1:
+        raise ValueError("Any dense2map archecture specification must be a single element set")
     elif type(self.arch) is dict:
-      self.type_arch = 'lookup'
+      self.type_arch = 'map2dense'
       if len(self.arch) != 1:
         raise ValueError("Sparse to dense specification requires one dictionary element")
       arch_key = list(self.arch)[0]
@@ -134,11 +141,16 @@ class stream (chain):
 
     # Default bare essentials
     self.set_order()
+    self.set_arch_args()
     self.set_biases()
     self.set_transfn()
     self.set_padwin()
     self.set_kernfn()
     return self.type_arch
+
+#-------------------------------------------------------------------------------
+  def add_arch(self, *args, **kwds):
+    raise AttributeError("Method stream.add_arch() not supported by stream class.")
 
 #-------------------------------------------------------------------------------
   def set_is_training(self, ist = None):
@@ -152,11 +164,15 @@ class stream (chain):
     """
     order = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
-    if order is None:
-      order = DEFAULT_STREAM_ORDER
-      if self.type_arch is 'none':
-        order = 'a'
     self.order = order
+
+#-------------------------------------------------------------------------------
+  def set_arch_args(self, *args, **kwds):
+    """
+    *args and **kwds are optional arguments for callable architectures
+    """
+    self.arch_args = args
+    self.arch_kwds = kwds
 
 #-------------------------------------------------------------------------------
   def set_biases(self, bia = None, *bia_args, **bia_kwds):
@@ -288,8 +304,13 @@ class stream (chain):
     self._call_input(inp)    # specify flatten object if necessary
     if self._inp is None: return self._inp # nothing in, nothing out
 
+    # Default order if necessary
+    order = self.order
+    if order is None:
+      order = 'a' if self.type_arch is 'none' else DEFAULT_STREAM_ORDER
+
     # Note we don't actually call anything in this for-loop until chain.__call__()
-    for _order in self.order:
+    for _order in order:
       order = _order.lower()
       if order == 'd':
         self._call_dropout()
@@ -336,6 +357,8 @@ class stream (chain):
     # but will claim ownership over any needed flattening operation
     if len(Shape(self._inp)) > 2 and self.type_arch == 'dense':
       self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
+    elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
+      self.add_link(Creation('expand_dims'), name = self.name+"/input_expand_dims", axis = -1)
     return inp
 
 #-------------------------------------------------------------------------------
@@ -343,11 +366,11 @@ class stream (chain):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
     if self.dev is None:
-      self.dropout_quotient = Creation(self.dro)(*self.dro_args, 
+      self.dropout_quotient = Creation(self.dro)(*self.dro_args,
                               name = self.name + "/dropout/quotient", trainable=False)
     else:
       with Device(self.dev):
-        self.dropout_quotient = Creation(self.dro)(*self.dro_args, 
+        self.dropout_quotient = Creation(self.dro)(*self.dro_args,
                                 name = self.name + "/dropout/quotient", trainable=False)
     kwds = dict(self.dro_kwds)
     if 'training' not in kwds:
@@ -355,7 +378,7 @@ class stream (chain):
         raise ValueError("Cannot setup dropout before setting training flag.")
       else:
         kwds.update({'training': self.ist})
-    return self.add_link(Creation('dropout'), rate = self.dropout_quotient, 
+    return self.add_link(Creation('dropout'), rate = self.dropout_quotient,
                          name = self.name + "/dropout", **kwds)
 
 #-------------------------------------------------------------------------------
@@ -372,17 +395,11 @@ class stream (chain):
       if self.kfn is None: self.set_kernfn()
 
     # Initialise parameter settings
-    using_biases = False
-    using_weights = False
-    if self.type_arch == 'dense' or self.type_arch == 'conv':
-      using_biases = True
-      using_weights = True
-    if 'look' in self.type_arch:
-      using_biases = self.type_arch == 'lookdown' 
-      using_weights = True
-    if using_biases:
+    maybe_biases = self.type_arch == 'dense' or self.type_arch == 'conv'
+    maybe_weights = (maybe_biases or self.type_arch == 'map2dense')
+    if maybe_biases:
       if self.bia is None: self.set_biases()
-    if using_weights:
+    if maybe_weights:
       if self.wgt is None: self.set_weights()
       if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
         vsi_kwds = dict(self.wgt_kwds)
@@ -397,7 +414,7 @@ class stream (chain):
           if type(self.wgt) is tuple:
             if len(self.wgt) < 1:
               raise ValueError("Minimum weights specification size for tuple is one.")
-            elif not isinstance(self.wgt[0], structure): 
+            elif not isinstance(self.wgt[0], structure):
               raise TypeError("Unrecognised tuple format.")
             if len(self.wgt) < 2:
               params = self.wgt[0].ret_params('weights')
@@ -427,10 +444,15 @@ class stream (chain):
         self.wgt_kwds = {'kernel_initializer': weights}
       elif type(self.wgt) == tf.Variable:
         self.wgt_kwds = {'kernel_initializer': self.wgt}
-    kwds = {'name': self.name + "/" + self.type_adim}
+
+    type_adim = self.type_adim if self.type_arch != 'callable' else self.type_arch
+    kwds = {'name': self.name + "/" + type_adim}
 
     # Call layers
-    if self.type_arch == 'dense':
+    if self.type_arch == 'callable':
+      kwds.update(dict(arch_kwds))
+      self.arch_link = self.add_link(self.type_adim, *self.arch_args, **kwds)
+    elif self.type_arch == 'dense':
       kwds.update({'units': self.arch})
       kwds.update({'activation': None})
       kwds.update(self.bia_kwds)
@@ -447,13 +469,11 @@ class stream (chain):
       kwds.update({'pool_size': self.arch[0], 'strides': self.arch[1]})
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
-    elif self.type_arch == 'lookup':
+    elif self.type_arch == 'map2dense':
       arch_key = list(self.arch)[0]
       arch_val = self.arch[arch_key]
-      kwds.update({'cardinality': arch_key})
-      kwds.update({'units': arch_val})
       kwds.update(self.wgt_kwds)
-      self.arch_link = self.add_link(Creation(self.type_arch), **kwds)
+      self.arch_link = self.add_link(Creation(self.type_arch), arch_key, arch_val, **kwds)
     else:
       raise ValueError("Unknown architecture type: " + self.type_arch)
     return self.arch_link
@@ -512,14 +532,14 @@ class stream (chain):
       param_name = list(param)[0]
       if param_reg in param_name:
         self._reguln.append(param.copy())
-        self._reguln[-1].update({'reg': self.reg, 
-                                 'reg_args': self.reg_args, 
+        self._reguln[-1].update({'reg': self.reg,
+                                 'reg_args': self.reg_args,
                                  'reg_kwds': self.reg_kwds,
                                  'name': param_name})
     return self._reguln
 
 #-------------------------------------------------------------------------------
-  def _setup_outputs(self): 
+  def _setup_outputs(self):
     # a stream should really have only one output so is more leaf-like here
     self._outputs = []
     self._n_outputs = len(self._outputs)
@@ -546,6 +566,7 @@ class stream (chain):
     # Now the rest of the specification (tedious, but safe)
 
     if self.order is not None: other.set_order(self.order)
+    if self.type_arch == 'callable': other.set_arch_args(*self.arch_args, **self.arch_kwds)
     if self.ist is not None: other.set_is_training(self.ist)
     if self.bia is not None: other.set_biases(self.bia, *self.bia_args, **self.bia_kwds)
     if self.wgt is not None: other.set_weights(self.wgt, *self.wgt_args, **self.wgt_kwds)

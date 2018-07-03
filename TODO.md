@@ -1,11 +1,14 @@
 # TODO:
 
-## TESTING
+## TESTS
 
-- try some CIFAR tests.
+- sequential specifications
 
 ## FEATURES
 
-- regimen-specific layer `freezing` - mostly coded.
-
+- support sequential architecture specification
+- support custom metric calculation
+- support nce_loss evaluation
+- support recurrent layers, LSTMs, and GRUs.
+- support policy gradients and Q learning.
 

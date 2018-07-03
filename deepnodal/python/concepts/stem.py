@@ -78,6 +78,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     self._subobject = subobject if subobject is not None else self.def_subobject
     self._subobject_name = subobject_name if subobject_name is not None else self.def_subobject_name
 
+
 #-------------------------------------------------------------------------------
   def set_subobjects(self, subobjects = None):
     """
@@ -103,6 +104,19 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       raise TypeError("Unrecognised subobjects specification.")
     return self._subobjects
 
+#-------------------------------------------------------------------------------
+  def add_subobjects(self, count = 1):
+    if self._subobjects is None:
+      self._subobjects = []
+    for i in range(count):
+      self._subobjects.append(self._subobject())
+    self._n_subobjects = len(self._subobjects)
+    self._unit_subobject = self._n_subobjects == 1
+    self.set_name(self.name) # this renames all subobjects
+    self.set_dev(self.dev)   # this redevices all subobjects
+    if count == 1:
+      return self._subobjects[-1]
+    return self._subobjects[-count:]
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
     self._inp = inp

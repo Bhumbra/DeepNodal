@@ -4,7 +4,6 @@
 
 import numpy as np
 import math
-from scipy import stats
 from deepnodal.python.interfaces.tf_layers import *
 from tensorflow import name_scope, variable_scope
 from tensorflow.python.framework import dtypes
@@ -49,7 +48,14 @@ def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
     return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
 
 #-------------------------------------------------------------------------------
-def tf_vergence(X, vergence_fn = 'con', divergence = None, axis = -1, **kwargs): 
+def tf_cosine_similarity(data, weights, name=None):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    normalised_weights = weights / tf.sqrt(tf.reduce_sum(tf.square(weights), 1, keepdims=True))
+    data_map2dense = tf.nn.embedding_lookup(normalised_weights, data)
+    return tf.matmul(data_map2dense, normalised_weights, tranpose_b=True)
+
+#-------------------------------------------------------------------------------
+def tf_vergence(X, vergence_fn = 'con', divergence = None, axis = -1, **kwargs):
   # valid values are 'con' for concatenate and 'sum' for add
   if vergence_fn == 'con':
     return tf.concat(X, axis = axis, **kwargs)
@@ -57,7 +63,7 @@ def tf_vergence(X, vergence_fn = 'con', divergence = None, axis = -1, **kwargs):
     return tf.reduce_sum(X, axis = axis, **kwargs)
   if vergence_fn == 'div':
     if divergence is None:
-      raise ValueError("Vergence with vergence_fn='div' requires divergence specification") 
+      raise ValueError("Vergence with vergence_fn='div' requires divergence specification")
     return tf.split(X, divergence, axis = axis, **kwargs)
   raise ValueError("Unknown vergence function specification: " + str(coalescence_dn))
 
@@ -76,12 +82,12 @@ class tf_variance_scaling_initialiser (Initializer):
 
   This code tries to match the functionality of tensorflow.python.ops.init_ops.VarianceScaling.
   """
-  def __init__(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1., 
+  def __init__(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1.,
       seed = None, dtype = dtypes.float32):
     self.set_config(distr, fan, locan, scale, shape, seed, dtype)
 
 #-------------------------------------------------------------------------------
-  def set_config(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1., 
+  def set_config(self, distr = 'trun', fan = 'in', locan = 0., scale = 1., shape = 1.,
       seed = None, dtype = dtypes.float32):
     self.distr, self.fan = distr.lower(), fan.lower()
     if scale <= 0.:
@@ -104,7 +110,7 @@ class tf_variance_scaling_initialiser (Initializer):
       dtype = self.dtype
     if not dtype.is_floating:
       raise TypeError("Only floating data types supported.")
-    
+
     # Calculate denominator
     ninp, nout = _compute_fans(dims)
     n = None

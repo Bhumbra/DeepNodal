@@ -50,12 +50,46 @@ class stack (stem):
         self.arch = [(self.arch,)]
       else:
         raise TypeError("Unknown level architecture: " + str(self.arch))
-    self.set_subobjects(len(self.arch))
+    set_arch_from_index = 0
+    if self._subobjects is None:
+      self.set_subobjects(len(self.arch))
+    else:
+      set_arch_from_index = self._n_subobjects
+      for i, subobject in enumerate(self._subobjects):
+        if self.arch[i] != subobject.arch:
+          set_arch_from_index = i
+      self.add_subobjects(len(self.arch) - len(self._subobjects))
+    for i in range(set_arch_from_index, len(self.arch)):
+      self._subobjects[i].set_arch(self.arch[i])
     self.type_arch = [None] * self._n_subobjects
     for i, arch in enumerate(self.arch):
-      self._subobjects[i].set_arch(arch)
       self.type_arch[i] = self._subobjects[i].type_arch
     return self.type_arch
+
+#-------------------------------------------------------------------------------
+  def add_arch(self, arch = None):
+    arch_tuple = False
+    if type(arch) is list:
+      for _arch in arch:
+        enlist = False
+        arch_tuple = True
+        if type(_arch) is not tuple:
+          if arch_tuple is False:
+            raise TypeError("Level specifications exhibit inconsistent datatypes")
+          arch_tuple = False
+        elif type(_arch) is int:
+          enlist = True
+    else:
+      enlist = True
+    if enlist:
+      arch = [arch]
+    new_arch = [] if self.arch is None else list(self.arch)
+    new_arch += arch
+    self.set_arch(new_arch)
+    if len(arch) > 1 or arch_tuple:
+      return self._subobjects[-len(arch):]
+    else:
+      return self._subobjects[-1]
 
 #-------------------------------------------------------------------------------
   def set_skipcv(self, scv = None, *scv_args, **scv_kwds):
