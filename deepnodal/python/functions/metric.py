@@ -1,29 +1,32 @@
 """
-Base class for single input and output functionality to play nicely with TensorFlow.
+Base class for for input/output functionality to play nicely with TensorFlow.
 
-It inherits from abstract class leaf. One leaf optionally supports a list of  parameters,
-stored as a list of dictionaries in the form {'parameter_name', parameter_value}.
+It inherits from abstract class function. The metric class is the function-equivalent
+of the structural base class link, except with the following differences:
+  
+  - there are no trainable parameters.
+  - there are no hierarchies associated with metric evaluations.
+  - metric objects are instantiated by classes inheriting from trainer.
 
-Each link is associated with with a creation which TensorFlow creations a `node' on the graph
-which is not called until link.__call__() is invoked.
 """
-#
+
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
-from deepnodal.python.concepts.leaf import leaf
+from deepnodal.python.concepts.function import function
 from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
-class link (leaf):
+class metric (function):
   """
-  A link is a leaf connecting an input to an output via a creation. It has no
-  hierarchical substructure (i.e. no subobjects).
+  A metric is function with a defined input, function creation, arguments, and 
+  keywords. It has no hierarchical substructure.
   """
-  # public 
-  def_name = 'link'
 
-  # protected 
+  # public
+  def_name = 'metric'
+
+  # protected
   _inp = None
   _out = None
   _creation = None
@@ -33,7 +36,7 @@ class link (leaf):
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
-    leaf.__init__(self, name, dev)
+    function.__init__(self, name, dev)
     self.set_creation()
 
 #-------------------------------------------------------------------------------
@@ -41,6 +44,20 @@ class link (leaf):
     self._creation = Creation(creation)
     self._args = args
     self._kwds = dict(kwds)
+
+#-------------------------------------------------------------------------------
+  def set_inp(self, inp = None):
+    self._inp = inp
+    self._out = None
+    return self._inp
+    
+#-------------------------------------------------------------------------------
+  def ret_inp(self):
+    return self._inp
+  
+#-------------------------------------------------------------------------------
+  def ret_out(self):
+    return self._out
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
@@ -71,37 +88,6 @@ class link (leaf):
           self._out = self._creation(self._inp, *self._args, **self._kwds)
     self.set_called(_called)
     return self.ret_out()
-
-#-------------------------------------------------------------------------------
-  def _setup_params(self):
-    self._params = []
-    self._n_params = 0
-    if self._var_scope is None: return self._params
-    for Param in list(Param_Dict):
-      with Scope('var', self._var_scope, reuse=True):
-        try:
-          param = Creation('ret_var')(Param)
-        except ValueError:
-          param = None
-        if param is not None:
-          self.add_param({self._var_scope+"/"+Param_Dict[Param]: param})
-    self._n_params = len(self._params)
-    return self.ret_params()
-
-#-------------------------------------------------------------------------------
-  def clone(self, other = None):
-    if other is None:
-      other = link()
-    elif not isinstance(other, link) and not issubclass(other, link):
-      raise TypeError("Cannot clone link to class " + str(other))
-
-    # Change name and device...
-    other.set_name(self.name)
-    other.set_dev(self.dev)
-
-    # ... before setting the creation in case this influences self.var_scope
-    other.set_creation(self._creation, *self._args, **self._kwds)
-    return other
 
 #-------------------------------------------------------------------------------
 

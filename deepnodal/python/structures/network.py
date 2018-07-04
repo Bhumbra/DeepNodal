@@ -18,9 +18,10 @@ from deepnodal.python.structures.stack import *
 class network (stem):
   """
   A network comprises of a list of inter-connected subnets. A subnet may be a 
-  stack, level, or stream. The architecture of subnets cannot be specified 
-  through network instances but must be defined separately and fed
-  to a network instance using self.set_subnets([_list_of_subnets_])
+  stack, level, or stream. A network is not an architectural parent to any
+  subnet therefore the architecture of subnets cannot be specified through 
+  network instances but must be defined separately and fed to a network instance 
+  using self.set_subnets([_list_of_subnets_])
 
   Inputs are specified using network.set_inputs([_list_of_inputs__]) where each
   input may either be a dimension specification, or an instance of a subnet
@@ -202,6 +203,7 @@ class network (stem):
 
     if self.inputs is None: return
 
+    # Unify ist across all subnets
     self.set_is_training(ist)
 
     # Call inputs
@@ -219,7 +221,8 @@ class network (stem):
     # Collate list of outputs
     self._setup_outputs()
 
-    self._called = _called
+    # Flag network as called
+    self.set_called(_called)
 
     return self.ret_out()
 

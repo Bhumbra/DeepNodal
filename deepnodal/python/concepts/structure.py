@@ -13,6 +13,7 @@ class structure (ABC):
 
   # protected
   _called = False
+  _parent = None
 
 #-------------------------------------------------------------------------------
   @abstractmethod
@@ -21,8 +22,21 @@ class structure (ABC):
 
 #-------------------------------------------------------------------------------
   @abstractmethod
-  def set_dev(self, name = None):
+  def set_dev(self, dev = None):
     self.dev = dev
+
+#-------------------------------------------------------------------------------
+  def set_parent(self, _parent = None):
+    self._parent = _parent
+
+#-------------------------------------------------------------------------------
+  def ret_parent(self):
+    return self._parent
+
+#-------------------------------------------------------------------------------
+  def set_called(self, _called = False):
+    self._called = _called
+
 #-------------------------------------------------------------------------------
   def ret_called(self):
     return self._called

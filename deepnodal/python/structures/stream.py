@@ -138,6 +138,8 @@ class stream (chain):
         if self.type_arch == 'pool':
           if type(self.arch[1]) is int:
             self.arch[1] = [self.arch[1]] * len(self.arch[0])
+    if self._parent is not None:
+      self._parent.update_arch()
 
     # Default bare essentials
     self.set_order()

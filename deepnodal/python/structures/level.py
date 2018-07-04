@@ -70,12 +70,16 @@ class level (stem):
       self.add_subobjects(len(self.arch) - len(self._subobjects))
     self.type_arch = []
     for i in range(set_arch_from_index, len(self.arch)):
+      self._subobjects[i].set_parent() # prevents recursive updates
       self._subobjects[i].set_arch(self.arch[i])
     for i, arch in enumerate(self.arch):
+      self._subobjects[i].set_parent(self)
       type_arch = self._subobjects[i].type_arch
       if type_arch not in self.type_arch:
         self.type_arch.append(type_arch)
     self.type_arch = ','.join(self.type_arch)
+    if self._parent is not None:
+      self._parent.update_arch()
     return self.type_arch
 
 #-------------------------------------------------------------------------------
@@ -91,6 +95,16 @@ class level (stem):
       return self._subobjects[-len(arch):]
     else:
       return self._subobjects[-1]
+
+#-------------------------------------------------------------------------------
+  def update_arch(self): # invoked by stream changes
+    arch = []
+    for subobject in self._subobjects:
+      arch.append(subobject.arch)
+    self.arch = tuple(arch)
+    if self._parent is not None:
+      self._parent.update_arch()
+    return self.arch
 
 #-------------------------------------------------------------------------------
   def set_ipverge(self, ipv = None, *ipv_args, **ipv_kwds):
@@ -320,7 +334,7 @@ class level (stem):
     Out = [subobject.ret_out() for subobject in self._subobjects]
     self.arch_out = None if not self._unit_subobject else self[0].arch_out
     argout = self._call_output(tuple(Out)) # does not touch self._subobjects
-    self._called = _called
+    self.set_called(_called)
     return argout
 
 #-------------------------------------------------------------------------------

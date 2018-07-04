@@ -60,9 +60,11 @@ class stack (stem):
           set_arch_from_index = i
       self.add_subobjects(len(self.arch) - len(self._subobjects))
     for i in range(set_arch_from_index, len(self.arch)):
+      self._subobjects[i].set_parent() # prevents recursive updates
       self._subobjects[i].set_arch(self.arch[i])
     self.type_arch = [None] * self._n_subobjects
     for i, arch in enumerate(self.arch):
+      self._subobjects[i].set_parent(self)
       self.type_arch[i] = self._subobjects[i].type_arch
     return self.type_arch
 
@@ -90,6 +92,14 @@ class stack (stem):
       return self._subobjects[-len(arch):]
     else:
       return self._subobjects[-1]
+
+#-------------------------------------------------------------------------------
+  def update_arch(self): # invoked by level changes
+    arch = []
+    for subobject in self._subobjects:
+      arch.append(subobject.arch)
+    self.arch = list(arch)
+    return self.arch
 
 #-------------------------------------------------------------------------------
   def set_skipcv(self, scv = None, *scv_args, **scv_kwds):

@@ -11,6 +11,9 @@ class function (ABC):
   name = "function"
   dev = None
 
+  # protected
+  _called = False
+
 #-------------------------------------------------------------------------------
   @abstractmethod
   def set_name(self, name = None):
@@ -22,4 +25,11 @@ class function (ABC):
     self.dev = dev
 
 #-------------------------------------------------------------------------------
+  def set_called(self, _called = False):
+    self._called = _called
 
+#-------------------------------------------------------------------------------
+  def ret_called(self):
+    return self._called
+
+#-------------------------------------------------------------------------------

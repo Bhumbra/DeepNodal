@@ -78,7 +78,6 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     self._subobject = subobject if subobject is not None else self.def_subobject
     self._subobject_name = subobject_name if subobject_name is not None else self.def_subobject_name
 
-
 #-------------------------------------------------------------------------------
   def set_subobjects(self, subobjects = None):
     """
@@ -117,6 +116,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     if count == 1:
       return self._subobjects[-1]
     return self._subobjects[-count:]
+
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
     self._inp = inp

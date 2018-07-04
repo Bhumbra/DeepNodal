@@ -78,6 +78,7 @@ class chain (stem):
     self._n_links = len(self._links)
     self._unit_link = self._n_links == 1
     self._links[-1].set_creation(creation, *args, **kwds)
+    self._links[-1].set_parent(self)
     return self._links[-1]
 
 #-------------------------------------------------------------------------------
