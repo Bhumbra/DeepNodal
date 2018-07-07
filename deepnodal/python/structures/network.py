@@ -37,6 +37,7 @@ class network (stem):
   of the subnet components according to settings of the network class instance.
   """
 
+  # public
   def_name = 'network'
   subnets = None               # Subnet instances excluding inputs
   type_subnets = None          # 'stack', 'level', or 'stream'
@@ -47,6 +48,10 @@ class network (stem):
   unit_outnet = None           # n_outnet == 1
   inputs = None                # Inputs ordered to matching subnets
   type_inputs = None           # 'stack', 'level', 'stream', or 'arch'
+
+  # protected
+  _inp = None                  # Graph of inputs
+  _inputs = None               # list of input dictionaries in form {name: input}
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -116,6 +121,7 @@ class network (stem):
     return self.outnets
 
 #-------------------------------------------------------------------------------
+  #def set_inputs(self, *inputs, inputs_dtype = None):
   def set_inputs(self, inputs = None, *inputs_args, **inputs_kwds):
     self.inputs = inputs
     self.inputs_args = inputs_args
@@ -231,11 +237,13 @@ class network (stem):
     self._inp = [None] * self.n_subnets
     self._inp_args = [None] * self.n_subnets
     self._inp_kwds = [None] * self.n_subnets
+    self._inputs = [None] * self.n_subnets
     for i in range(self.n_subnets):
       if self.type_inputs[i] in DEFAULT_INPUT_STRUCTURE_TYPES:
         self._inp[i] = self.inputs[i].ret_out()
         if self._inp[i] is None:
           raise ValueError("Sequential input logic violated.")
+        self._inputs[i] = mapping({self._inp[i].name: self._inp[i]})
       elif self.type_inputs[i] == 'arch':
         kwds = dict(self.inputs_kwds)
         if 'dtype' not in kwds:
@@ -257,7 +265,9 @@ class network (stem):
         else:
           with Device(self.dev):
             self._inp[i] = Creation('tensor')(*self._inp_args[i], name = inp_name, **self._inp_kwds[i])        
+        self._inputs[i] = mapping({inp_name: self._inp[i]})
       elif callable(Creation(self.inputs[i])): # the inputs creation is being over-ridden externally
+        inp_name = self.name + "/inputs_" + str(i),
         if self.dev is None:
           self._inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
                                                   name = self.name + "/inputs_" + str(i),
@@ -267,8 +277,10 @@ class network (stem):
             self._inp[i] = Creation(self.inputs[i])(self.inputs_args[i],
                                                     name = self.name + "/inputs_" + str(i),
                                                     **self.inputs_kwds)
+        self._inputs[i] = mapping({inp_name: self._inp[i]})
       else:
         self._inp[i] = self.inputs[i]
+        self._inputs[i] = mapping({self._inp[i].name: self._inp[i]})
 
 #-------------------------------------------------------------------------------
   def _call_subnets(self):
@@ -280,6 +292,14 @@ class network (stem):
     self.set_subobjects(self.subnets) 
 
     return self.ret_out()
+
+#-------------------------------------------------------------------------------
+  def ret_inputs(self, index = None):
+    if not(self.ret_called()):
+      return self, self.ret_inputs, index
+    if index is None:
+      return self._inputs
+    return self._inputs(index)
 
 #-------------------------------------------------------------------------------
   def _setup_reguln(self):

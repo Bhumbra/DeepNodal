@@ -194,7 +194,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 #-------------------------------------------------------------------------------
   def _setup_params(self):
     """
-    Collates lists of parameter dictionaries to a single list self.params.
+    Collates lists of parameter ordered dictionaries to a single list self.params.
     Classes inheriting from stemes do not possess autonomous parameter lists
     but must collate their lists from subobjects, until eventually reaching leaf-derived
     classes each of which may posses an autonomous parameter list associated with
@@ -252,7 +252,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 #-------------------------------------------------------------------------------
   def _setup_outputs(self):
     """
-    Collates lists of output dictionaries to a single list self.outputs.
+    Collates lists of output ordered dictionaries to a single list self.outputs.
     Classes inheriting from stemes do not possess autonomous outputs lists
     but must collate their lists from subobjects, until eventually reaching leaf-derived
     classes each of which may posses an autonomous output list associated with
@@ -267,6 +267,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 
 #-------------------------------------------------------------------------------
   def ret_outputs(self, outputs_spec = None):
+    if not(self._called): return self, stem.ret_outputs, outputs_spec
     if outputs_spec is None:
       return self._outputs
 

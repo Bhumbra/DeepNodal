@@ -14,6 +14,7 @@ of the structural base class link, except with the following differences:
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.concepts.function import function
+from deepnodal.python.concepts.leaf import *
 from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
@@ -32,18 +33,38 @@ class metric (function):
   _creation = None
   _args = None
   _kwds = None
-  _var_scope = None
+  _inputs = None
+  _outputs = None
+
+  # private
+  __var_scope = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     function.__init__(self, name, dev)
     self.set_creation()
+    self.set_inputs()
 
 #-------------------------------------------------------------------------------
   def set_creation(self, creation = None, *args, **kwds):
     self._creation = Creation(creation)
     self._args = args
     self._kwds = dict(kwds)
+
+#-------------------------------------------------------------------------------
+  def set_inputs(self, *inputs, inputs_dtype = None):
+    self._inputs = tuple(inputs)
+    self._inputs_dtype = list(inputs_dtype) if type(inputs_dtype) is tuple else inputs_dtype
+    self._n_inputs = len(self._inputs)
+    if not(self._n_inputs): return
+    if type(self.inputs_dtypes) is not list:
+      self.inputs_dtype = [self.inputs_dtype]
+    if len(self.inputs_dtype) == 1:
+      self.inputs_dtypes *= self._n_inputs
+
+#-------------------------------------------------------------------------------
+  def ret_inputs(self):
+    return _self,inputs
 
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
@@ -61,32 +82,29 @@ class metric (function):
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
-    inp = self.set_inp(inp)
+    if inp is not None:
+      inp = self.set_inp(inp)
+    elif self._inputs is None:
+      raise ValueError("Cannot call metric without specification of inputs.")
+    elif not(len(self._inputs_args)) and not(len(self._inputs__kwds)):
+      inp = structuref2unique((inpt))[0][0]
+      inp = self.set_inp(inp)
     kwds = dict(self._kwds)
-    self._var_scope = None
+    self.__var_scope = None
     if 'var_scope' in kwds:
-      self._var_scope = kwds['var_scope']
+      self.__var_scope = kwds['var_scope']
       kwds.pop('var_scope')
     elif 'name' in kwds:
-      self._var_scope = self._kwds['name']
+      self.__var_scope = self._kwds['name']
     elif 'scope' in self._kwds:
-      self._var_scope = self._kwds['scope']
+      self.__var_scope = self._kwds['scope']
     if self._inp is None or self._creation is None: return self.ret_out()
-    if 'var_scope' in self._kwds:
-      if self.dev is None:
-        with Scope('var', self._var_scope, reuse=Flag('auto_reuse')):
-          self._out = self._creation(self._inp, *self._args, **kwds)
-      else:
-        with Device(self.dev):
-          with Scope('var', self._var_scope, reuse=Flag('auto_reuse')):
-            self._out = self._creation(self._inp, *self._args, **kwds)
+    args, kwds = structuref2unique(*args, **kwds)
+    if self.dev is None:
+      self._out = self._creation(self._inp, *args, **kwds)
     else:
-      if self.dev is None:
-        self._out = self._creation(self._inp, *self._args, **self._kwds)
-      else:
-        with Device(self.dev):
-          self._out = self._creation(self._inp, *self._args, **self._kwds)
-    self.set_called(_called)
+      with Device(self.dev):
+        self._out = self._creation(self._inp, *args, **kwds)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

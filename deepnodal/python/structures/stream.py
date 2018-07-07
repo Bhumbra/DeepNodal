@@ -205,6 +205,12 @@ class stream (chain):
     if self.wgt is None: return
     if 'kernel' not in self.wgt_kwds:
         self.wgt_kwds.update({'kernel_initializer': Creation(self.wgt)})
+    if type(self.wgt) is list or type(self.wgt) is tuple or type(self.wgt) is Creation('var'):
+      if 'kernel_transpose' not in self.wgt_kwds:
+        if 'transpose' in self.wgt_kwds:
+          self.wgt_kwds['kernel_transpose']= self.wgt_kwds.pop('transpose')
+        else:
+          self.wgt_kwds.update({'kernel_transpose': False})
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, dro = None, *dro_args, **dro_kwds):
@@ -396,7 +402,7 @@ class stream (chain):
       if self.win is None: self.set_padwin()
       if self.kfn is None: self.set_kernfn()
 
-    # Initialise parameter settings
+    # Initialise biases/weights parameter settings
     maybe_biases = self.type_arch == 'dense' or self.type_arch == 'conv'
     maybe_weights = (maybe_biases or self.type_arch == 'map2dense')
     if maybe_biases:
@@ -406,51 +412,16 @@ class stream (chain):
       if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
         vsi_kwds = dict(self.wgt_kwds)
         vsi_kwds.pop('kernel_initializer')
-        self.vsi = Creation(self.wgt)(**vsi_kwds)
+        if self.dev is None:
+          self.vsi = Creation(self.wgt)(**vsi_kwds)
+        else:
+          with Device(self.dev):
+            self.vsi = Creation(self.wgt)(**vsi_kwds)
         self.wgt_kwds = {'kernel_initializer': self.vsi}
-      elif type(self.wgt) is list or type(self.wgt) is tuple or isinstance(self.wgt, structure):
-        if type(self.wgt) is list:
-          param = self.wgt[0] if len(self.wgt) == 1 else self.wgt
-          param_name = list(self.wgt)[0]
-        else:
-          if type(self.wgt) is tuple:
-            if len(self.wgt) < 1:
-              raise ValueError("Minimum weights specification size for tuple is one.")
-            elif not isinstance(self.wgt[0], structure):
-              raise TypeError("Unrecognised tuple format.")
-            if len(self.wgt) < 2:
-              params = self.wgt[0].ret_params('weights')
-            else:
-              if not(callable(self.wgt[1])):
-                raise TypeError("Unrecognised tuple format.")
-              params = self.wgt[1](self.wgt[0], *self.wgt[2:])
-          else:
-            params = self.wgt.ret_params('weights')
-          if type(params) is tuple:
-            raise ValueError("Specification of shared weights must ordered in creation order.")
-          elif not(len(params)):
-            raise ValueError("Cannot find weights in structure object specified in self.set_weights(structure).")
-          elif len(params) > 1:
-            raise ValueError("Source of weight parameters ambiguous in specification.")
-          param = params[0]
-          param_name = list(param)[0]
-        if not self.wgt_kwds['transpose']:
-          weights = param[param_name]
-        else:
-          weights_name = param_name.replace('weights', 'kernel') +"/transpose"
-          if self.dev is None:
-            weights = Creation('transpose')(param[param_name], name=weights_name)
-          else:
-            with self.dev:
-              weights = Creation('transpose')(param[param_name], name=weights_name)
-        self.wgt_kwds = {'kernel_initializer': weights}
-      elif type(self.wgt) == tf.Variable:
-        self.wgt_kwds = {'kernel_initializer': self.wgt}
-
-    type_adim = self.type_adim if self.type_arch != 'callable' else self.type_arch
-    kwds = {'name': self.name + "/" + type_adim}
 
     # Call layers
+    type_adim = self.type_adim if self.type_arch != 'callable' else self.type_arch
+    kwds = {'name': self.name + "/" + type_adim}
     if self.type_arch == 'callable':
       kwds.update(dict(arch_kwds))
       self.arch_link = self.add_link(self.type_adim, *self.arch_args, **kwds)
@@ -546,7 +517,7 @@ class stream (chain):
     self._outputs = []
     self._n_outputs = len(self._outputs)
     if self._out is None: return self._outputs
-    self._outputs = [{self.name + "/output": self.ret_out()}]
+    self._outputs = [mapping({self.name + "/output": self.ret_out()})]
     self._n_outputs = len(self._outputs)
     return self._outputs
 

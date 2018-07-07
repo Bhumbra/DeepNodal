@@ -15,6 +15,7 @@ logging, and saving.
 import csv
 from deepnodal.python.structures.network import *
 from deepnodal.python.concepts.slave import *
+from deepnodal.python.functions.metric import *
 from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ class trainer (slave):
   session = None                   # training session
   gvi = None                       # global variables initialiser
   write_intervals = None           # see def_write_intervals
+  metrics = None                   # list of metrics
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -55,6 +57,7 @@ class trainer (slave):
     self.set_global_step()
     self.set_is_training()
     self.set_work()
+    self.set_metrics()
     self.set_progress()
     self.set_write_intervals()
 
@@ -74,6 +77,28 @@ class trainer (slave):
       raise TypeError("Only suitable work is a network.")
     if self.dev is not None:
       self.work.set_dev(self.dev)
+
+#-------------------------------------------------------------------------------
+  def set_metrics(self, metrics = None):
+    self.metrics = metrics
+    if self.metrics is None:
+      self.metrics = []
+    self.n_metrics = len(self.metrics)
+
+#-------------------------------------------------------------------------------
+  def new_metric(self, met = None, *met_args, **met_kwds):
+    """
+    New metric is created on the basis of function and arguments
+    """
+    self.metrics.append(regime(self.name + "/metrics/metric_" + str(len(self.metrics)), self.dev))
+    self.metrics[-1].set_creation(Creation(met), *met_args, **met_kwargs)
+    self.n_metrics = len(self.metrics)
+    return self.n_metrics - 1
+
+#-------------------------------------------------------------------------------
+  def set_metric_inputs(self, metric_index, inputs = None, *inputs_args, **inputs_kwds):
+    self.metrics[metric_index].inputs(inputs, *input_args, **inputs_kwds)
+    return self.metrics[index_index]
 
 #-------------------------------------------------------------------------------
   def set_progress(self, progress = None):

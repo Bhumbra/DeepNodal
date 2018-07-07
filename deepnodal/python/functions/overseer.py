@@ -68,13 +68,13 @@ class overseer (trainer):
     self.use_regime() # initialises to -1
 
 #-------------------------------------------------------------------------------
-  def new_regime(self, lrn = None, *lrn_args, **lrn_kwargs):
+  def new_regime(self, lrn = None, *lrn_args, **lrn_kwds):
     """
     New regime is created on the basis on learning rate specifications.
     The index of the new regime is returned.
     """
     self.regimes.append(regime(self.name + "/regimes/regime_" + str(len(self.regimes)), self.dev))
-    self.regimes[-1].set_learning_rate(Creation(lrn), *lrn_args, **lrn_kwargs)
+    self.regimes[-1].set_learning_rate(Creation(lrn), *lrn_args, **lrn_kwds)
     self.n_regimes = len(self.regimes)
     return self.n_regimes - 1
 

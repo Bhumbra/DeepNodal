@@ -6,13 +6,15 @@
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.concepts.structure import *
+from deepnodal.python.concepts.mapping import *
 
 #-------------------------------------------------------------------------------
 
 class leaf (structure):
   """
   A leaf is a structure that possess no hierarchical substructures and is the
-  initiator of parameters where self.params comprise a list of dictionaries.
+  initiator of parameters where self.params comprise a list of ordered 
+  dictionaries.
 
   A leaf is an abstract class and requires an inheriting class with an explicit
   self.__call__(inp) function for instantiation.
@@ -66,14 +68,14 @@ class leaf (structure):
     self._n_params = len(self._params)
     if self._n_params:
       for param_dict in self._params:
-        if type(param_dict) is not dict:
-          raise TypeError("Only dictionaries are accepted parameters.")
+        if not(isinstance(param_dict, mapping)):
+          raise TypeError("Only mappings are accepted parameters.")
     return self.ret_params()
 
 #-------------------------------------------------------------------------------
   def add_param(self, param_dict):
-    if type(param_dict) is not dict:
-      raise TypeError("Only dictionaries are accepted parameters.")
+    if not isinstance(param_dict, mapping):
+      raise TypeError("Only mappings are accepted parameters.")
     self._params.append(param_dict)
     self._n_params = len(self._params)
     return self.ret_params()
@@ -89,86 +91,89 @@ class leaf (structure):
 # Leaf-associated functions
 #-------------------------------------------------------------------------------
 
-def ret_unique_param(self, sources, param_spec = None):
+def ret_unique(sources, spec = None):
   """
-  Returns a single parameter (object, name) tuple according to argument sources. 
-  Argument sources may take the following forms:
+  Returns a single value ordered dictionary {name:object} according to argument 
+  sources. Argument sources may take the following forms:
 
-  #1 if type(sources) == Creation('var'): returned (name inferred by object name).
+  - if type(sources) == Creation('var'): returned (name inferred from object).
 
-  #2 if isinstance(sources, structure): sources.ret_params(param_spec)
+  - if type(sources) is tuple (minimum length 2) in the following form:
+    (structure_instance, callable_member_function, arg3, arg4, ...)
 
-  #3 if type(sources) is tuple:
-    - if len(sources) == 1 and isinstance(sources[0], structure) see #2
-    - otherwise if sources[1] is callable: sources[1](sources[0], *sources[2:])
-
-  #4 if type(sources) is list (i.e. in the form of stem._params):
+  - if type(sources) is list (i.e. in the form of stem._params):
     - if len(spec) is 1 and contains a single parameter dictionary.
-    - otherwise the parameter list is filtered by name (param_spec).
+    - otherwise the list is filtered by name.
   """
   type_sources = type(sources)
-  check_param_spec = param_spec is not None
 
   # Variable case
-  if type_sources == Creation('var'): 
-    param, param_name = sources, sources.name
-    if check_param_spec:
-      if not(param_spec in param_name):
-        raise ValueError("Parameter name " + param_spec + " not found in " + str(param))
-    return param, param_name
-
-  # Raise error for unrecognised sources types
-  if type_sources is not list and type_sources is not tuple and not(isinstance(sources, structure)):
-    raise TypeError("Unrecognised sources type: " + str(type_sources))
-
-  # Structure case - deal with single tuple case first
-  if type_sources is tuple and len(sources) == 1:
-    sources = sources[0]
-    type_sources = type(sources)
-    if not isinstance(sources, structure):
-      raise TypeError("Unrecognised single tuple format: " + str(type_sources))
-
-  # Structure case
-  if isinstance(sources, structure):
-    sources = sources.ret_params(param_spec)
-    check_param_spec = False
-    type_sources = type(sources)
-    if type_sources is tuple:
-      raise ValueError("Cannot return parameter before parameter object is called")
+  if type_sources is not list and type_sources is not tuple: 
+    value, value_name = sources, sources.name
+    if spec is not None:
+      if not(spec in value_name):
+        raise ValueError("Value name " + value_spec + " not found in " + str(value))
+    return {value_name: value}
 
   # Tuple case
   if type_sources is tuple:
-    if len(sources) < 1:
-      raise ValueError("Minimum sources tuple length of 1")
-    else: # by this stage len(sources) > 1
+    if len(sources) < 2:
+      raise ValueError("Minimum sources tuple length of 2")
+    else:
+      if not(isinstance(sources[0], structure)):
+        raise TypeError("First element of sources tuple must be a structure instance")
       if not(callable(sources[1])):
-        raise TypeError("Second element of sources when a multiple tuple must be callable")
+        raise TypeError("Second element of sources tuple must be callable")
       sources = sources[1](sources[0], *sources[2:])
       type_sources = type(sources)
  
   # List case
   if type_sources is not list:
-    raise TypeError("Unrecognised parameter specification: " + str(type_sources))
-
-  param, param_name = [], []
+    raise TypeError("Unrecognised value type specification: " + str(type_sources))
+  values = []
   for source in sources:
     type_source = type(source)
     if type_source is not dict:
-      raise TypeError("Unrecognised parameter type: " + str(type_source))
+      raise TypeError("Unrecognised value type: " + str(type_source))
     if len(source) != 1:
       raise ValueError("Parameter dictionary must be of size one")
     source_name = list(source)[0]
-    append_param = True if not check_param_spec else param_spec in source_name
-    if append_param:
-      param.append(source[source_name])
-      param_name.append(source_name)
+    append_value = True if spec is None else spec in source_name
+    if append_value:
+      values.append(source)
 
   # Test for uniqueness
-  n_param = len(param)
-  if n_param != 1:
-    raise ValueError("No unique parameter with " + str(n_param) + " candidates")
+  n_values = len(values)
+  if n_values != 1:
+    raise ValueError("No unique value with " + str(n_values) + " candidates")
 
-  return param[0], param_name[0]
+  return values[0]
+
+#-------------------------------------------------------------------------------
+def structuref2unique(*_args, **_kwds):
+  """
+  This function converts structure references within args and kwds to a unique 
+  dictionaries whether a parameter or output.
+  """
+  args = list(_args)
+  kwargs = list(_kwds)
+  kwvals = [_kwds[kwarg] for kwarg in kwargs]
+  for i, arg in enumerate(args):
+    if type(arg) is tuple:
+      if len(arg) > 1:
+        if isinstance(arg[0], structure):
+          if callable(arg[1]):
+            args[i] = ret_unique(arg)
+  kwds = dict()
+  for kwarg, kwval in zip(kwargs, kwvals):
+    arg, val = kwarg, kwval
+    if type(val) is tuple:
+      if len(val) > 1:
+        if isinstance(val[0], structure):
+          if callable(val[1]):
+            val = ret_unique(val)
+    kwds.update({arg:val})
+  return tuple(args), dict(kwds)
 
 #-------------------------------------------------------------------------------
 

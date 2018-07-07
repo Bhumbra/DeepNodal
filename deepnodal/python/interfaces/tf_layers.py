@@ -27,6 +27,7 @@ class tf_Dense(tf.layers.Dense):
                kernel_constraint=None,
                bias_constraint=None,
                trainable=True,
+               kernel_transpose = False,
                name=None,
                **kwargs):
     tf.layers.Dense.__init__(self, units, activation, use_bias, 
@@ -34,6 +35,7 @@ class tf_Dense(tf.layers.Dense):
                              kernel_regularizer, bias_regularizer, activity_regularizer, 
                              kernel_constraint, bias_constraint, 
                              trainable=trainable, name=name)
+    self.kernel_transpose = kernel_transpose
 
 #------------------------------------------------------------------------------- 
   def build(self, input_shape):
@@ -43,8 +45,17 @@ class tf_Dense(tf.layers.Dense):
                        'should be defined. Found `None`.')
     self.input_spec = base.InputSpec(min_ndim=2,
                                      axes={-1: input_shape[-1].value})
-    if type(self.kernel_initializer) is tf.Tensor:
-      self.kernel = self.kernel_initializer
+    kernel_initializer = self.kernel_initializer
+    if type(kernel_initializer) is dict or type(kernel_initializer) is tf.Tensor:
+      if type(kernel_initializer) is dict:
+        kernel_name = list(kernel_initializer)[0]
+        kernel = kernel_initializer[kernel_name]
+      else:
+        kernel, kernel_name = kernel_initialiser, kernel_initialiser.name
+      if self.kernel_transpose:
+        self.kernel = tf.transpose(kernel, name = kernel_name + "_transpose")
+      else:
+        self.kernel = kernel
     else:
       self.kernel = self.add_variable('kernel',
                                       shape=[input_shape[-1].value, self.units],
@@ -54,8 +65,11 @@ class tf_Dense(tf.layers.Dense):
                                       dtype=self.dtype,
                                       trainable=True)
     if self.use_bias:
-      if type(self.bias_initializer) is tf.Tensor:
-        self.bias = self.bias_initializer
+      if type(self.bias_initializer) is dict or type(self.bias_initializer) is tf.Tensor:
+        if type(self.bias_initializer) is dict:
+          self.bias = list(self.bias_initializer.values())[0]
+        else:
+          self.bias = self.bias_initializer
       else:
         self.bias = self.add_variable('bias',
                                       shape=[self.units,],
@@ -81,6 +95,7 @@ def tf_dense(
   activity_regularizer=None,
   kernel_constraint=None,
   bias_constraint=None,
+  kernel_transpose=False,
   trainable=True,
   name=None,
   reuse=None):
@@ -94,6 +109,7 @@ def tf_dense(
                 activity_regularizer=activity_regularizer,
                 kernel_constraint=kernel_constraint,
                 bias_constraint=bias_constraint,
+                kernel_transpose=kernel_transpose,
                 trainable=trainable,
                 name=name,
                 dtype=inputs.dtype.base_dtype,
@@ -113,6 +129,7 @@ def tf_dense2map(
   activity_regularizer=None,
   kernel_constraint=None,
   bias_constraint=None,
+  kernel_transpose=False,
   trainable=True,
   name=None,
   reuse=None):
@@ -133,6 +150,7 @@ def tf_dense2map(
                 activity_regularizer=activity_regularizer,
                 kernel_constraint=kernel_constraint,
                 bias_constraint=bias_constraint,
+                kernel_transpose=kernel_transpose,
                 trainable=trainable,
                 name=name,
                 dtype=inputs.dtype.base_dtype,
