@@ -130,10 +130,10 @@ class hypervisor (supervisor, master, stem):
     return [_slave.set_costfn(cfn, *cfn_args, **cfn_kwds) for _slave in self.slaves]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False, **kwds):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True, **kwds):
     if self.work is None: return
     if self.unit_dev:
-      argout = supervisor.__call__(self, ist, gst, skip_metrics, **kwds)
+      argout = supervisor.__call__(self, ist, gst, skip_metrics, _called **kwds)
       return argout
 
     """
@@ -154,7 +154,7 @@ class hypervisor (supervisor, master, stem):
     """
 
     # 1. and 2. 
-    supervisor.__call__(self, ist, gst, True, **kwds)
+    supervisor.__call__(self, ist, gst, True, _called, **kwds)
 
     # 3. and 4.
     [_slave.__call__(self.ist, self.gst, skip_metrics, **kwds) for _slave in self.slaves]
@@ -162,6 +162,8 @@ class hypervisor (supervisor, master, stem):
 
     # 5. and 6.
     self._call_metrics(skip_metrics)
+
+    self.set_called(_called)
 
     return self.ist, self.gst
 

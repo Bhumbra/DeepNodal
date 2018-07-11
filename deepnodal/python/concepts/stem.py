@@ -209,6 +209,15 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 
 #-------------------------------------------------------------------------------
   def ret_params(self, param_spec = None, ret_indices = False):
+    """
+    Returns parameter mappings (and associated indices if ret_indices is True)
+    depending on the value of param_spec:
+
+    param_spec = None (or True): returns all parameters
+    param_spec = a string: returns parameters which includes that string in the name
+    param_spec = list of booleans/sublists of booleans: allow subobject specification
+
+    """
     if not(self._called): return self, stem.ret_params, param_spec, ret_indices
     if self._params is None:
       self._setup_params()
@@ -248,6 +257,29 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     else:
       return indices
 
+#-------------------------------------------------------------------------------
+  def _ret_param(self, param_spec = None):
+    """
+    Identical to self.ret_params but with checking of a unique result and returns
+    the mapping itself.
+
+    """
+    if not(self._called): return self, stem._ret_param, param_spec
+    param = self.ret_params(param_spec)
+    if len(param) != 1:
+      raise ValueError("Specification " + str(param_spec) + 
+                       " returns " + str(len(param)) + " results.")
+
+    return param[0]
+
+#-------------------------------------------------------------------------------
+  def ret_param(self, param_spec = None):
+    """
+    Identical to self._ret_param but returns the graph object rather than mapping. 
+    """
+    if not(self._called): return self, stem.ret_param, param_spec
+    param = self._ret_param(param_spec)
+    return list(param.values())[0]
 
 #-------------------------------------------------------------------------------
   def _setup_outputs(self):
@@ -263,24 +295,51 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       subobject._setup_outputs()
       self._outputs += subobject._outputs
     self._n_outputs = len(self._outputs)
-    return self.ret_outputs()
+    return self._outputs
 
 #-------------------------------------------------------------------------------
-  def ret_outputs(self, outputs_spec = None):
-    if not(self._called): return self, stem.ret_outputs, outputs_spec
-    if outputs_spec is None:
+  def ret_outputs(self, output_spec = None):
+    """
+    Similar to self.ret_params but for outputs rather than parameters.
+    """
+    if not(self._called): return self, stem.ret_outputs, output_spec
+    if output_spec is None:
       return self._outputs
 
     outputs = []
-    if type(outputs_spec) is bool:
-      if outputs_spec:
+    if type(output_spec) is bool:
+      if output_spec:
         outputs = self._outputs
-    elif len(outputs_spec) != self._n_subobjects:
+    elif len(output_spec) != self._n_subobjects:
       raise ValueError("Outputs specification incommensurate with hierarchical structure")
     else:
-      for i, spec in enumerate(outputs_spec):
+      for i, spec in enumerate(output_spec):
         outputs += self._subobjects[i].ret_outputs(spec)
     return outputs
+
+#-------------------------------------------------------------------------------
+  def _ret_output(self, output_spec = None):
+    """
+    Identical to self.ret_outputs but with checking of a unique result and returns
+    the mapping itself.
+
+    """
+    if not(self._called): return self, stem._ret_output, output_spec
+    output = self._ret_outputs(outputs_spec)
+    if len(output) != 1:
+      raise ValueError("Specification " + str(output_spec) + 
+                       " returns " + str(len(output)) + " results.")
+
+    return output[0]
+
+#-------------------------------------------------------------------------------
+  def ret_output(self, output_spec = None):
+    """
+    Identical to self._ret_output but returns the graph object rather than mapping. 
+    """
+    if not(self._called): return self, stem._ret_output, output_spec
+    output = self._ret_output(output_spec)
+    return list(output.values())[0]
 
 #-------------------------------------------------------------------------------
 

@@ -294,12 +294,42 @@ class network (stem):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def ret_inputs(self, index = None):
-    if not(self.ret_called()):
-      return self, self.ret_inputs, index
-    if index is None:
+  def ret_inputs(self, input_spec = None):
+    if not(self.ret_called()): return self, network.ret_inputs, input_spec
+    if input_spec is None:
       return self._inputs
-    return self._inputs(index)
+    inputs = []
+    if type(input_spec) is bool:
+      if input_spec:
+        inputs = self._inputs
+      return inputs
+    elif type(input_spec) is int: 
+      input_spec = [input_spec]
+      return [self._inputs[input_spec]]
+    input_spec = np.array(input_spec)
+    if input_spec.dtype is np.dtype('int'):
+      inputs = [self._inputs[_input_spec] for _input_spec in input_spec]
+      return inputs
+    for i, _input_spec in enumerate(input_spec):
+      if _input_spec:
+        inputs.append(self._inputs[i])
+    return inputs
+
+#-------------------------------------------------------------------------------
+  def _ret_input(self, input_spec = None):
+    if not(self.ret_called()): return self, network._ret_input, input_spec
+    inputs = self.ret_inputs(input_spec)
+    if len(inputs) != 1:
+      raise ValueError("Specification " + str(input_spec) + 
+                       " returns " + str(len(inputs)) + " results.")
+
+    return inputs[0]
+
+#-------------------------------------------------------------------------------
+  def ret_input(self, input_spec = None):
+    if not(self.ret_called()): return self, network.ret_input, input_spec
+    inputs = self._ret_input(input_spec)
+    return list(inputs.values())[0]
 
 #-------------------------------------------------------------------------------
   def _setup_reguln(self):

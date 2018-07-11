@@ -105,17 +105,19 @@ class supervisor (overseer):
         self.erq_args = [self.erq_args[0]],
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False, **kwds):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True, **kwds):
 
     if self.work is None: return
     if self._opt is None: self.set_optimiser(DEFAULT_OPTIMISER)
 
     # Setup learning rate, optimiser, and work network
-    overseer.__call__(self, ist, gst, True, **kwds)
+    overseer.__call__(self, ist, gst, True, False, **kwds)
     
     # Setup supervisor labels objects and metrics
     self._call_labels()
     self._call_metrics(skip_metrics)
+
+    self.set_called(_called)
 
     return self.ist, self.gst
 

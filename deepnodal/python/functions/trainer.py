@@ -32,8 +32,7 @@ class trainer (slave):
   """
   def_name = 'trainer'
   def_write_intervals = [10, 1000, False] # write intervals [scalar, distro, model]
-  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)]
-  gst = None                       # global_step
+  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] gst = None                       # global_step
   ist = None                       # is training flag
   work = None                      # network instance to train
   inputs = None                    # work input
@@ -96,8 +95,8 @@ class trainer (slave):
     return self.n_metrics - 1
 
 #-------------------------------------------------------------------------------
-  def set_metric_inputs(self, metric_index, inputs = None, *inputs_args, **inputs_kwds):
-    self.metrics[metric_index].inputs(inputs, *input_args, **inputs_kwds)
+  def set_metric_inputs(self, metric_index, *inputs_args, **inputs_kwds):
+    self.metrics[metric_index].set_inputs(*input_args, **inputs_kwds)
     return self.metrics[index_index]
 
 #-------------------------------------------------------------------------------
@@ -118,7 +117,7 @@ class trainer (slave):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True):
     if self.work is None: return 
 
     # Call is_training and network
@@ -137,6 +136,8 @@ class trainer (slave):
 
     # Call scalars and distros
     self._call_metrics(skip_metrics)
+
+    self.set_called(_called)
 
     return self.ist, self.gst
 

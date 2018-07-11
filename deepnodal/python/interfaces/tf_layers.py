@@ -4,6 +4,7 @@
 
 #------------------------------------------------------------------------------- 
 import tensorflow as tf
+from collections import OrderedDict # NB/ class mapping (OrderedDict):
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.layers import base
@@ -46,8 +47,8 @@ class tf_Dense(tf.layers.Dense):
     self.input_spec = base.InputSpec(min_ndim=2,
                                      axes={-1: input_shape[-1].value})
     kernel_initializer = self.kernel_initializer
-    if type(kernel_initializer) is dict or type(kernel_initializer) is tf.Tensor:
-      if type(kernel_initializer) is dict:
+    if isinstance(kernel_initializer, OrderedDict) or type(kernel_initializer) is tf.Tensor:
+      if isinstance(kernel_initializer, OrderedDict):
         kernel_name = list(kernel_initializer)[0]
         kernel = kernel_initializer[kernel_name]
       else:
@@ -65,8 +66,8 @@ class tf_Dense(tf.layers.Dense):
                                       dtype=self.dtype,
                                       trainable=True)
     if self.use_bias:
-      if type(self.bias_initializer) is dict or type(self.bias_initializer) is tf.Tensor:
-        if type(self.bias_initializer) is dict:
+      if isinstance(self.bias_initializer, OrderedDict) or type(self.bias_initializer) is tf.Tensor:
+        if isinstance(self.bias_initializer, OrderedDict):
           self.bias = list(self.bias_initializer.values())[0]
         else:
           self.bias = self.bias_initializer
@@ -118,7 +119,7 @@ def tf_dense(
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
-def tf_dense2map(
+def tf_dense2card(
   inputs, units,
   activation=None,
   use_bias=True,
@@ -134,10 +135,10 @@ def tf_dense2map(
   name=None,
   reuse=None):
   if type(units) is not set:
-    raise TypeError("Layer dense2hl units specification must of set type")
+    raise TypeError("Layer dense2card units specification must of set type")
   units = list(units)
   if len(units) != 1:
-    raise ValueError("Layer dense2hl units set specification must have one element")
+    raise ValueError("Layer dense2card units set specification must have one element")
   units = units[0]
   
   layer = tf_Dense(units,
@@ -159,8 +160,8 @@ def tf_dense2map(
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
-class tf_Map2dense(base.Layer):
-  """Sparse-to-dense lookup layer class
+class tf_Card2dense(base.Layer):
+  """Cardinal-to-dense lookup layer class
 
   This layer implements the operation
   `outputs = vergence(lookup(inputs) in kernel)`
@@ -185,7 +186,7 @@ class tf_Map2dense(base.Layer):
                trainable=True,
                name=None,
                **kwds):
-    super(tf_Map2dense, self).__init__(trainable=trainable, name=name, **kwds)
+    super(tf_Card2dense, self).__init__(trainable=trainable, name=name, **kwds)
     self.cardinality = cardinality
     self.units = units
     self.kernel_initializer = kernel_initializer
@@ -245,20 +246,20 @@ class tf_Map2dense(base.Layer):
 
 #------------------------------------------------------------------------------- 
 #------------------------------------------------------------------------------- 
-def tf_map2dense(inputs, cardinality, units, *args, **kwds):
+def tf_card2dense(inputs, cardinality, units, *args, **kwds):
   """ 
-  tf_lookup - functional form of tf_Lookup
+  tf_card2dense - functional form of tf_Card2dense
   inputs: inputs (integer data type)
   cardinality: vocabulary set size
   units: integer or a pair of integers
   kernel_initializer: Initializer function for the kernel matrix.
     If `None` (default), weights are initialised using the default initializer
     used by `tf.get_variable`.
-  trainable: Boolean, if `True' also add variables to teh graph collection
+  trainable: Boolean, if `True' also add variables to the graph collection
     `GraphKeys.TRAINABLE_VARIABLES`
   name: String
   """
-  layer = tf_Map2dense(cardinality, units, *args, **kwds)
+  layer = tf_Card2dense(cardinality, units, *args, **kwds)
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 

@@ -90,13 +90,13 @@ class overseer (trainer):
     return self.regimes[regime_index]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False):
+  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True):
 
     # Call the regimes
     gst = self._call_regimes(gst)
 
     # Call all trainer objects except the metrics
-    ist, gst = trainer.__call__(self, ist, gst, True)
+    ist, gst = trainer.__call__(self, ist, gst, True, False)
 
     # Collate the regimen parameter indices 
     self.regime_param_indices = [None] * self.n_regimes
@@ -106,6 +106,8 @@ class overseer (trainer):
       self.regime_param_indices[i] = self.work.ret_params(_regime.par, True)
 
     self._call_metrics(skip_metrics)
+
+    self.set_called(_called)
 
     return self.ist, self.gst
 

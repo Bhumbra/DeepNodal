@@ -76,6 +76,7 @@ class regime (slave):
         else:
           with Device(self.dev):
             self.learning_rate = lrn(*args, global_step = self.gst, **kwds)
+    self.set_called(True)
     return self.learning_rate
 
 #-------------------------------------------------------------------------------

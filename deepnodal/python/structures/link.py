@@ -81,7 +81,7 @@ class link (leaf):
         if param is not None:
           self.add_param(mapping({self.__var_scope+"/"+Param_Dict[Param]: param}))
     self._n_params = len(self._params)
-    return self.ret_params()
+    return self._params
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):

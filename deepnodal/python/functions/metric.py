@@ -35,6 +35,10 @@ class metric (function):
   _kwds = None
   _inputs = None
   _outputs = None
+  _test = False
+  _train = False
+  _dtypes = None
+  _updater = None
 
   # private
   __var_scope = None
@@ -43,24 +47,36 @@ class metric (function):
   def __init__(self, name = None, dev = None):
     function.__init__(self, name, dev)
     self.set_creation()
-    self.set_inputs()
+    self.set_dtypes()
 
 #-------------------------------------------------------------------------------
   def set_creation(self, creation = None, *args, **kwds):
     self._creation = Creation(creation)
     self._args = args
     self._kwds = dict(kwds)
+    if 'test' in kwds: 
+      self._test = kwds['test']
+      self._kwds = self._kwds.pop('test')
+    if 'train' in kwds: 
+      self._train = kwds['train']
+      self._kwds = self._kwds.pop('train')
+      
+#-------------------------------------------------------------------------------
+  def ret_test(self):
+    return self._test
 
 #-------------------------------------------------------------------------------
-  def set_inputs(self, *inputs, inputs_dtype = None):
-    self._inputs = tuple(inputs)
-    self._inputs_dtype = list(inputs_dtype) if type(inputs_dtype) is tuple else inputs_dtype
-    self._n_inputs = len(self._inputs)
-    if not(self._n_inputs): return
-    if type(self.inputs_dtypes) is not list:
-      self.inputs_dtype = [self.inputs_dtype]
-    if len(self.inputs_dtype) == 1:
-      self.inputs_dtypes *= self._n_inputs
+  def ret_train(self):
+    return self._train
+
+#-------------------------------------------------------------------------------
+  def set_dtypes(self, *dtypes):
+    self._dtypes = dtypes
+    if self._dtypes is None: return
+    for arg, dtype in zip(self._args, self._dtypes):
+      if dtype is not None:
+        if type(arg) is not list:
+          raise TypeError("Any dtype specification must relate to a list argument.")
 
 #-------------------------------------------------------------------------------
   def ret_inputs(self):
@@ -78,7 +94,16 @@ class metric (function):
   
 #-------------------------------------------------------------------------------
   def ret_out(self):
+    if not(self._called): return self, self.ret_out
     return self._out
+
+#-------------------------------------------------------------------------------
+  def set_called(self, _called):
+    self._called = _called
+
+#-------------------------------------------------------------------------------
+  def ret_called(self):
+    return self._called
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
@@ -105,6 +130,7 @@ class metric (function):
     else:
       with Device(self.dev):
         self._out = self._creation(self._inp, *args, **kwds)
+    self._called = True
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
