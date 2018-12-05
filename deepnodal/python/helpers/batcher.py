@@ -28,17 +28,17 @@ class Batcher (object):
       return self.sets
     if self.sets is None:
       self.sets = collections.OrderedDict()
-    self.set_sets(self.sets.update({set_name: {'spec': set_spec,
-                                               'indices': None,
-                                               'inputs': None,
-                                               'labels': None,
-                                               'counter': None,
-                                               'permute': None}}))
+    self.sets.update({set_name: {'spec': set_spec,
+                                 'indices': None,
+                                 'inputs': None,
+                                 'labels': None,
+                                 'counter': None,
+                                 'permute': None}})
 
 #-------------------------------------------------------------------------------
   def add_sets(self, set_names=[], set_specs=[]):
-    return [add_set(set_name, set_spec) for set_name, set_spec in
-                                       zip(set_names, set_specs)]
+    return [self.add_set(set_name, set_spec) for set_name, set_spec in
+                                             zip(set_names, set_specs)]
 
 #-------------------------------------------------------------------------------
   def set_data(self, inputs, labels = None, set_name = None):
@@ -77,7 +77,7 @@ class Batcher (object):
       cumsum_spec = np.hstack([0, np.cumsum(set_specs)])
       mod_indices = np.mod(indices, cumsum_spec[-1])
       for i in range(len(set_specs)):
-        self.sets[set_name[i]]['indices'] = indices[
+        self.sets[set_names[i]]['indices'] = indices[
             np.logical_and(mod_indices >= cumsum_spec[i],
                            mod_indices <  cumsum_spec[i+1])]
 
@@ -102,7 +102,7 @@ class Batcher (object):
     # Assign data
     for key, val in self.sets.items():
       self.sets[key]['inputs'] = [self._inputs[i] for i in val['indices']]
-      if self._labels:
+      if self._labels is not None:
         self.sets[key]['labels'] = [self._labels[i] for i in val['indices']]
 
     return self.sets
@@ -116,24 +116,33 @@ class Batcher (object):
     else:
       self.sets[set_name]['permute'] = np.random.permutation(n)
 
+    self.sets[set_name]['counter'] = 0
+
 #-------------------------------------------------------------------------------
   def next_batch(self, set_name=DEFAULT_SET_NAME, batch_size=1, randomise=True):
     counter =  self.sets[set_name]['counter']
     if counter is None:
       self._repermute(set_name, randomise)
+      counter = self.sets[set_name]['counter']
 
-    elif counter + batch_size > len(self.sets[set_name]['inputs']):
+    if counter + batch_size > len(self.sets[set_name]['inputs']):
       self.sets[set_name]['counter'] = None
       return None
 
     new_counter = counter + batch_size
     idx = np.arange(counter, new_counter)
     self.sets[set_name]['counter'] = new_counter
-    inputs, labels = self.sets.set_name['inputs'], self.sets.set_name['babels']
-    batch_inputs = [inputs[i] for i in idx]
+    inputs, labels = self.sets[set_name]['inputs'], self.sets[set_name]['labels']
+    if type(inputs) is np.ndarray:
+      batch_inputs = inputs[idx]
+    else:
+      batch_inputs = [inputs[i] for i in idx]
     if labels is None:
       return batch_inputs
-    batch_labels = [labels[i] for i in idx]
+    if type(labels) is np.ndarray:
+      batch_labels = labels[idx]
+    else:
+      batch_labels = [labels[i] for i in idx]
     return batch_inputs, batch_labels
 
 #-------------------------------------------------------------------------------
