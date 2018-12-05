@@ -95,8 +95,8 @@ class trainer (slave):
     return self.n_metrics - 1
 
 #-------------------------------------------------------------------------------
-  def set_metric_inputs(self, metric_index, *inputs_args, **inputs_kwds):
-    self.metrics[metric_index].set_inputs(*input_args, **inputs_kwds)
+  def set_metric_dtypes(self, metric_index, *dtypes):
+    self.metrics[metric_index].set_dtypes(*dtypes)
     return self.metrics[index_index]
 
 #-------------------------------------------------------------------------------

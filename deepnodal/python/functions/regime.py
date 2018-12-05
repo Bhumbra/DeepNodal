@@ -80,4 +80,9 @@ class regime (slave):
     return self.learning_rate
 
 #-------------------------------------------------------------------------------
+  def ret_lrate(self):
+    if not self.ret_called(): return self, self.ret_lrate
+    return self.learning_rate
+
+#-------------------------------------------------------------------------------
 
