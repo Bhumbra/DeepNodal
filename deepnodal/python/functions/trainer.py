@@ -32,7 +32,8 @@ class trainer (slave):
   """
   def_name = 'trainer'
   def_write_intervals = [10, 1000, False] # write intervals [scalar, distro, model]
-  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] gst = None                       # global_step
+  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] 
+  gst = None                       # global_step
   ist = None                       # is training flag
   work = None                      # network instance to train
   inputs = None                    # work input
@@ -49,6 +50,9 @@ class trainer (slave):
   gvi = None                       # global variables initialiser
   write_intervals = None           # see def_write_intervals
   metrics = None                   # list of metrics
+  batch_size_metric = None         # batch size metric
+  batch_size = None                # batch size
+  batch_size_op = None             # batch size update op
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -85,19 +89,20 @@ class trainer (slave):
     self.n_metrics = len(self.metrics)
 
 #-------------------------------------------------------------------------------
-  def new_metric(self, met = None, *met_args, **met_kwds):
-    """
-    New metric is created on the basis of function and arguments
-    """
-    self.metrics.append(regime(self.name + "/metrics/metric_" + str(len(self.metrics)), self.dev))
-    self.metrics[-1].set_creation(Creation(met), *met_args, **met_kwargs)
+  def new_metric(self, creation = None, *args, **_kwds):
+    kwds = dict(_kwds)
+    name = self.name + "/metrics/metric_{}".format(self.n_metrics)
+    dev = self.dev
+    if 'name' in kwds:
+      name = kwds['name']
+      kwds.pop('name')
+    if 'dev' in kwds:
+      dev = kwds['dev']
+      kwds.pop('dev')
+    self.metrics.append(metric(name, dev))
     self.n_metrics = len(self.metrics)
-    return self.n_metrics - 1
-
-#-------------------------------------------------------------------------------
-  def set_metric_dtypes(self, metric_index, *dtypes):
-    self.metrics[metric_index].set_dtypes(*dtypes)
-    return self.metrics[index_index]
+    self.metrics[-1].set_creation(creation, *args, **kwds)
+    return self.metrics[-1]
 
 #-------------------------------------------------------------------------------
   def set_progress(self, progress = None):
@@ -192,9 +197,12 @@ class trainer (slave):
         with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
           self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
     """
-    self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-      self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+    self.batch_size_metric = self.new_metric('var', 0, trainable=False, 
+        name=self.name+"/batch/batch_size", dev=self.dev) 
+    self.batch_size_metric.set_summarise(True, train=True)
+    self.batch_size = self.batch_size_metric.__call__()
+    self.batch_size_op = self.batch_size_metric.op_assign(
+        Creation('shape')(self.inputs[0])[0])
 
 #-------------------------------------------------------------------------------
   def _call_learning_rate(self, gst = None): # this sets up self.learning_rate
