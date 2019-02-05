@@ -199,7 +199,7 @@ class trainer (slave):
     """
     self.batch_size_metric = self.new_metric('var', 0, trainable=False, 
         name=self.name+"/batch/batch_size", dev=self.dev) 
-    self.batch_size_metric.set_summarise(True, train=True)
+    self.batch_size_metric.set_label("BATCH_SIZE", train=True)
     self.batch_size = self.batch_size_metric.__call__()
     self.batch_size_op = self.batch_size_metric.op_assign(
         Creation('shape')(self.inputs[0])[0])

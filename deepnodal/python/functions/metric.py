@@ -39,7 +39,7 @@ class metric (function):
   _train = None
   _dtypes = None
   _updater = None
-  _summarise = None
+  _label = None
   _scalar = None
   _scalars = None
 
@@ -53,7 +53,7 @@ class metric (function):
     self.set_dev(dev)
     self.set_creation()
     self.set_dtypes()
-    self.set_summarise()
+    self.set_label()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -81,25 +81,24 @@ class metric (function):
           raise TypeError("Any dtype specification must relate to a list argument.")
 
 #-------------------------------------------------------------------------------
-  def set_summarise(self, summarise = False, train = None, test = None):
-    """ Set whether to summarise and if data is train, test, both, or neither """
-    self._summarise = summarise
+  def set_label(self, label = None, train = None, test = None):
+    """ Set metric label and if data is train, test, both, or neither """
+    self._label = label if label else 'METRIC'
     self._train = train
     self._test = test
     self._scalar = None
     self._scalars = {'train': None, 'test': None}
 
-    if self.name is not None:
-      if self._train is not None:
-        self._train = False
-      if self._test is not None:
-        self._test = False
-    else:
-      name = self.name.split('/')[-1].lower()
-      if self._train is None:
-        self._train = 'train' in name
-      if self._test is None:
-        self._test = 'test' in name
+    if self._label is None:
+      self._label = 'METRIC'
+    if self.name:
+      self._label = self.name + "/" + self._label
+    
+    label = self._label.split('/')[-1].lower()
+    if self._train is None:
+      self._train = 'train' in label
+    if self._test is None:
+      self._test = 'test' in label
 
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
@@ -148,39 +147,39 @@ class metric (function):
 
 #-------------------------------------------------------------------------------
   def __call__scalars(self, out = None):
-    if not self._summarise: return None
+    if not self._label: return None
     if out is None: return None
     if self._train is None or self._test is None:
       self.set_summarise(self._summarise, self._train, self._test)
-    name = self.name.split('/')[0].lower()
+    sublabel = self._label.split('/')[0].lower()
     if self._train:
-      scalar_name = self.name
-      if 'train' not in scalar_name.lower():
-        scalar_name += "_TRAIN"
+      label = self._label
+      if 'train' not in sublabel:
+        label += "_TRAIN"
       if self.dev is None:
-        self._scalars['train'] = Summary('scalar')(scalar_name, out)
+        self._scalars['train'] = Summary('scalar')(label, out)
       else:
         with Device(self.dev):
-          self._scalars['train'] = Summary('scalar')(scalar_name, out)
+          self._scalars['train'] = Summary('scalar')(label, out)
       self._scalar = self._scalars['train']
     if self._test:
-      scalar_name = self.name
-      if 'test' not in scalar_name.lower():
-        scalar_name += "_TEST"
+      label = self._label
+      if 'test' not in sublabel:
+        label += "_TEST"
       if self.dev is None:
-        self._scalars['test'] = Summary('scalar')(scalar_name, out)
+        self._scalars['test'] = Summary('scalar')(label, out)
       else:
         with Device(self.dev):
-          self._scalars['test'] = Summary('scalar')(scalar_name, out)
+          self._scalars['test'] = Summary('scalar')(label, out)
       self._scalar = self._scalars['test']
     if self._train or self._test:
       return self._scalars
-    scalar_name = self.name
+    label = self._label
     if self.dev is None:
-      self._scalar  = Summary('scalar')(scalar_name, out)
+      self._scalar  = Summary('scalar')(label, out)
     else:
       with Device(self.dev):
-        self._scalar  = Summary('scalar')(scalar_name, out)
+        self._scalar  = Summary('scalar')(label, out)
     return self._scalar
 
 #-------------------------------------------------------------------------------
