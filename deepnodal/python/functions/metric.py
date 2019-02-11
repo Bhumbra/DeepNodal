@@ -35,8 +35,6 @@ class metric (function):
   _kwds = None
   _inputs = None
   _outputs = None
-  _test = None
-  _train = None
   _dtypes = None
   _updater = None
   _label = None
@@ -45,6 +43,7 @@ class metric (function):
 
   # private
   __var_scope = None
+  __deimiter = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -81,24 +80,20 @@ class metric (function):
           raise TypeError("Any dtype specification must relate to a list argument.")
 
 #-------------------------------------------------------------------------------
-  def set_label(self, label = None, train = None, test = None):
-    """ Set metric label and if data is train, test, both, or neither """
-    self._label = label if label else 'METRIC'
-    self._train = train
-    self._test = test
+  def set_label(self, label = None, *args, delimiter='/'):
+    """ Set metric label according the keys in args (default empty) """
+    self._label = label
+    keys = tuple(args)
+    self.__delimiter = delimiter
     self._scalar = None
-    self._scalars = {'train': None, 'test': None}
-
+    self._scalars = {}
+    if keys:
+      for key in keys:
+        self._scalars.update({key: None})
     if self._label is None:
       self._label = 'METRIC'
     if self.name:
       self._label = self.name + "/" + self._label
-    
-    label = self._label.split('/')[-1].lower()
-    if self._train is None:
-      self._train = 'train' in label
-    if self._test is None:
-      self._test = 'test' in label
 
 #-------------------------------------------------------------------------------
   def set_inp(self, inp = None):
@@ -112,8 +107,32 @@ class metric (function):
   
 #-------------------------------------------------------------------------------
   def ret_out(self):
-    if not(self._called): return self, metric.ret_out
+    if not(self._called): 
+      raise ValueError("Not implemented for when not called.")
+      return self, metric.ret_out
     return self._out
+
+#-------------------------------------------------------------------------------
+  def ret_scalar(self, spec=None):
+    if not(self._called): return self, metric.ret_scalar, spec
+    if spec is None: return self._scalar
+    if spec not in self._scalars:
+      return None
+    return self._scalars[spec]
+
+#-------------------------------------------------------------------------------
+  def ret_label(self, spec=None):
+    """ Returns the (label, sublabel) tuple for spec"""
+    delim = self.__delimiter
+    label = self._label
+    sublabel = label.split(delim)[-1]
+    if spec is None or len(self._scalars) < 2:
+      return label, sublabel
+    if spec.lower() in sublabel.lower():
+      return label, sublabel
+    label += "_{}".format(spec.upper())
+    sublabel += "_{}".format(spec.upper())
+    return label, sublabel
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
@@ -149,41 +168,35 @@ class metric (function):
   def __call__scalars(self, out = None):
     if not self._label: return None
     if out is None: return None
-    if self._train is None or self._test is None:
-      self.set_summarise(self._summarise, self._train, self._test)
-    sublabel = self._label.split('/')[0].lower()
-    if self._train:
-      label = self._label
-      if 'train' not in sublabel:
-        label += "_TRAIN"
+
+    # Handle trivial case first
+    if not len(self._scalars):
       if self.dev is None:
-        self._scalars['train'] = Summary('scalar')(label, out)
-      else:
-        with Device(self.dev):
-          self._scalars['train'] = Summary('scalar')(label, out)
-      self._scalar = self._scalars['train']
-    if self._test:
-      label = self._label
-      if 'test' not in sublabel:
-        label += "_TEST"
-      if self.dev is None:
-        self._scalars['test'] = Summary('scalar')(label, out)
-      else:
-        with Device(self.dev):
-          self._scalars['test'] = Summary('scalar')(label, out)
-      self._scalar = self._scalars['test']
-    if self._train or self._test:
-      return self._scalars
-    label = self._label
-    if self.dev is None:
-      self._scalar  = Summary('scalar')(label, out)
-    else:
-      with Device(self.dev):
         self._scalar  = Summary('scalar')(label, out)
-    return self._scalar
+      else:
+        with Device(self.dev):
+          self._scalar  = Summary('scalar')(label, out)
+      return self._scalar
+    
+    # Handle multiple key method:
+    label_lower = self._label.split(self.__delimiter)[0].lower()
+    keys = list(self._scalars.keys())
+    for key in keys:
+      label = self._label
+      if len(keys) > 1:
+        if key.lower() not in label_lower:
+          label += "_" + key.upper()
+      if self.dev is None:
+        self._scalars[key] = Summary('scalar')(label, out)
+      else:
+        with Device(self.dev):
+          self._scalars[key] = Summary('scalar')(label, out)
+    if len(keys) == 1:
+      self._scalar = self._scalars[key]
+    return self._scalars
 
 #-------------------------------------------------------------------------------
-  def op_assign(self, target, reuse=False):
+  def call_assign(self, target, reuse=False):
     with Scope('var', self.name+"_update", reuse=reuse):
       if self.dev is None:
         op = self._out.assign(target)
