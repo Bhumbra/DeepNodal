@@ -32,6 +32,7 @@ class overseer (trainer):
   regimes = None                   # list of training_regimes
   using_regime = None              # Python index of currently active regime
   regime_index = None              # Graph object of using_regime
+  regime_index_metric = None       # Metric for regime_index
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -126,7 +127,10 @@ class overseer (trainer):
       with Device(self.dev):
         self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
     """
-    self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
+
+    self.regime_index_metric = self.add_metric('var', 0, trainable=False, name=self.name+"/regimes/index")
+    self.regime_index_metric.set_label("REGIMEN_INDEX", 'train')
+    self.regime_index = self.regime_index_metric.__call__()
 
     # We need at least one regime
     if not(self.n_regimes):
@@ -142,16 +146,6 @@ class overseer (trainer):
       self.set_learning_rate('var', 0)
 
     return self.gst
-
-#-------------------------------------------------------------------------------
-  def _call_scalars(self, scalars = None, scalar_names = None):
-    if scalars is None:
-      scalars = [self.batch_size, self.learning_rate, self.regime_index]
-    if scalar_names is None:
-      scalar_names = [self.name + "/BATCH_SIZE",
-                      self.name + "/LEARNING_RATE",
-                      self.name + "/REGIME"]
-    return trainer._call_scalars(self, scalars, scalar_names)
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None):

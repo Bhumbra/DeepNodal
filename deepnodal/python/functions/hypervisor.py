@@ -133,7 +133,7 @@ class hypervisor (supervisor, master, stem):
   def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True, **kwds):
     if self.work is None: return
     if self.unit_dev:
-      argout = supervisor.__call__(self, ist, gst, skip_metrics, _called **kwds)
+      argout = supervisor.__call__(self, ist, gst, skip_metrics, _called, **kwds)
       return argout
 
     """
@@ -305,26 +305,35 @@ class hypervisor (supervisor, master, stem):
           self.errors = Creation('mean')(Creation('pack')(slave_errors,
                         name = self.name + "/metrics/error_quotients"),
                         name = self.name + "/metrics/error_quotient")
-      return self.errors
-    
-    slave_errors_by_slave = [None] * len(self.erq_args[0])
-    for i in range(len(self.erq_args[0])):
-      slave_errors_by_slave[i] = [None] * self.n_devs
-      for j in range(self.n_devs):
-        slave_errors_by_slave[i][j] = slave_errors[j][i]
+      K = ['']
+
+    else:
+      slave_errors_by_slave = [None] * len(self.erq_args[0])
+      for i in range(len(self.erq_args[0])):
+        slave_errors_by_slave[i] = [None] * self.n_devs
+        for j in range(self.n_devs):
+          slave_errors_by_slave[i][j] = slave_errors[j][i]
 
 
-    self.errors = [None] * len(self.erq_args[0])
-    for i, k in enumerate(self.erq_args[0]):
-      if self.dev is None:
-        self.errors[i] = Creation('mean')(Creation('pack')(slave_errors_by_slave[i],
-                         name = self.name + "/metrics/error_quotients_" + str(k)), 
-                         name = self.name + "/metrics/error_quotient_" + str(k))
-      else:
-        with Device(self.dev):
+      self.errors = [None] * len(self.erq_args[0])
+      K = [None] * len(self.erq_args[0])
+      for i, k in enumerate(self.erq_args[0]):
+        if self.dev is None:
           self.errors[i] = Creation('mean')(Creation('pack')(slave_errors_by_slave[i],
                            name = self.name + "/metrics/error_quotients_" + str(k)), 
                            name = self.name + "/metrics/error_quotient_" + str(k))
+        else:
+          with Device(self.dev):
+            self.errors[i] = Creation('mean')(Creation('pack')(slave_errors_by_slave[i],
+                             name = self.name + "/metrics/error_quotients_" + str(k)), 
+                             name = self.name + "/metrics/error_quotient_" + str(k))
+        K[i] = '_{}'.format(k)
+
+    self.error_metrics = [None] * len(self.errors)
+    for i in range(len(self.errors)):
+      self.error_metrics[i] = self.add_metric()
+      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'eval')
+      self.error_metrics[i].__call__(self.errors[i])
     return self.errors
 
 #-------------------------------------------------------------------------------
@@ -342,6 +351,9 @@ class hypervisor (supervisor, master, stem):
         self.cost = Creation('mean')(Creation('pack')(slave_costs,
                     name = self.name + "/metrics/costs"),
                     name = self.name + "/metrics/cost")
+    self.cost_metric = self.add_metric()
+    self.cost_metric.set_label('COST', 'train', 'eval')
+    self.cost_metric.__call__(self.cost)
     return self.cost
 
 #-------------------------------------------------------------------------------
@@ -359,6 +371,9 @@ class hypervisor (supervisor, master, stem):
         self.loss = Creation('mean')(Creation('pack')(slave_losses,
                     name = self.name + "/metrics/losses"),
                     name = self.name + "/metrics/loss")
+    self.loss_metric = self.add_metric()
+    self.loss_metric.set_label('LOSS', 'train', 'eval')
+    self.loss_metric.__call__(self.loss)
     return self.loss
 
 #-------------------------------------------------------------------------------

@@ -38,6 +38,14 @@ class supervisor (overseer):
   regime_grad_and_vars = None  # grad_and_vars relevant to each regime
   hatval = None                # object to compare labels for error calculations
   arch_out = None              # object to compare labels for cost calculations 
+  cost = None                  # cost object
+  cost_metric = None           # cost metric
+  loss = None                  # loss object
+  loss_metric = None           # loss metric
+  errors = None                # list of errors
+  error_metrics = None         # list of error metrics
+  train_summary_str = None     # list of train summary string
+  test_summary_str = None      # list of train summary string
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -168,7 +176,7 @@ class supervisor (overseer):
   def _call_errors(self):
     self.errors = None
     if self.erq is None: return self.errors
-    if not(len(self.erq_args)): # i.e. mse
+    if not len(self.erq_args): # i.e. mse
       if self.dev is None:
         with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
           self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
@@ -176,12 +184,22 @@ class supervisor (overseer):
         with Device(self.dev):
           with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
             self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
+      K = ['']
     else:
       self.errors = [None] * len(self.erq_args)
+      K = [None] * len(self.erq_args[0])
       # at the time of coding, "in_top_k" was not supported by GPU devices
       for i, k in enumerate(self.erq_args[0]):
         self.errors[i] = Creation(self.erq)(self.hatval, self.labels, k,\
                                             name = self.name + "/metrics/error_quotient_" + str(k))
+        K[i] = '_{}'.format(k)
+      
+    self.error_metrics = [None] * len(self.errors)
+    for i in range(len(self.errors)):
+      self.error_metrics[i] = self.add_metric()
+      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'eval')
+      self.error_metrics[i].__call__(self.errors[i])
+
     return self.errors
 
 #-------------------------------------------------------------------------------
@@ -234,6 +252,9 @@ class supervisor (overseer):
         raise ValueError("Hat values and labels dimensionality incommensurate: " +
                          str(ndim_hatval) + "-D vs " + str(ndim_labels) + "-D")
 
+    self.cost_metric = self.add_metric()
+    self.cost_metric.set_label('COST', 'train', 'eval')
+    self.cost_metric.__call__(self.cost)
     return self.cost
 
 #-------------------------------------------------------------------------------
@@ -250,6 +271,9 @@ class supervisor (overseer):
       else:
         with Device(self.dev):
           self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/metrics/loss")
+    self.loss_metric = self.add_metric()
+    self.loss_metric.set_label('LOSS', 'train', 'eval')
+    self.loss_metric.__call__(self.loss)
     return self.loss
 
 #-------------------------------------------------------------------------------
@@ -297,56 +321,29 @@ class supervisor (overseer):
     return self.train_ops
 
 #-------------------------------------------------------------------------------
-  def _call_scalars(self, scalars = None, scalar_names = None,
-                          train_scalars = None, train_scalar_names = None, 
-                          tests_scalars = None, tests_scalar_names = None):
-    overseer._call_scalars(self, scalars, scalar_names)
-    if train_scalars is None:
-      train_scalars = [self.cost, self.loss]
-      if self.errors is not None:
-        train_scalars += self.errors
-    if train_scalar_names is None:
-      train_scalar_names = [self.name+"/COST_TRAIN", self.name+"/LOSS_TRAIN"]
-      if self.errors is not None:
-        if Creation(self.erq) != Creation("in_top_k_error"):
-          train_scalar_names.append(self.name+"/ERRQ_TRAIN")
-        else:
-          for i, err in enumerate(self.errors):
-            train_scalar_names.append(self.name+"/ERRQ_TRAIN_"+str(self.erq_args[0][i]))
-    if tests_scalars is None:
-      tests_scalars = [self.cost, self.loss]
-      if self.errors is not None:
-        tests_scalars += self.errors
-    if tests_scalar_names is None:
-      tests_scalar_names = [self.name+"/COST_TEST", self.name+"/LOSS_TEST"]
-      if self.errors is not None:
-        if Creation(self.erq) != Creation("in_top_k_error"):
-          tests_scalar_names.append(self.name+"/ERRQ_TEST")
-        else:
-          for i, err in enumerate(self.errors):
-            tests_scalar_names.append(self.name+"/ERRQ_TEST_"+str(self.erq_args[0][i]))
-    self.train_scalars, self.train_scalar_names = train_scalars, train_scalar_names
-    self.tests_scalars, self.tests_scalar_names = tests_scalars, tests_scalar_names
-    self.train_scalar_logs = []
+  def _call_scalars(self):
 
-    for scalar, scalar_name in zip(self.train_scalars, self.train_scalar_names):
-      if scalar is not None:
-        self.train_scalar_logs.append(Summary('scalar')(scalar_name, scalar))
+    # Call trainer metrics
+    self.train_scalars, self.train_scalar_labels, self.train_scalar_sublabels, \
+        self.train_scalar_logs = overseer._call_scalars(self, 'train')
+
+    # Call evaluation metrics
+    self.eval_scalars, self.eval_scalar_labels, self.eval_scalar_sublabels, \
+        self.eval_scalar_logs = overseer._call_scalars(self, 'eval')
+
+    # Test metrics are the averages of evaluation metrics
+    self.test_scalar_labels = [lbl.replace('EVAL', 'TEST') \
+        for lbl in self.eval_scalar_labels]
+    self.test_scalar_sublabels = [lbl.replace('EVAL', 'TEST') \
+        for lbl in self.eval_scalar_sublabels]
+    self.test_scalars = [None] * len(self.eval_scalars)
     self.test_scalar_logs = []
-    self.test_scalars = [None] * len(tests_scalars)
-    for i, scalar_name in enumerate(self.tests_scalar_names):
-      if self.tests_scalars[i] is not None:
+    for i in range(len(self.eval_scalars)):
+      if self.eval_scalars[i] is not None:
         self.test_scalars[i] = Creation('var')(0., name=self.name+"/metrics/test_scalar_"+str(i))
-        self.test_scalar_logs.append(Summary('scalar')(scalar_name, self.test_scalars[i]))
-    self.scalars_summary = [None] * ((len(self.scalars) + len(self.test_scalars)))
-    self.summary_names = [None] * len(self.scalars_summary)
-    for i, summary in enumerate(self.summary_names):
-      if i < len(self.scalar_names):
-        summary_name = self.scalar_names[i]
-      else:
-        summary_name = self.tests_scalar_names[i - len(self.scalar_names)]
-      self.summary_names[i] = summary_name.replace(self.name + "/", "")
-    return self.scalars
+        self.test_scalar_logs.append(Summary('scalar')(self.test_scalar_labels[i], self.test_scalars[i]))
+    return self.scalars, self.scalar_labels, \
+           self.scalar_sublabels, self.scalar_logs
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None, feed_labels = None):
@@ -376,13 +373,12 @@ class supervisor (overseer):
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, args[0], args[1])
     self.session.run(self.train_ops[self.using_regime], feed_dict = feed_dict)
-    self.scalars_train = self.summarise()
-    self.scalars_train = self.scalars_train[:len(self.scalars)]
+    val_lbl = self.summarise()
     save_session = self.write_intervals[2]
     save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
     if save_session and self.write_dir is not None:
       self.save(self.write_dir + "/" + self.name)
-    return self.scalars_train
+    return val_lbl
 
 #-------------------------------------------------------------------------------
   def summarise(self): # only relevent for training sets
@@ -393,13 +389,16 @@ class supervisor (overseer):
     # Scalars 
     calc_scalars = self.write_intervals[0]
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
+    scalars_val, sublabels = None, None
     if calc_scalars:
-      scalars_num_log = self.session.run(self.scalars + self.train_scalars + self.scalar_logs + self.train_scalar_logs, 
-                                         feed_dict = self.feed_dict)
-      n_scalars = len(self.scalars) + len(self.train_scalars)
-      scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
-      self.scalars_summary[:len(self.scalars)] = scalars_num[:len(self.scalars)]
+      scalars, labels, sublabels, logs = self.ret_scalar_group('train')
+      scalars_val_log = self.session.run(scalars + logs, feed_dict = self.feed_dict)
+      num_scalars = len(scalars)
+      scalars_val, scalars_log = scalars_val_log[:num_scalars], scalars_val_log[num_scalars:]
       self._add_logs(scalars_log)
+      summary_strs = [name + "=" + str(num) for name, num in zip(
+        sublabels, scalars_val)]
+      self.train_summary_str = ', '.join(summary_strs)
 
     # Distros
     calc_distros = self.write_intervals[1]
@@ -407,7 +406,7 @@ class supervisor (overseer):
     if calc_distros:
       distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
       self._add_logs(distros_log)
-    return self.scalars_summary
+    return scalars_val, sublabels
 
 #-------------------------------------------------------------------------------
   def test(self, *args, **kwds):
@@ -417,20 +416,21 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot test without first invoking new_session")
     split = 1 if 'split' not in kwds else kwds['split']
-    n_scalars = len(self.test_scalars)
-    test_scalars = np.empty([split, n_scalars], dtype = np.float32)
+    scalars, labels, sublabels, logs = self.ret_scalar_group('eval')
+    num_scalars = len(scalars)
+    eval_scalars = np.empty([split, num_scalars], dtype = np.float32)
     arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
     for i in range(split):
       feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
-      test_scalars[i, :] = self.session.run(self.tests_scalars, feed_dict = feed_dict)
-    test_scalars = np.mean(test_scalars, axis = 0)
-    for i in range(len(self.test_scalars)):
+      eval_scalars[i, :] = self.session.run(scalars, feed_dict = feed_dict)
+    test_scalars = np.mean(eval_scalars, axis = 0)
+    for i in range(num_scalars):
       self.session.run(self.test_scalars[i].assign(test_scalars[i]), feed_dict = {})
     scalars_log = self.session.run(self.test_scalar_logs)
     self._add_logs(scalars_log)
-    self.scalars_summary[len(self.scalars):] = test_scalars
-    summary_strs = [name + "=" + str(num) for name, num in zip(self.summary_names, self.scalars_summary)]
-    return ', '.join(summary_strs)
+    summary_strs = [name + "=" + str(num) for name, num in zip(
+      self.test_scalar_sublabels, test_scalars)]
+    self.test_summary_str = ', '.join(summary_strs)
+    return self.train_summary_str + "," + self.test_summary_str
 
 #-------------------------------------------------------------------------------
-
