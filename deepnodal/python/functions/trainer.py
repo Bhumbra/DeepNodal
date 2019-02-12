@@ -1,5 +1,5 @@
 """
-Slave module for Tensorflow. It is an abstract class with self.train as the
+Trainer module for Tensorflow. It is an abstract class with self.train as the
 abstract method which must be defined by inheriting classes for instantiation.
 
 A trainer needs work (the associated network) according to unsupervised or
@@ -14,14 +14,13 @@ logging, and saving.
 #-------------------------------------------------------------------------------
 import csv
 from deepnodal.python.structures.network import *
-from deepnodal.python.concepts.slave import *
-from deepnodal.python.functions.metric import *
+from deepnodal.python.functions.recorder import *
 from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
-class trainer (slave):
+class trainer (recorder):
   """
-  A trainer is a slave with a single optimiser specification and provides an 
+  A trainer is a recorder with a single optimiser specification and provides an 
   abstract interface for handling a network's parameters, outputs, as well as 
   provision for training sessions, variable handling, loggers, and savers. 
 
@@ -32,7 +31,8 @@ class trainer (slave):
   """
   def_name = 'trainer'
   def_write_intervals = [10, 1000, False] # write intervals [scalar, distro, model]
-  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] gst = None                       # global_step
+  progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] 
+  gst = None                       # global_step
   ist = None                       # is training flag
   work = None                      # network instance to train
   inputs = None                    # work input
@@ -40,7 +40,6 @@ class trainer (slave):
   outputs = None                   # outputs of work as a list
   variables = None                 # entire list of parameter variables
   variable_names = None            # list of variable names          
-  scalars = None                   # list of summary scalars
   distros = None                   # list of summary distributions
   write_dir = None                 # write directory
   logger = None                    # log writer creation
@@ -49,6 +48,11 @@ class trainer (slave):
   gvi = None                       # global variables initialiser
   write_intervals = None           # see def_write_intervals
   metrics = None                   # list of metrics
+  batch_size_metric = None         # batch size metric
+  batch_size = None                # batch size
+  batch_size_op = None             # batch size update op
+  learning_rate_metric = None      # learning rate metric
+  learning_rate = None             # learning rate
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -76,28 +80,6 @@ class trainer (slave):
       raise TypeError("Only suitable work is a network.")
     if self.dev is not None:
       self.work.set_dev(self.dev)
-
-#-------------------------------------------------------------------------------
-  def set_metrics(self, metrics = None):
-    self.metrics = metrics
-    if self.metrics is None:
-      self.metrics = []
-    self.n_metrics = len(self.metrics)
-
-#-------------------------------------------------------------------------------
-  def new_metric(self, met = None, *met_args, **met_kwds):
-    """
-    New metric is created on the basis of function and arguments
-    """
-    self.metrics.append(regime(self.name + "/metrics/metric_" + str(len(self.metrics)), self.dev))
-    self.metrics[-1].set_creation(Creation(met), *met_args, **met_kwargs)
-    self.n_metrics = len(self.metrics)
-    return self.n_metrics - 1
-
-#-------------------------------------------------------------------------------
-  def set_metric_inputs(self, metric_index, *inputs_args, **inputs_kwds):
-    self.metrics[metric_index].set_inputs(*input_args, **inputs_kwds)
-    return self.metrics[index_index]
 
 #-------------------------------------------------------------------------------
   def set_progress(self, progress = None):
@@ -181,20 +163,12 @@ class trainer (slave):
 #-------------------------------------------------------------------------------
   def _call_batch_size(self):
     # At the time of coding, batch_size evaluation is not GPU-compatible
-    """
-    if self.dev is None:
-      self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-      with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-        self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
-    else:
-      with Device(self.dev):
-        self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-        with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-          self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
-    """
-    self.batch_size = Creation('var')(0 , trainable=False, name=self.name+"/batch/batch_size")
-    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-      self.batch_size_op = self.batch_size.assign(Creation('shape')(self.inputs[0])[0])
+    self.batch_size_metric = self.add_metric('var', 0, trainable=False, 
+        name=self.name+"/batch/batch_size") 
+    self.batch_size_metric.set_label("BATCH_SIZE", 'train')
+    self.batch_size = self.batch_size_metric.__call__()
+    self.batch_size_op = self.batch_size_metric.call_assign(
+        Creation('shape')(self.inputs[0])[0])
 
 #-------------------------------------------------------------------------------
   def _call_learning_rate(self, gst = None): # this sets up self.learning_rate
@@ -240,6 +214,9 @@ class trainer (slave):
         else:
           with Device(self.dev):
             self.learning_rate = lrn(*lrn_args, global_step = self.gst, **kwds)
+      self.learning_rate_metric = self.add_metric()
+      self.learning_rate_metric.set_label('LEARNING_RATE', 'train')
+      self.learning_rate_metric.__call__(self.learning_rate)
 
 #-------------------------------------------------------------------------------
   def _call_global_step(self): # global_step is not device dependent
@@ -263,7 +240,6 @@ class trainer (slave):
     self.params is list of dictionaries in the form:
     self.param[i] = {self.variable_names[i]: self.variables}
     """
-
     # Set up variables
     self.params = self.work.ret_params()
     self.n_params = len(self.params)
@@ -323,19 +299,6 @@ class trainer (slave):
     return self.outputs
 
 
-#-------------------------------------------------------------------------------
-  def _call_scalars(self, scalars = None, scalar_names = None):
-    if scalars is None:
-      scalars = [self.batch_size, self.learning_rate]
-    if scalar_names is None:
-      scalar_names = [self.name + "/BATCH_SIZE",
-                      self.name + "/LEARNING_RATE"]
-    self.scalars, self.scalar_names = scalars, scalar_names
-    self.scalar_logs = []
-    for scalar, scalar_name in zip(self.scalars, self.scalar_names):
-      if scalar is not None:
-        self.scalar_logs.append(Summary('scalar')(scalar_name, scalar))
-    return self.scalars
 
 #-------------------------------------------------------------------------------
   def _call_distros(self, distros = None, distro_names = None):
