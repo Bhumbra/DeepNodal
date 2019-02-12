@@ -59,7 +59,7 @@ class hypervisor (supervisor, master, stem):
     # Set names of supervisors (through master)
     master.set_name(self, self.name)
 
-    # Set names of regimens (through overseer)
+    # Set names of schedules (through overseer)
     supervisor.set_name(self, self.name)
     
     # Set names of clones (through stem)
@@ -144,7 +144,7 @@ class hypervisor (supervisor, master, stem):
     2. While setting up the hypervisor as an overseer and trainer, call overloaded 
        __call__ functions to include specification parameters (including identity 
        operations for split inputs) for slave specifications commanded by the hypervisor 
-       (e.g. inputs, optimiser, regimes), and while setting up as a supervisor, the same 
+       (e.g. inputs, optimiser, schedules), and while setting up as a supervisor, the same 
        for the labels.
     3. Re-assign the original network outputs with concatenated outputs from those slaves
     4. Before setting up hypersupervisor performance metrics (e.g. cost, loss, gradients),
@@ -251,18 +251,18 @@ class hypervisor (supervisor, master, stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def _setup_regimes(self, gst = None): # overloading overseer._setup_regimes(gst)
-    argout = supervisor._setup_regimes(self, gst)
+  def _setup_schedules(self, gst = None): # overloading overseer._setup_schedules(gst)
+    argout = supervisor._setup_schedules(self, gst)
     if self.unit_dev: return argout
     for _slave in self.slaves:
-      _slave.set_regimes(self.regimes)
+      _slave.set_schedules(self.schedules)
 
 #-------------------------------------------------------------------------------
-  def use_regime(self, using_regime = -1): # overloading overseer.use_regime(using_regime)
-    argout = supervisor.use_regime(self, using_regime)
+  def use_schedule(self, using_schedule = -1): # overloading overseer.use_schedule(using_schedule)
+    argout = supervisor.use_schedule(self, using_schedule)
     if self.unit_dev: return argout
     for _slave in self.slaves:
-      _slave.use_regime(self.using_regime)
+      _slave.use_schedule(self.using_schedule)
     return argout
 
 #-------------------------------------------------------------------------------
@@ -439,30 +439,30 @@ class hypervisor (supervisor, master, stem):
             with Device(self.dev):
               self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
 
-    # Parameter updates are regime-dependent
-    self.regime_grad_and_vars = [None] * self.n_regimes
-    self.lrate_ops = [None] * self.n_regimes # learning rate ops
-    self.prepa_ops = [None] * self.n_regimes # preparatory ops
-    self.delta_ops = [None] * self.n_regimes # delta parameter ops
-    self.train_ops = [None] * self.n_regimes # training ops
-    for i, _regime in enumerate(self.regimes):
-      self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
+    # Parameter updates are schedule-dependent
+    self.schedule_grad_and_vars = [None] * self.n_schedules
+    self.lrate_ops = [None] * self.n_schedules # learning rate ops
+    self.prepa_ops = [None] * self.n_schedules # preparatory ops
+    self.delta_ops = [None] * self.n_schedules # delta parameter ops
+    self.train_ops = [None] * self.n_schedules # training ops
+    for i, _schedule in enumerate(self.schedules):
+      self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-          self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+          self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
           self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-        with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+            self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-            self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+            self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
             self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-          with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
-              self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+              self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                  global_step = self.gst)
       self.train_ops[i] = self.delta_ops[i]
     return self.train_ops
@@ -474,4 +474,3 @@ class hypervisor (supervisor, master, stem):
     return supervisor.test(self, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-

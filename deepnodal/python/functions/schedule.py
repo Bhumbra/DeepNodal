@@ -1,5 +1,5 @@
 """
-Regime module for Tensorflow. 
+Schedule module for Tensorflow. 
 """
 
 # Gary Bhumbra
@@ -9,13 +9,13 @@ from deepnodal.python.concepts.slave import *
 from deepnodal.python.interfaces.calls import *
 
 #-------------------------------------------------------------------------------
-class regime (slave):
+class schedule (slave):
   """
-  A regime is a slave with a learning rate specification but without optimiser
-  and progress treatment. Instead regime provides individual treatment for
+  A schedule is a slave with a learning rate specification but without optimiser
+  and progress treatment. Instead schedule provides individual treatment for
   dropout and parameter specifications.
   """
-  def_name = 'regime'
+  def_name = 'schedule'
   gst = None            # global step
   dro = None            # dropout specification
   par = None            # parameter specification

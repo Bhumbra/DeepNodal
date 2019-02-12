@@ -110,7 +110,7 @@ def main():
   sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
   for i in sorted(list(learning_rates)):
-    sup.new_regime(learning_rates[i])
+    sup.add_schedule(learning_rates[i])
 
   # CHECK FOR RESTOREPOINT
 
@@ -122,7 +122,7 @@ def main():
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   log_out = None if write_dir is None else write_dir+net_name+"_"+now
   mod_out = None if write_dir is None else log_out + "/" + net_name
-  regime = -1
+  schedule = -1
   epoch_0 = 0
   t0 = time()
 
@@ -131,12 +131,12 @@ def main():
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
       for i in range(epoch_0):
         if i in learning_rates:
-          regime += 1
-          sup.use_regime(regime)
+          schedule += 1
+          sup.use_schedule(schedule)
     for i in range(epoch_0, n_epochs):
       if i in learning_rates:
-        regime += 1
-        sup.use_regime(regime)
+        schedule += 1
+        sup.use_schedule(schedule)
       for j in range(iterations_per_epoch):
         images, labels = source.train_next_batch(batch_size, rand_horz_flip, rand_bord_crop)
         sup.train(images, labels)

@@ -55,7 +55,7 @@ def main():
   sup.set_errorq('mse')
   sup.set_work(net)
   sup.set_optimiser(optimiser, **optimiser_kwds)
-  sup.new_regime(learning_rate)
+  sup.add_schedule(learning_rate)
 
   # TRAIN AND TEST
 

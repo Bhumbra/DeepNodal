@@ -45,7 +45,7 @@ def main():
 
   sup = dn.supervisor()
   sup.set_work(net)
-  sup.new_regime(learning_rate)
+  sup.add_schedule(learning_rate)
   sup.set_costfn('mse')
 
   # TRAIN AND TEST

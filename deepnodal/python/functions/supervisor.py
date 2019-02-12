@@ -20,7 +20,7 @@ class supervisor (overseer):
   A supervisor is an overseer with the benefit of labels. As a result, it should
   receive an expected output data set for each input data set. It uses a gradient-
   based optimiser (e.g. stochastic gradient descent) to update the parameters 
-  within the work architecture according to pre-specified learning regimes based 
+  within the work architecture according to pre-specified learning schedules based 
   on a cost or loss function. Optionally this can include additional 
   regularisation losses based on the magnitude of weight parameters.
   
@@ -35,7 +35,7 @@ class supervisor (overseer):
   erq = None                   # error quotient 
   gradients = None             # gradients
   grad_and_vars = None         # gradients and variables
-  regime_grad_and_vars = None  # grad_and_vars relevant to each regime
+  schedule_grad_and_vars = None  # grad_and_vars relevant to each schedule
   hatval = None                # object to compare labels for error calculations
   arch_out = None              # object to compare labels for cost calculations 
   cost = None                  # cost object
@@ -278,7 +278,7 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _call_gradients(self):
-    # We calculate all parameter gradients, whether regime-specified or not
+    # We calculate all parameter gradients, whether schedule-specified or not
     if self.dev is None:
       with Scope('var', self.name + "/", reuse = Flag('auto_reuse')):
         self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
@@ -292,30 +292,30 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _call_train_ops(self):
-    # Parameter updates are regime-dependent
-    self.regime_grad_and_vars = [None] * self.n_regimes
-    self.lrate_ops = [None] * self.n_regimes # learning rate ops
-    self.prepa_ops = [None] * self.n_regimes # preparatory ops
-    self.delta_ops = [None] * self.n_regimes # delta parameter ops
-    self.train_ops = [None] * self.n_regimes # training ops
-    for i, _regime in enumerate(self.regimes):
-      self.regime_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.regime_param_indices[i]]
+    # Parameter updates are schedule-dependent
+    self.schedule_grad_and_vars = [None] * self.n_schedules
+    self.lrate_ops = [None] * self.n_schedules # learning rate ops
+    self.prepa_ops = [None] * self.n_schedules # preparatory ops
+    self.delta_ops = [None] * self.n_schedules # delta parameter ops
+    self.train_ops = [None] * self.n_schedules # training ops
+    for i, _schedule in enumerate(self.schedules):
+      self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-          self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+          self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
           self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
-        with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+            self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                            global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/regimes/apply_regime_"+str(i), reuse=Flag('auto_reuse')):
-            self.lrate_ops[i] = self.learning_rate.assign(self.regimes[i].learning_rate)
+          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+            self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
             self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
-          with variable_scope(self.name + "/regimes/apply_regime_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
-              self.delta_ops[i] = self.optimiser.apply_gradients(self.regime_grad_and_vars[i], 
+              self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                              global_step = self.gst)
       self.train_ops[i] = self.delta_ops[i]
     return self.train_ops
@@ -352,13 +352,13 @@ class supervisor (overseer):
     feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs, self.labels: feed_labels}
     if self.session is None: return feed_dict
 
-    # Default using_regime if necessary
-    if self.using_regime is None: self.regime = -1
+    # Default using_schedule if necessary
+    if self.using_schedule is None: self.schedule = -1
 
     # If training, updates learning_op
     if is_training: 
       self.feed_dict = feed_dict
-      self.use_regime(max(0, self.using_regime))
+      self.use_schedule(max(0, self.using_schedule))
       self.progress[0] += 1                # one batch-update
       self.progress[1] += len(feed_inputs) # sum(batch_sizes)
 
@@ -372,7 +372,7 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, args[0], args[1])
-    self.session.run(self.train_ops[self.using_regime], feed_dict = feed_dict)
+    self.session.run(self.train_ops[self.using_schedule], feed_dict = feed_dict)
     val_lbl = self.summarise()
     save_session = self.write_intervals[2]
     save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)

@@ -3,14 +3,14 @@ Overseer module for TensorFlow. It is an abstract class with self.train as the
 abstract method which must be defined by inheriting classes for instantiation.
 
 A overseer is a trainer that can perform unsupervised or supervised learning 
-with multiple learning regimen.
+with multiple learning schedule.
 """
 
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.functions.trainer import *
-from deepnodal.python.functions.regime import *
+from deepnodal.python.functions.schedule import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_LEARNING_RATE = 0.01
@@ -20,7 +20,7 @@ class overseer (trainer):
   """
   A overseer is an abstract class inheriting from trainer, associated with 
   a single optimiser to perform unsupervised or supervised training.
-  In addition a overseer can use one or more training regimens for learning. 
+  In addition a overseer can use one or more training schedules for learning. 
   
   The class overseer does not calculate gradients.
 
@@ -29,82 +29,82 @@ class overseer (trainer):
 
   """
   def_name = 'overseer'
-  regimes = None                   # list of training_regimes
-  using_regime = None              # Python index of currently active regime
-  regime_index = None              # Graph object of using_regime
-  regime_index_metric = None       # Metric for regime_index
+  schedules = None                   # list of training_schedules
+  using_schedule = None              # Python index of currently active schedule
+  schedule_index = None              # Graph object of using_schedule
+  schedule_index_metric = None       # Metric for schedule_index
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     trainer.__init__(self, name, dev)
-    self.set_regimes()
+    self.set_schedules()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
     self.name = name if name is not None else self.def_name
-    if self.regimes is None: return
-    for i, _regimes in enumerate(self.regimes):
-      _regimes.set_name(self.name+"/regime_"+str(i))
+    if self.schedules is None: return
+    for i, _schedules in enumerate(self.schedules):
+      _schedules.set_name(self.name+"/schedule_"+str(i))
 
 #-------------------------------------------------------------------------------
   def set_dev(self, dev = None):
     self.dev = dev
-    if self.regimes is None: return
-    for _regimes in self.regimes:
-      _regimes.set_dev(self.dev)
+    if self.schedules is None: return
+    for _schedules in self.schedules:
+      _schedules.set_dev(self.dev)
 
 #-------------------------------------------------------------------------------
   def set_global_step(self, gst = None):
     self.gst = gst
-    if self.regimes is None: return
-    for _regimes in self.regimes:
-      _regimes.set_global_step(self.gst)
+    if self.schedules is None: return
+    for _schedules in self.schedules:
+      _schedules.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
-  def set_regimes(self, regimes = None):
-    self.regimes = regimes
-    if self.regimes is None:
-      self.regimes = []
-    self.n_regimes = len(self.regimes)
-    self.use_regime() # initialises to -1
+  def set_schedules(self, schedules = None):
+    self.schedules = schedules
+    if self.schedules is None:
+      self.schedules = []
+    self.n_schedules = len(self.schedules)
+    self.use_schedule() # initialises to -1
 
 #-------------------------------------------------------------------------------
-  def new_regime(self, lrn = None, *lrn_args, **lrn_kwds):
+  def add_schedule(self, lrn = None, *lrn_args, **lrn_kwds):
     """
-    New regime is created on the basis on learning rate specifications.
-    The index of the new regime is returned.
+    New schedule is created on the basis on learning rate specifications.
+    The index of the new schedule is returned.
     """
-    self.regimes.append(regime(self.name + "/regimes/regime_" + str(len(self.regimes)), self.dev))
-    self.regimes[-1].set_learning_rate(Creation(lrn), *lrn_args, **lrn_kwds)
-    self.n_regimes = len(self.regimes)
-    return self.n_regimes - 1
+    self.schedules.append(schedule(self.name + "/schedules/schedule_" + str(len(self.schedules)), self.dev))
+    self.schedules[-1].set_learning_rate(Creation(lrn), *lrn_args, **lrn_kwds)
+    self.n_schedules = len(self.schedules)
+    return self.n_schedules - 1
 
 #-------------------------------------------------------------------------------
-  def set_regime(self, regime_index = None, dro = None, par = None):
+  def set_schedule(self, schedule_index = None, dro = None, par = None):
     """
     dro is the dropout specification
     par is the parameter specification
-    The affected regime class instance is returned.
+    The affected schedule class instance is returned.
     """
-    self.regimes[regime_index].set_dropouts(dro)
-    self.regimes[regime_index].set_parameters(par)
-    return self.regimes[regime_index]
+    self.schedules[schedule_index].set_dropouts(dro)
+    self.schedules[schedule_index].set_parameters(par)
+    return self.schedules[schedule_index]
 
 #-------------------------------------------------------------------------------
   def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True):
 
-    # Call the regimes
-    gst = self._call_regimes(gst)
+    # Call the schedules
+    gst = self._call_schedules(gst)
 
     # Call all trainer objects except the metrics
     ist, gst = trainer.__call__(self, ist, gst, True, False)
 
-    # Collate the regimen parameter indices 
-    self.regime_param_indices = [None] * self.n_regimes
+    # Collate the schedule parameter indices 
+    self.schedule_param_indices = [None] * self.n_schedules
 
-    for i, _regime in enumerate(self.regimes):
-      _regime.__call__(self.gst)
-      self.regime_param_indices[i] = self.work.ret_params(_regime.par, True)
+    for i, _schedule in enumerate(self.schedules):
+      _schedule.__call__(self.gst)
+      self.schedule_param_indices[i] = self.work.ret_params(_schedule.par, True)
 
     self._call_metrics(skip_metrics)
 
@@ -113,35 +113,27 @@ class overseer (trainer):
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _call_regimes(self, gst = None): # this sets up the regime learning rate graph objects
+  def _call_schedules(self, gst = None): # this sets up the schedule learning rate graph objects
 
     # Establish the global-step flag
     if self.gst is None: self.set_global_step(gst)
     if self.gst is None: self._call_global_step()
 
-    # Set up the regime index scalar - at the time of coding, not GPU-compatible
-    """
-    if self.dev is None:
-      self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
-    else:
-      with Device(self.dev):
-        self.regime_index = Creation('var')(self.using_regime, trainable=False, name=self.name+"/regimes/index")
-    """
+    # Set up the schedule index scalar - at the time of coding, not GPU-compatible
+    self.schedule_index_metric = self.add_metric('var', 0, trainable=False, name=self.name+"/schedules/index")
+    self.schedule_index_metric.set_label("SCHEDULE_INDEX", 'train')
+    self.schedule_index = self.schedule_index_metric.__call__()
 
-    self.regime_index_metric = self.add_metric('var', 0, trainable=False, name=self.name+"/regimes/index")
-    self.regime_index_metric.set_label("REGIMEN_INDEX", 'train')
-    self.regime_index = self.regime_index_metric.__call__()
+    # We need at least one schedule
+    if not(self.n_schedules):
+      self.add_schedule(DEFAULT_LEARNING_RATE)
 
-    # We need at least one regime
-    if not(self.n_regimes):
-      self.new_regime(DEFAULT_LEARNING_RATE)
+    # Call the schedule instances
+    for _schedule in self.schedules: _schedule.__call__(self.gst)
 
-    # Call the regime instances
-    for _regime in self.regimes: _regime.__call__(self.gst)
-
-    # Construct learning rate specifications suitable for regimens
-    if self.n_regimes == -1:
-      self.set_learning_rate('identity', self.regimes[0].learning_rate)
+    # Construct learning rate specifications suitable for schedules
+    if self.n_schedules == -1:
+      self.set_learning_rate('identity', self.schedules[0].learning_rate)
     else:
       self.set_learning_rate('var', 0)
 
@@ -154,13 +146,13 @@ class overseer (trainer):
     feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs}
     if self.session is None: return feed_dict
 
-    # Default using_regime if necessary
-    if self.using_regime is None: self.regime = -1
+    # Default using_schedule if necessary
+    if self.using_schedule is None: self.schedule = -1
 
     # If training, update batch_size and learning rate
     if is_training: 
       self.feed_dict = feed_dict
-      self.use_regime(max(0, self.using_regime))
+      self.use_schedule(max(0, self.using_schedule))
       self.progress[0] += 1                # one batch-update
       self.progress[1] += len(feed_inputs) # sum(batch_sizes)
 
@@ -172,25 +164,25 @@ class overseer (trainer):
     pass
 
 #-------------------------------------------------------------------------------
-  def use_regime(self, using_regime = -1): # this updates regime index and learning rate
-    # Returns whether the regime must be updated online
+  def use_schedule(self, using_schedule = -1): # this updates schedule index and learning rate
+    # Returns whether the schedule must be updated online
     if self.session is None:
-      self.using_regime = using_regime
+      self.using_schedule = using_schedule
       return False
     
-    update_regime = self.using_regime != using_regime
+    update_schedule = self.using_schedule != using_schedule
 
-    # Update regime_index and run update operations if necessary
-    if update_regime:
+    # Update schedule_index and run update operations if necessary
+    if update_schedule:
       # Regime learning rates and parameter list updates look after themselves
-      # That just leaves the regime index and dropout
-      self.using_regime = using_regime
-      with Scope('var', self.name+"/regime_updates", reuse=True):
-        op = self.regime_index.assign(self.using_regime)
+      # That just leaves the schedule index and dropout
+      self.using_schedule = using_schedule
+      with Scope('var', self.name+"/schedule_updates", reuse=True):
+        op = self.schedule_index.assign(self.using_schedule)
         self.session.run(op)
-      self.work.set_dropout(self.session, self.regimes[self.using_regime].dro)
+      self.work.set_dropout(self.session, self.schedules[self.using_schedule].dro)
 
-    return update_regime
+    return update_schedule
     
 #-------------------------------------------------------------------------------
 
