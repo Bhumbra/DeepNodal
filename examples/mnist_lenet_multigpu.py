@@ -52,7 +52,7 @@ def main():
 
   sup = dn.hypervisor(devs = 2)
   sup.set_work(net)
-  sup.new_regime(learning_rate)
+  sup.add_schedule(learning_rate)
 
   # TRAIN AND TEST
 

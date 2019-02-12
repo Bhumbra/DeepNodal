@@ -53,11 +53,11 @@ def main():
   sup = dn.supervisor()
   sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
-  sup.new_regime(learning_rate)
-  sup.new_regime(0.1*learning_rate)
-  sup.new_regime(0.01*learning_rate)
-  sup.new_regime(0.01*learning_rate)
-  sup.set_regime(3, False) # disable dropout
+  sup.add_schedule(learning_rate)
+  sup.add_schedule(0.1*learning_rate)
+  sup.add_schedule(0.01*learning_rate)
+  sup.add_schedule(0.01*learning_rate)
+  sup.set_schedule(3, False) # disable dropout
 
   # TRAIN AND TEST
 
@@ -66,11 +66,11 @@ def main():
   with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       if i == n_epochs // 4:
-        sup.use_regime(1)
+        sup.use_schedule(1)
       elif i == n_epochs // 2:
-        sup.use_regime(2)
+        sup.use_schedule(2)
       elif i == 3 * n_epochs // 4:
-        sup.use_regime(3)
+        sup.use_schedule(3)
       for j in range(iterations_per_epoch):
         images, labels = source.train_next_batch(batch_size)
         sup.train(images, labels)

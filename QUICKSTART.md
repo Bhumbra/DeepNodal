@@ -21,7 +21,7 @@ provide a deep learning framework for research science work rather than software
 using abstract representations of concepts to encapsulate much of engineering components so that the coding can be
 focussed on network design instead. This is achieved by adding an additional stage to the list above:
 
-1. Specification of network design and learning regimes.
+1. Specification of network design and learning schedules.
 2. Graph object construction.
 3. Execution and updates of graph objects with feeded data.
 
@@ -50,10 +50,10 @@ their outputs to provide a concatenated input to the next hidden layer, then the
 This illustrates the motivation behind DeepNodal. If a change in design is conceptually simple, the corresponding
 programmatic change should be as simple. DeepNodal is designed to make this possible. The complexity of DeepNodal
 arises from its flexibility to specify practically any architecture (including convolutional, pooling layers, and skip
-connections), regularisation (including regularisation losses and dropout), and multiple training regimes (e.g. with
+connections), regularisation (including regularisation losses and dropout), and multiple training schedules (e.g. with
 different learning rates and/or dropout configurations). However, by adopting simple intuitive commands that do not
 distract the coder with software engineering implementation issues, DeepNodal ensures that the code is only complex as
-the network design and learning regimes.
+the network design and learning schedules.
 
 This convenience does come at the cost of hiding the implementation, but DeepNodal provides a flexible interface that
 allows the network designer to over-rule function and device handling. For now however, the learning facilities of
@@ -179,7 +179,7 @@ connection vergences between outputs of non-contiguous levels. Again the vergenc
 The `stack` is the highest fully specifiable hierarchical DeepNodal model. A DeepNodal `network` may comprise of any
 permutation of inter-connected subnets whether they are stacks, levels, or streams. While a `network` is not fully
 specifiable, its corresponding subnets are. This flexibility would theoretically allow construction of any
-architecture. Currently however, DeepNodal learning regimes only supports one subnet. Nevertheless `stack`
+architecture. Currently however, DeepNodal learning schedules only supports one subnet. Nevertheless `stack`
 specifications can be very sophisticated and provide more than enough flexibility for almost all network designs.
 
 The architecture of a stack is specified as a single list, the length of which determines the number of levels. Notice
@@ -217,8 +217,8 @@ way of creating skip connection vergences between levels.
 ## Multi-layer perceptron with regularisation and batch-normalisation example
 
 Network training often include design specifications, beyond architectural complexity, as well as multiple training
-regimes. In the example examples/mnist_mlp, a simple multilayer perceptron design is accompanied by regularisation (and
-here not too helpful!) batch normalisation specifications as well as multiple training regimes. The relevant lines are:
+schedules. In the example examples/mnist_mlp, a simple multilayer perceptron design is accompanied by regularisation (and
+here not too helpful!) batch normalisation specifications as well as multiple training schedules. The relevant lines are:
 
 ```python
 ...
@@ -237,20 +237,20 @@ optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
   sup = dn.supervisor()
   sup.set_optimiser('adam', **optimiser_kwds)
   sup.set_work(net)
-  sup.new_regime(learning_rate)
-  sup.new_regime(0.1*learning_rate)
-  sup.new_regime(0.01*learning_rate)
-  sup.new_regime(0.01*learning_rate)
-  sup.set_regime(3, False) # disable dropout
+  sup.add_schedule(learning_rate)
+  sup.add_schedule(0.1*learning_rate)
+  sup.add_schedule(0.01*learning_rate)
+  sup.add_schedule(0.01*learning_rate)
+  sup.set_schedule(3, False) # disable dropout
 ...
   with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
       if i == n_epochs // 4:
-        sup.use_regime(1)
+        sup.use_schedule(1)
       elif i == n_epochs // 2:
-        sup.use_regime(2)
+        sup.use_schedule(2)
       elif i == 3 * n_epochs // 4:
-        sup.use_regime(3)
+        sup.use_schedule(3)
 ...
 ```
 
@@ -258,10 +258,10 @@ Since the syntax is consistent with previous examples, the code should be self-e
 specification stage, dropout is applied to the last layer whereas L2 regularisation applied to all layers. Like dropout,
 batch-normalisation is specified to the stack, in this case only affecting the first level.  And unlike previous
 examples, for which the default stochastic gradient descent `('sgd')` optimiser was employed by the supervisor, here an
-Adam optimiser is used `('adam')`. Finally, four training regimes (indexed 0 to 3) have been created with decreasing
-learning rates, with the last (3) disabling all dropout. Note how in the execution code, each of the `sup.use_regime(i)`
-lines is invoked at particular epochs to switch training regimens. The default regime index is 0, and so there is no
-need for an additional line for the first training regime.
+Adam optimiser is used `('adam')`. Finally, four training schedules (indexed 0 to 3) have been created with decreasing
+learning rates, with the last (3) disabling all dropout. Note how in the execution code, each of the `sup.use_schedule(i)`
+lines is invoked at particular epochs to switch training schedules. The default schedule index is 0, and so there is no
+need for an additional line for the first training schedule.
 
 ## Convolutional network example
 
@@ -355,7 +355,7 @@ devices to use, or the complexity of architecture.
 
 Residual networks are conceptually simple yet many ResNet coding examples are long and far from straightforward. This
 runs counter to DeepNodal philosophy, and in examples/cifar10_wide_resnet, a fully featured wide ResNet example is
-provided that includes a dynamic model design, multiple learning rate regimens, and a checkpoint saver/loader. And this
+provided that includes a dynamic model design, multiple learning rate schedules, and a checkpoint saver/loader. And this
 is all performed by a single program file with less than 150 lines of code! Most of coding features you will be familiar
 with from the examples above but there are some additional features here.
 
@@ -491,7 +491,7 @@ save_interval = 10
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   log_out = None if write_dir is None else write_dir+net_name+"_"+now
   mod_out = None if write_dir is None else log_out + "/" + net_name
-  regime = -1
+  schedule = -1
   epoch_0 = 0
   t0 = time()
 
@@ -500,8 +500,8 @@ save_interval = 10
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
       for i in range(epoch_0):
         if i in learning_rates:
-          regime += 1
-          sup.use_regime(regime)
+          schedule += 1
+          sup.use_schedule(schedule)
     for i in range(epoch_0, n_epochs):
 ...
       if i and mod_out is not None:
