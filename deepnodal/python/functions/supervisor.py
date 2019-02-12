@@ -434,4 +434,3 @@ class supervisor (overseer):
     return self.train_summary_str + "," + self.test_summary_str
 
 #-------------------------------------------------------------------------------
-
