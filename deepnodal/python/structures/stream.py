@@ -9,7 +9,7 @@ from deepnodal.python.structures.chain import *
 from deepnodal.python.concepts.structure import *
 
 #-------------------------------------------------------------------------------
-DEFAULT_STREAM_ORDER = 'datn' # over-ruled to only 'a' for absent architectures.
+DEFAULT_STREAM_ORDER = 'dant' # over-ruled to only 'a' for absent architectures.
 DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
@@ -324,10 +324,10 @@ class stream (chain):
         self._call_dropout()
       elif order == 'a':
         self._call_arch()
-      elif order == 't':
-        self._call_transfer()
       elif order == 'n':
         self._call_norm()
+      elif order == 't':
+        self._call_transfer()
       else:
         raise ValueError("Unknown order specification: " + str(order))
 
