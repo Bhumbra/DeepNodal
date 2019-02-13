@@ -2,11 +2,7 @@
 Recorder module for Tensorflow. It is an abstract class with self.__call__ as the
 abstract method which must be defined by inheriting classes for instantiation.
 
-A recorder module abstracts the  trainer needs work (the associated network) according to unsupervised or
-supervised learning rules with learning parameters.
-
-The trainer module abstracts the tasks of session creation, variables handling,
-logging, and saving.
+The recorder module abstracts the functionality of collating metrics.
 """
 
 # Gary Bhumbra
