@@ -146,8 +146,7 @@ class supervisor (overseer):
     self._call_train_ops()
 
     # Call summary scalars and distributions
-    self._call_scalars()
-    self._call_distros()
+    self._call_summaries()
 
 #-------------------------------------------------------------------------------
   def _setup_hatval(self):

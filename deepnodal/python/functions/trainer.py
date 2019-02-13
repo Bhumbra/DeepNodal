@@ -99,7 +99,7 @@ class trainer (recorder):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True):
+  def __call__(self, ist = None, gst = None, skip_summaries = False, _called = True):
     if self.work is None: return 
 
     # Call is_training and network
@@ -117,17 +117,17 @@ class trainer (recorder):
     self._call_outputs()
 
     # Call scalars and distros
-    self._call_metrics(skip_metrics)
+    self._call_summaries(skip_summaries)
 
     self.set_called(_called)
 
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _call_metrics(self, skip_metrics = False):
+  def _call_summaries(self, skip_summaries = False):
 
     # Setup the scalar and distribution summaries
-    if skip_metrics: return
+    if skip_summaries: return
     self._call_scalars()
     self._call_distros()
 
@@ -297,8 +297,6 @@ class trainer (recorder):
       self.output_names[i] = list(output_dict)[0]
       self.outputs[i] = output_dict[self.output_names[i]]
     return self.outputs
-
-
 
 #-------------------------------------------------------------------------------
   def _call_distros(self, distros = None, distro_names = None):

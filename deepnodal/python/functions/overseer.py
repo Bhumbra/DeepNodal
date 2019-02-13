@@ -91,7 +91,7 @@ class overseer (trainer):
     return self.schedules[schedule_index]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True):
+  def __call__(self, ist = None, gst = None, skip_summaries = False, _called = True):
 
     # Call the schedules
     gst = self._call_schedules(gst)
@@ -106,7 +106,8 @@ class overseer (trainer):
       _schedule.__call__(self.gst)
       self.schedule_param_indices[i] = self.work.ret_params(_schedule.par, True)
 
-    self._call_metrics(skip_metrics)
+    if not skip_summaries:
+      self._call_summaries(skip_summaries)
 
     self.set_called(_called)
 
