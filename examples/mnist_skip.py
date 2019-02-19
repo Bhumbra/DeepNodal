@@ -25,9 +25,9 @@ def main():
 
   # INPUT DATA
 
-  source = dn.helpers.mnist()
+  source = dn.loaders.mnist()
   source.read_data()
-  iterations_per_epoch = source.train_num_examples // batch_size
+  source.partition()
 
   # SPECIFY ARCHITECTURE 
 
@@ -54,10 +54,13 @@ def main():
   t0 = time()
   with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
-      for j in range(iterations_per_epoch):
-        images, labels = source.train_next_batch(batch_size)
-        sup.train(images, labels)
-      summary_str = sup.test(source.test_images, source.test_labels)
+      while True:
+        data = source.next_batch('train', batch_size)
+        if not data:
+          break
+        sup.train(*data)
+      data = source.next_batch('test')
+      summary_str = sup.test(*data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
 if __name__ == '__main__':

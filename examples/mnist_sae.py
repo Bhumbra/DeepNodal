@@ -12,7 +12,7 @@ n_epochs = 20
 batch_size = 60
 learning_rate = 0.0001
 
-input_dims = [28, 28, 1]
+input_dims = [784]
 arch = [1000, 500, 250, 30, 250, 500, 1000, 784]
 transfn = ['relu'] * (len(arch) - 1) + ['sigmoid']
 weights = 'vsi'
@@ -26,9 +26,9 @@ def main():
 
   # INPUT DATA
 
-  source = dn.helpers.mnist()
+  source = dn.loaders.mnist()
   source.read_data()
-  iterations_per_epoch = source.train_num_examples // batch_size
+  source.partition()
 
   # SPECIFY ARCHITECTURE
 
@@ -61,13 +61,17 @@ def main():
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   t0 = time()
-  write_out = None if write_dir is None else write_dir+net_name+"_"+now
-  with sup.call_session(write_out):
+  with sup.call_session(write_dir+net_name+"_"+now):
     for i in range(n_epochs):
-      for j in range(iterations_per_epoch):
-        images, labels = source.train_next_batch(batch_size)
-        sup.train(images, images.reshape([batch_size, -1]))
-      summary_str = sup.test(source.test_images, source.test_images.reshape([source.test_num_examples, -1]))
+      while True:
+        data = source.next_batch('train', batch_size)
+        if not data:
+          break
+        data = data[0].reshape([batch_size, -1])
+        sup.train(data, data)
+      data = source.next_batch('test')
+      data = data[0].reshape([en(data[0]), -1])
+      summary_str = sup.test(data, data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
 if __name__ == '__main__':
