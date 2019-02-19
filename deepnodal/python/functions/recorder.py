@@ -46,6 +46,7 @@ class recorder (slave):
     if 'dev' in kwds:
       dev = kwds['dev']
       kwds.pop('dev')
+    dev = None
     self.metrics.append(metric(name, dev))
     self.n_metrics = len(self.metrics)
     self.metrics[-1].set_creation(creation, *args, **kwds)
