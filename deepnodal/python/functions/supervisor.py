@@ -380,7 +380,7 @@ class supervisor (overseer):
     return val_lbl
 
 #-------------------------------------------------------------------------------
-  def summarise(self): # only relevent for training sets
+  def summarise(self, force_log = False): # only relevent for training sets
     """
     Outputs numeric scalars
     """
@@ -389,7 +389,7 @@ class supervisor (overseer):
     calc_scalars = self.write_intervals[0]
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
     scalars_val, sublabels = None, None
-    if calc_scalars:
+    if calc_scalars or force_log:
       scalars, labels, sublabels, logs = self.ret_scalar_group('train')
       scalars_val_log = self.session.run(scalars + logs, feed_dict = self.feed_dict)
       num_scalars = len(scalars)
@@ -402,7 +402,7 @@ class supervisor (overseer):
     # Distros
     calc_distros = self.write_intervals[1]
     calc_distros = calc_distros if type(calc_distros) is bool else not(self.progress[0] % calc_distros)
-    if calc_distros:
+    if calc_distros or force_log:
       distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
       self._add_logs(distros_log)
     return scalars_val, sublabels
@@ -421,8 +421,8 @@ class supervisor (overseer):
     arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
     for i in range(split):
       feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
-      eval_scalars[i, :] = self.session.run(scalars, feed_dict = feed_dict)
-    test_scalars = np.mean(eval_scalars, axis = 0)
+      eval_scalars[i, :] = self.session.run(scalars, feed_dict=feed_dict)
+    test_scalars = np.mean(eval_scalars, axis=0)
     for i in range(num_scalars):
       self.session.run(self.test_scalars[i].assign(test_scalars[i]), feed_dict = {})
     scalars_log = self.session.run(self.test_scalar_logs)
