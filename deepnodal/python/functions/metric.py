@@ -66,7 +66,7 @@ class metric (function):
   def set_creation(self, creation = None, *args, **kwds):
     """ Allow metric to be a custom-called value """
     self._creation = Creation(creation)
-    self._args = args
+    self._args = tuple(args)
     self._kwds = dict(kwds)
       
 #-------------------------------------------------------------------------------
@@ -139,40 +139,47 @@ class metric (function):
     if inp is not None:
       inp = self.set_inp(inp)
     self._out = self._inp
-    if self._creation:
-      args, kwds = structuref2unique(*self._args, **self._kwds)
-      self.__var_scope = None
-      if 'var_scope' in kwds:
-        self.__var_scope = kwds['var_scope']
-        kwds.pop('var_scope')
-      elif 'name' in kwds:
-        self.__var_scope = self._kwds['name']
-      elif 'scope' in self._kwds:
-        self.__var_scope = self._kwds['scope']
-      if self.dev is None:
-        if self._inp is None:
+    args, kwds = structuref2unique(*self._args, **self._kwds)
+    if self._inp is not None:
+      args = tuple([self._inp] + list(args))
+    self.__var_scope = None
+    if 'var_scope' in kwds:
+      self.__var_scope = kwds['var_scope']
+      kwds.pop('var_scope')
+    elif 'name' in kwds:
+      self.__var_scope = kwds['name']
+    elif 'scope' in kwds:
+      self.__var_scope = kwds['scope']
+    if self._creation is None:
+      self._out = self._inp
+    else:
+      if 'var_scope' in self._kwds:
+        if self.dev is None:
+          with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
+            self._out = self._creation(*args, **kwds)
+        else:
+          with Device(self.dev):
+            with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
+              self._out = self._creation(*args, **kwds)
+      else:
+        if self.dev is None:
           self._out = self._creation(*args, **kwds)
         else:
-          self._out = self._creation(self._inp, *args, **kwds)
-      else:
-        with Device(self.dev):
-          if self._inp is None:
+          with Device(self.dev):
             self._out = self._creation(*args, **kwds)
-          else:
-            self._out = self._creation(self._inp, *args, **kwds)
     self.__call__scalars(self._out)
-    self.set_called(True)
+    self.set_called(_called)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
   def __call__scalars(self, out = None):
-    if not self._label: return None
     if out is None: return None
+    label = self._label
 
     # Handle trivial case first
     if not len(self._scalars):
       if self.dev is None:
-        self._scalar  = Summary('scalar')(label, out)
+        self._scalar = Summary('scalar')(label, out)
       else:
         with Device(self.dev):
           self._scalar  = Summary('scalar')(label, out)
@@ -182,7 +189,6 @@ class metric (function):
     label_lower = self._label.split(self.__delimiter)[0].lower()
     keys = list(self._scalars.keys())
     for key in keys:
-      label = self._label
       if len(keys) > 1:
         if key.lower() not in label_lower:
           label += "_" + key.upper()
@@ -197,6 +203,13 @@ class metric (function):
 
 #-------------------------------------------------------------------------------
   def call_assign(self, target, reuse=False):
+    if reuse is None:
+      if self.dev is None:
+        op = self._out.assign(target)
+      else:
+        with Device(self.dev):
+          op = self._out.assign(target)
+      return op
     with Scope('var', self.name+"_update", reuse=reuse):
       if self.dev is None:
         op = self._out.assign(target)

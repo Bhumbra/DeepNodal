@@ -370,8 +370,8 @@ class supervisor (overseer):
     """
     if self.session is None:
       raise AttributeError("Cannot train without first invoking new_session")
-    feed_dict = self.set_feed_dict(True, args[0], args[1])
-    self.session.run(self.train_ops[self.using_schedule], feed_dict = feed_dict)
+    feed_dict = self.set_feed_dict(True, *args)
+    self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
     val_lbl = self.summarise()
     save_session = self.write_intervals[2]
     save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
