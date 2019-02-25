@@ -54,16 +54,25 @@ class link (leaf):
       self.__var_scope = kwds['var_scope']
       kwds.pop('var_scope')
     elif 'name' in kwds:
-      self.__var_scope = self._kwds['name']
-    elif 'scope' in self._kwds:
-      self.__var_scope = self._kwds['scope']
+      self.__var_scope = kwds['name']
+    elif 'scope' in kwds:
+      self.__var_scope = kwds['scope']
     if self._inp is None or self._creation is None: return self.ret_out()
     args, kwds = structuref2unique(*args, **kwds)
-    if self.dev is None:
-      self._out = self._creation(self._inp, *args, **kwds)
+    if 'var_scope' in self._kwds:
+      if self.dev is None:
+        with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
+          self._out = self._creation(self._inp, *args, **kwds)
+      else:
+        with Device(self.dev):
+          with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
+            self._out = self._creation(self._inp, *args, **kwds)
     else:
-      with Device(self.dev):
+      if self.dev is None:
         self._out = self._creation(self._inp, *args, **kwds)
+      else:
+        with Device(self.dev):
+          self._out = self._creation(self._inp, *args, **kwds)
     self.set_called(_called)
     return self.ret_out()
 

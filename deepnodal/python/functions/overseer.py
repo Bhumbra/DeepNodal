@@ -121,7 +121,8 @@ class overseer (trainer):
     if self.gst is None: self._call_global_step()
 
     # Set up the schedule index scalar - at the time of coding, not GPU-compatible
-    self.schedule_index_metric = self.add_metric('var', 0, trainable=False, name=self.name+"/schedules/index")
+    self.schedule_index_metric = self.add_metric('var', self.using_schedule, trainable=False, 
+                                 name=self.name+"/schedules/index")
     self.schedule_index_metric.set_label("SCHEDULE_INDEX", 'train')
     self.schedule_index = self.schedule_index_metric.__call__()
 

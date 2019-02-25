@@ -167,8 +167,9 @@ class trainer (recorder):
         name=self.name+"/batch/batch_size") 
     self.batch_size_metric.set_label("BATCH_SIZE", 'train')
     self.batch_size = self.batch_size_metric.__call__()
-    self.batch_size_op = self.batch_size_metric.call_assign(
-        Creation('shape')(self.inputs[0])[0])
+    with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
+      self.batch_size_op = self.batch_size_metric.call_assign(
+          Creation('shape')(self.inputs[0])[0], reuse=None)
 
 #-------------------------------------------------------------------------------
   def _call_learning_rate(self, gst = None): # this sets up self.learning_rate
@@ -463,4 +464,3 @@ class trainer (recorder):
     return param_lbl, param_val
 
 #-------------------------------------------------------------------------------
-
