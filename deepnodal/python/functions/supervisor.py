@@ -430,6 +430,6 @@ class supervisor (overseer):
     summary_strs = [name + "=" + str(num) for name, num in zip(
       self.test_scalar_sublabels, test_scalars)]
     self.test_summary_str = ', '.join(summary_strs)
-    return self.train_summary_str + "," + self.test_summary_str
+    return ', '.join([self.train_summary_str, self.test_summary_str])
 
 #-------------------------------------------------------------------------------

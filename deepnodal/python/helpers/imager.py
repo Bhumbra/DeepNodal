@@ -117,12 +117,13 @@ class imager (batcher):
 #-------------------------------------------------------------------------------
   def _postprocess(self, inputs=None, rand_horz_flip=False, rand_bord_crop=False):
     if inputs is None: return inputs
-    inputs = np.array(inputs)
+    if type(inputs) is not np.ndarray:
+      inputs = np.array(inputs)
     batch_size = len(inputs)
 
     # Horizonal flip
     hflip = None if not rand_horz_flip else np.random.binomial(1, 0.5, batch_size)
-    if hflip is not None:
+    if hflip:
       flip_ax = 1 if self.depth_to_last_dim else 2
       for i in range(batch_size):
         if hflip[i]:
@@ -130,11 +131,11 @@ class imager (batcher):
 
     # Border crop
     bcrop = None if not rand_bord_crop else np.random.randint(-1, 2, size = [batch_size, 2])
-    abval = np.array(self.border_val, dtype = inputs.dtype)
-    aug_dims = np.copy(self.dims) 
-    aug_dims[1:] += 2
-    if self.depth_to_last_dim: aug_dims = np.hstack((aug_dims[1:], aug_dims[0]))
-    if bcrop is not None:
+    if bcrop :
+      abval = np.array(self.border_val, dtype = inputs.dtype)
+      aug_dims = np.copy(self.dims) 
+      aug_dims[1:] += 2
+      if self.depth_to_last_dim: aug_dims = np.hstack((aug_dims[1:], aug_dims[0]))
       xx_crop_dict = {-1:[0, self.dims[1]], 0:[1, self.dims[1]+1], 1:[2, self.dims[1]+2]}
       yy_crop_dict = {-1:[0, self.dims[2]], 0:[1, self.dims[2]+1], 1:[2, self.dims[2]+2]}
       base_image = np.tile(abval, aug_dims)
