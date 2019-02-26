@@ -43,6 +43,7 @@ class batcher (object):
                                  'inputs': None,
                                  'labels': None,
                                  'counter': None,
+                                 'arange': None,
                                  'permute': None}})
 
 #-------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ class batcher (object):
       with open(self.directory + data_file, 'rb') as open_file:
         data_dict = pickle.load(open_file, encoding = 'bytes')
       inputs.append(data_dict[input_key])
-      labels.append(data_dict[input_key])
+      labels.append(data_dict[label_key])
       counts.append(len(labels[-1]))
     self._counts = counts
     return self.set_data(np.concatenate(inputs), 
@@ -149,34 +150,34 @@ class batcher (object):
 
     # Assign data
     for key, val in self.sets.items():
-      self.sets[key]['inputs'] = [self._inputs[i] for i in val['indices']]
+      indices = val['indices']
+      self.sets[key]['inputs'] = [self._inputs[i] for i in indices]
       if self._labels is not None:
-        self.sets[key]['labels'] = [self._labels[i] for i in val['indices']]
-
-    # Assign supports
-    for key, val in self.sets.items():
-      self.sets[key]['support'] = len(val['inputs'])
+        self.sets[key]['labels'] = [self._labels[i] for i in indices]
+      self.sets[key]['support'] = len(indices)
+      self.sets[key]['arange'] = np.arange(self.sets[key]['support'], 
+                                   dtype=int)
     return self.sets
 
 #-------------------------------------------------------------------------------
   def _repermute(self, set_name, randomise=True):
-    n = self.sets[set_name]['support']
-
     if not randomise:
-      self.sets[set_name]['permute'] = np.arange(n, dtype = int)
+      self.sets[set_name]['permute'] = self.sets[set_name]['arange']
     else:
-      self.sets[set_name]['permute'] = np.random.permutation(n)
-
+      self.sets[set_name]['permute'] = np.random.permutation(
+                                         self.sets[set_name]['support'])
     self.sets[set_name]['counter'] = 0
 
 #-------------------------------------------------------------------------------
   def next_batch(self, set_name=DEFAULT_SET_NAME, batch_size=None, randomise=None):
+
+    # Set defaults
     multiset = isinstance(set_name, (list, tuple))
     if batch_size is None and not multiset:
       if randomise is None: 
         randomise = False
       batch_size = self.sets[set_name]['support']
-      self.sets[set_name]['counter'] = 0
+      self.sets[set_name]['counter'] = None
     elif randomise is None:
       randomise = True
 
@@ -199,21 +200,23 @@ class batcher (object):
         return None
       else:
         inputs, labels = zip(*data)
-        return np.concatenate(images), np.concatenate(labels)
+        if labels[0] is None:
+          return np.concatenate(images, axis=0)
+        return np.concatenate(images, axis=0), np.concatenate(labels, axis=0)
       
     # Now single set
     counter =  self.sets[set_name]['counter']
     if counter is None:
       self._repermute(set_name, randomise)
       counter = self.sets[set_name]['counter']
-
-    if counter + batch_size > self.sets[set_name]['support']:
+    elif counter + batch_size > self.sets[set_name]['support']:
       self.sets[set_name]['counter'] = None
       return None
 
+    # Permute single set
     new_counter = counter + batch_size
-    idx = np.arange(counter, new_counter)
     self.sets[set_name]['counter'] = new_counter
+    idx = self.sets[set_name]['permute'][counter:new_counter]
     inputs, labels = self.sets[set_name]['inputs'], self.sets[set_name]['labels']
     if type(inputs) is np.ndarray:
       batch_inputs = inputs[idx]

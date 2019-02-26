@@ -38,7 +38,9 @@ class recorder (slave):
 #-------------------------------------------------------------------------------
   def add_metric(self, creation = None, *args, **_kwds):
     kwds = dict(_kwds)
-    name = self.name + "/metrics/metric_{}".format(self.n_metrics)
+    name = self.name + "/metrics/metric"
+    if self.n_metrics:
+      name +="_{}".format(self.n_metrics)
     dev = self.dev
     if 'name' in kwds:
       name = kwds['name']

@@ -73,9 +73,10 @@ def main():
         sup.use_schedule(3)
       while True:
         data = source.next_batch('train', batch_size)
-        if not data:
+        if data:
+          sup.train(*data)
+        else:
           break
-        sup.train(*data)
       data = source.next_batch('test')
       summary_str = sup.test(*data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))

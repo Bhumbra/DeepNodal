@@ -65,12 +65,13 @@ def main():
     for i in range(n_epochs):
       while True:
         data = source.next_batch('train', batch_size)
-        if not data:
+        if data:
+          data = data[0].reshape([batch_size, -1])
+          sup.train(data, data)
+        else:
           break
-        data = data[0].reshape([batch_size, -1])
-        sup.train(data, data)
       data = source.next_batch('test')
-      data = data[0].reshape([en(data[0]), -1])
+      data = data[0].reshape([len(data[0]), -1])
       summary_str = sup.test(data, data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 

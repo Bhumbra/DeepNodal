@@ -84,7 +84,7 @@ class mnist (imager):
         labels.append(read_idx1(self.directory + data_file))
         counts.append(len(labels[-1]))
     self._counts = counts
-    return super().read_data(np.concatenate(inputs), 
+    return super().read_data(np.concatenate(inputs, axis=0)/255., 
                              np.concatenate(labels), gcn, zca, gcn_within_depth)
 
 #-------------------------------------------------------------------------------
