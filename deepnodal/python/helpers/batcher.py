@@ -97,12 +97,16 @@ class batcher (object):
         self.add_sets(set_names, set_specs)
     elif self.sets is None:
       num_counts = len(self._counts)
-      if not num_counts or num_counts not in DEFAULT_SETS:
+      if num_counts < 1:
         set_names = DEFAULT_SETS[0]
         set_specs = [1.]
-      else:
+      elif num_counts in DEFAULT_SETS:
         set_names = DEFAULT_SETS[num_counts]
         set_specs = self._counts
+      else:
+        counts = [np.sum(self._counts[:-1]), self._counts[-1]]
+        set_names = DEFAULT_SETS[len(counts)]
+        set_specs = counts
       self.add_sets(set_names, set_specs)
     elif self._inputs is None:
       raise AttributeError("Must invokve set_data first")
