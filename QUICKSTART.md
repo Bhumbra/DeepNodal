@@ -19,7 +19,8 @@ reduce some of the syntactic bulk, the resulting code remains highly vulnerable 
 DeepNodal adopts a different approach. A model-driven engineering methodology underlies the design of DeepNodal to
 provide a deep learning framework for research science work rather than software engineering applications. It aims at
 using abstract representations of concepts to encapsulate much of engineering components so that the coding can be
-focussed on network design instead. This is achieved by adding an additional stage to the list above:
+focussed on network design and learning optimisation instead. This is achieved by adding an additional stage to the
+list above:
 
 1. Specification of network design and learning schedules.
 2. Graph object construction.
@@ -106,10 +107,10 @@ transfn = 'softmax'
 ```
 
 What is a DeepNodal `stream`? It is the simplest model in DeepNodal, comprising a single chain of transformations to
-data. These transformations may include dropout, an architectural layer with trainable parameters, a transfer function,
-and a normalisation routine (such as batch-normalisation or local response normalisation) in _any_ order (by default in
-the order just listed). A stream has a single input tensor and single output tensor. Here, the stream comprises of a
-simple 10-unit dense layer, with a softmax transfer function.
+data. These transformations may include dropout, an architectural layer with or without trainable parameters, a
+normalisation routine (such as batch-normalisation or local response normalisation), and a transfer function, in _any_
+order (by default in the order just listed). A stream has a single input tensor and single output tensor. Here, the
+stream comprises of a simple 10-unit dense layer, with a softmax transfer function.
 
 A DeepNodal `network` is a collection of inter-connected models and their associated inputs. Each of these models is
 considered a subnet of the network. A subnet may be a `stream`, but it may also be a more sophisticated structure such
@@ -217,8 +218,8 @@ way of creating skip connection vergences between levels.
 ## Multi-layer perceptron with regularisation and batch-normalisation example
 
 Network training often include design specifications, beyond architectural complexity, as well as multiple training
-schedules. In the example examples/mnist_mlp, a simple multilayer perceptron design is accompanied by regularisation (and
-here not too helpful!) batch normalisation specifications as well as multiple training schedules. The relevant lines are:
+schedules. In the example examples/mnist_mlp, a simple multilayer perceptron design is accompanied by regularisation and
+batch normalisation specifications as well as multiple training schedules. The relevant lines are:
 
 ```python
 ...
@@ -450,7 +451,7 @@ order =   ['ant']                  +\
 ...
 ```
 
-The letters 'datn' stand for 'dropout', 'architecture', 'transfer function', and 'normalisation' respectively. The order
+The letters 'dant' stand for 'dropout', 'architecture', 'normalisation', and 'transfer function' respectively. The order
 specification is incredibly powerful because not only does it allow assignment of the order of operations but also
 allows specific exclusion of operations. For example, 'a' allows only an architectural operation (here a convolution)
 and excludes all other types of operations. Since ResNets do not generalise well with adaptive learning rate optimisers,
@@ -469,7 +470,7 @@ Another difference from previous examples, is the specification of splitting the
 ...
 test_split = 10
 ...
-      summary_str = sup.test(source.test_images, source.test_labels, split = test_split)
+      summary_str = sup.test(*data, split = test_split)
 ...
 ```
 
