@@ -142,7 +142,8 @@ def main():
         if not data:
           break
         sup.train(*data)
-      summary_str = sup.test(*data)
+      data = source.next_batch('test')
+      summary_str = sup.test(*data, split=test_split)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
       if i and mod_out is not None:
         if not(i % save_interval) or i == n_epochs -1:
