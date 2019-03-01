@@ -66,7 +66,7 @@ class cifar10 (imager):
 #-------------------------------------------------------------------------------
   def read_data(self, input_spec=CIFAR10_KEYS[0], label_spec=CIFAR10_KEYS[1], 
                       gcn=False, zca=False, gcn_within_depth=True):
-    return super()(input_spec, label_spec, gcn, zcn, gcn_within_depth)
+    return super().read_data(input_spec, label_spec, gcn, zca, gcn_within_depth)
 
 #-------------------------------------------------------------------------------
 class cifar100 (imager):

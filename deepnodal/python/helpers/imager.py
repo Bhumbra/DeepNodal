@@ -90,7 +90,7 @@ class imager (batcher):
   def read_data(self, input_spec, label_spec, 
                       gcn=False, zca=False, gcn_within_depth=True):
     if self.dims is None: raise ValueError("Data dimensions not set")
-    if type(input_spec) is str and type(label_spec) is str:
+    if isinstance(input_spec, bytes) and isinstance(label_spec, bytes):
       inputs, labels = super().read_data(input_spec, label_spec)
     else:
       inputs, labels = input_spec, label_spec

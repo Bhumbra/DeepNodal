@@ -80,9 +80,9 @@ def main():
 
   # INPUT DATA
 
-  source = dn.helpers.cifar10()
-  source.read_data(gcn, zca, gcn_within_depth)
-  iterations_per_epoch = source.train_num_examples // batch_size
+  source = dn.loaders.cifar10()
+  source.read_data()
+  source.partition()
 
   # SPECIFY ARCHITECTURE
 
@@ -137,10 +137,12 @@ def main():
       if i in learning_rates:
         schedule += 1
         sup.use_schedule(schedule)
-      for j in range(iterations_per_epoch):
-        images, labels = source.train_next_batch(batch_size, rand_horz_flip, rand_bord_crop)
-        sup.train(images, labels)
-      summary_str = sup.test(source.test_images, source.test_labels, split = test_split)
+      while True:
+        data = source.next_batch('train', batch_size)
+        if not data:
+          break
+        sup.train(*data)
+      summary_str = sup.test(*data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
       if i and mod_out is not None:
         if not(i % save_interval) or i == n_epochs -1:
@@ -148,4 +150,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
