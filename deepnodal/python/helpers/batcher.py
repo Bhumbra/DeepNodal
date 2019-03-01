@@ -104,7 +104,7 @@ class batcher (object):
         set_names = DEFAULT_SETS[num_counts]
         set_specs = self._counts
       else:
-        counts = [np.sum(self._counts[:-1]), self._counts[-1]]
+        counts = [sum(self._counts[:-1]), self._counts[-1]]
         set_names = DEFAULT_SETS[len(counts)]
         set_specs = counts
       self.add_sets(set_names, set_specs)
@@ -120,7 +120,8 @@ class batcher (object):
       if spec_type is None:
         spec_type = type(spec)
       elif type(spec) is not spec_type:
-        raise TypeError("Inconsistent specification types")
+        raise TypeError("Inconsistent specification types: {} vs {}".
+                        format(type(spec), spec_type))
 
     if not randomise:
       indices = np.arange(len(self._inputs), dtype = int)
