@@ -97,8 +97,9 @@ class recorder (slave):
     # Append to scalar lists
     for spec in specs:
       scalars, objects, labels, sublabels = self.ret_metrics(spec)
-      for scalar, _, label, sublabel in zip(
+      for scalar, _, __, sublabel in zip(
           scalars, objects, labels, sublabels):
+        label = self.name+"/metrics/summaries/"+sublabel
         self.scalars += [scalar]
         self.scalar_labels += [label]
         self.scalar_sublabels += [sublabel]
