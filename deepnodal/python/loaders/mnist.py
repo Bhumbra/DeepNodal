@@ -61,12 +61,11 @@ class mnist (imager):
                      files=MNIST_FILES, 
                      directory=MNIST_DIRECTORY, 
                      dims=MNIST_DIMS,
-                     depth_to_last_dim=True, 
-                     border_val = 0):
+                     depth_last_dim=True):
     for data_file in files:
       maybe_download_and_extract(data_file, directory)
     super().__init__(set_names, set_spec, files, directory,
-                    dims, depth_to_last_dim, border_val)
+                    dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
   def read_data(self, input_key=None, label_key=None, 

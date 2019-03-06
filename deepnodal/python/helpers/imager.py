@@ -7,6 +7,10 @@ import numpy as np
 import pickle
 from deepnodal.python.helpers.scalers import *
 from deepnodal.python.helpers.batcher import *
+#--------------------------------------------------------------------------------
+# Map axis according to depth_last_dim
+HORZ_FLIP_AXIS = {False: 2, True: 1}
+VERT_FLIP_AXIS = {False: 1, True: 0}
 
 #--------------------------------------------------------------------------------
 def global_middle_scale(data, middle = True, scale = True, batch_axis = None, depth_axis = None, 
@@ -66,25 +70,96 @@ def zca_whitening(_data, batch_axis = 0, depth_axis = 1, dtype = float):
   return data
 
 #-------------------------------------------------------------------------------
+def random_flip(data, horz_spec=False, vert_spec=False, depth_last_dim=False):
+  num_data = len(data)
+  horz_axis = None
+  vert_axis = None
+  horz_flip = None
+  vert_flip = None
+  if horz_spec:
+    horz_axis = HORZ_FLIP_AXIS[self.depth_last_dim]
+    horz_flip = np.random.binomial(1, 0.5, num_data)
+  if vert_spec:
+    vert_axis = VERT_FLIP_AXIS[self.depth_last_dim]
+    vert_flip = np.random.binomial(1, 0.5, num_data)
+  for i in range(num_data):
+    if horz_spec:
+      if horz_flip[i]:
+        inputs[i] = np.flip(inputs[i], horz_axis)
+    if vert_spec:
+      if vert_flip[i]:
+        inputs[i] = np.flip(inputs[i], vert_axis)
+  return inputs
+
+#-------------------------------------------------------------------------------
+def random_crop(data, horz_spec=0, vert_spec=0, depth_last_dim=False):
+  if not horz_spec and not vert_spec:
+    return data
+  num_data = data.shape[0]
+  horz_crop = None
+  vert_crop = None
+  if horz_spec:
+    horz_crop = np.random.randint(0, 2*horz_spec+1, size=num_data)
+  if vert_spec:
+    vert_crop = np.random.randint(0, 2*vert_spec+1, size=num_data)
+  if not depth_last_dim:
+    width, height = data.shape[3], data.shape[2]
+    for i in range(num_data):
+      datum = data[i]
+      if horz_spec:
+        crop = horz_crop[i]
+        if horz_spec != crop:
+          lhs = np.flip(datum[:, :,  :horz_spec], 2)
+          rhs = np.flip(datum[:, :, -horz_spec:], 2)
+          datum = np.concatenate([lhs, datum, rhs], axis=2)
+          datum = datum[:, :, crop:crop+width]
+      if vert_spec:
+        crop = vert_crop[i]
+        if vert_spec != crop:
+          top = np.flip(datum[:,  :vert_spec, :], 1)
+          bot = np.flip(datum[:, -vert_spec:, :], 1)
+          datum = np.concatenate([top, datum, bot], axis=1)
+          datum = datum[:, crop:crop+height, :]
+      data[i] = datum
+  else:
+    width, height = data.shape[2], data.shape[1]
+    for i in range(num_data):
+      datum = data[i]
+      if horz_spec:
+        crop = horz_crop[i]
+        if horz_spec != crop:
+          lhs = np.flip(datum[:, :horz_spec,  :], 1)
+          rhs = np.flip(datum[:, -horz_spec:, :], 1)
+          datum = np.concatenate([lhs, datum, rhs], axis=1)
+          datum = datum[:, crop:crop+width, :]
+      if vert_spec:
+        crop = vert_crop[i]
+        if vert_spec != crop:
+          top = np.flip(datum[ :vert_spec, :, :], 0)
+          bot = np.flip(datum[-vert_spec:, :, :], 0)
+          datum = np.concatenate([top, datum, bot], axis=0)
+          datum = datum[crop:crop+height, :, :]
+      data[i] = datum
+  return data
+ 
+#-------------------------------------------------------------------------------
 class imager (batcher):
   keys = None
   dims = None
-  depth_to_last_dim = None
-  border_val = None
+  depth_last_dim = None
   gcn = None
   zca = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, set_names=[], set_spec=[], files=[], directory='',
-                     dims=None, depth_to_last_dim=False, border_val=0):
+                     dims=None, depth_last_dim=False):
     super().__init__(set_names, set_spec, files, directory)
-    self.set_dims(dims, depth_to_last_dim, border_val)
+    self.set_dims(dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
-  def set_dims(self, dims = None, depth_to_last_dim = False, border_val = 0):
+  def set_dims(self, dims=None, depth_last_dim=False):
     self.dims = dims
-    self.depth_to_last_dim = depth_to_last_dim
-    self.border_val = border_val
+    self.depth_last_dim = depth_last_dim
 
 #-------------------------------------------------------------------------------
   def read_data(self, input_spec, label_spec, 
@@ -109,59 +184,49 @@ class imager (batcher):
       inputs = global_contrast_norm(inputs, depth_axis=depth_axis)
     if self.zca:
       inputs = zca_whitening(inputs)
-    if self.depth_to_last_dim:
+    if self.depth_last_dim:
       dims = np.hstack((dims[0], dims[2:], dims[1]))
       inputs = np.swapaxes(np.swapaxes(inputs, 1, 3), 1, 2).reshape(dims)
     return inputs
 
 #-------------------------------------------------------------------------------
-  def _postprocess(self, inputs=None, rand_horz_flip=False, rand_bord_crop=False):
+  def _postprocess(self, inputs=None, rand_flip=False, rand_crop=False):
+    """
+    Post-processes inputs according with XY transformations randomly applied
+    """
     if inputs is None: return inputs
     if type(inputs) is not np.ndarray:
       inputs = np.array(inputs)
     batch_size = len(inputs)
 
-    # Horizonal flip
-    hflip = None if not rand_horz_flip else np.random.binomial(1, 0.5, batch_size)
-    if hflip:
-      flip_ax = 1 if self.depth_to_last_dim else 2
-      for i in range(batch_size):
-        if hflip[i]:
-          inputs[i] = np.flip(inputs[i], flip_ax)
+    # Reflection flip
+    if rand_flip:
+      if type(rand_flip) is bool:
+        rand_flip = [rand_flip, False]
+      else: 
+        assert len(rand_flip) == 2, "Input rand_flip must be of length 2"
+      inputs = random_flip(inputs, rand_flip[0], rand_flip[1], self.depth_last_dim)
 
-    # Border crop
-    bcrop = None if not rand_bord_crop else np.random.randint(-1, 2, size = [batch_size, 2])
-    if bcrop :
-      abval = np.array(self.border_val, dtype = inputs.dtype)
-      aug_dims = np.copy(self.dims) 
-      aug_dims[1:] += 2
-      if self.depth_to_last_dim: aug_dims = np.hstack((aug_dims[1:], aug_dims[0]))
-      xx_crop_dict = {-1:[0, self.dims[1]], 0:[1, self.dims[1]+1], 1:[2, self.dims[1]+2]}
-      yy_crop_dict = {-1:[0, self.dims[2]], 0:[1, self.dims[2]+1], 1:[2, self.dims[2]+2]}
-      base_image = np.tile(abval, aug_dims)
-      if self.depth_to_last_dim:
-        for i in range(batch_size):
-          aug_image = np.copy(base_image)
-          aug_image[1:-1, 1:-1, :] = inputs[i]
-          xx, yy = xx_crop_dict[bcrop[i, 0]], yy_crop_dict[bcrop[i, 1]]
-          inputs[i] = aug_image[xx[0]:xx[1], yy[0]:yy[1], :]
+    # Border Crop
+    if rand_crop:
+      if type(rand_crop) is bool:
+        rand_crop = 1
+      if type(rand_crop) is int:
+        rand_crop = [rand_crop, rand_crop]
       else:
-        for i in range(batch_size):
-          aug_image = np.copy(base_image)
-          aug_image[:, 1:-1, 1:-1] = batch_images[i]
-          xx, yy = xx_crop_dict[bcrop[i, 0]], yy_crop_dict[bcrop[i, 1]]
-          inputs[i] = aug_image[:, xx[0]:xx[1], yy[0]:yy[1]]
+        assert len(rand_crop) == 2, "Input rand_crop must be of length 2"
+      inputs = random_crop(inputs, rand_crop[0], rand_crop[1], self.depth_last_dim)
 
     return inputs
 
 #-------------------------------------------------------------------------------
   def next_batch(self, set_name=DEFAULT_SET_NAME, batch_size=None, randomise=None,
-                 rand_horz_flip=False, rand_bord_crop=False):
+                 rand_flip=False, rand_crop=False):
     data = super().next_batch(set_name, batch_size, randomise)
     if data is None:
       return data
     inputs, labels = data
-    inputs = self._postprocess(inputs, rand_horz_flip, rand_bord_crop)
+    inputs = self._postprocess(inputs, rand_flip, rand_crop)
     return inputs, labels
 
 #-------------------------------------------------------------------------------
