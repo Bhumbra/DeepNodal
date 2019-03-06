@@ -51,8 +51,7 @@ class cifar10 (imager):
                      files=CIFAR10_FILES, 
                      directory=CIFAR_DIRECTORY, 
                      dims=CIFAR10_DIMS,
-                     depth_to_last_dim=True, 
-                     border_val = 0):
+                     depth_last_dim=True):
     maybe_download_and_extract(directory, CIFAR10_SOURCE)
     if type(CIFAR10_SOURCE) is dict:
       directory += CIFAR10_SOURCE[list(CIFAR10_SOURCE)[0]] + '/'
@@ -61,7 +60,7 @@ class cifar10 (imager):
     if directory[-1] != '/':
       directory += '/'
     super().__init__(set_names, set_spec, files, directory,
-                    dims, depth_to_last_dim, border_val)
+                    dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
   def read_data(self, input_spec=CIFAR10_KEYS[0], label_spec=CIFAR10_KEYS[1], 
@@ -77,21 +76,20 @@ class cifar100 (imager):
                      files=CIFAR100_FILES, 
                      directory=CIFAR_DIRECTORY, 
                      dims=CIFAR100_DIMS,
-                     depth_to_last_dim=True, 
-                     border_val = 0):
-    maybe_download_and_extract(directory, CIFAR10_SOURCE)
-    if type(CIFAR10_SOURCE) is dict:
-      directory += CIFAR10_SOURCE[list(CIFAR10_SOURCE)[0]] + '/'
+                     depth_last_dim=True):
+    maybe_download_and_extract(directory, CIFAR100_SOURCE)
+    if type(CIFAR100_SOURCE) is dict:
+      directory += CIFAR100_SOURCE[list(CIFAR100_SOURCE)[0]] + '/'
     else:
-      directory += CIFAR10_SOURCE
+      directory += CIFAR100_SOURCE
     if directory[-1] != '/':
       directory += '/'
     super().__init__(set_names, set_spec, files, directory,
-                    dims, depth_to_last_dim, border_val)
+                    dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
   def read_data(self, input_spec=CIFAR100_KEYS[0], label_spec=CIFAR100_KEYS[1], 
                       gcn=False, zca=False, gcn_within_depth=True):
-    return super()(input_spec, label_spec, gcn, zcn, gcn_within_depth)
+    return super().read_data(input_spec, label_spec, gcn, zca, gcn_within_depth)
 
 #-------------------------------------------------------------------------------

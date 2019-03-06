@@ -55,7 +55,7 @@ def main():
         data = source.next_batch('train', batch_size)
         if data:
           sup.train(*data)
-        else
+        else:
           break
       data = source.next_batch('test')
       summary_str = sup.test(*data)
