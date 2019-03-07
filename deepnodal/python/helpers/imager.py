@@ -70,37 +70,59 @@ def zca_whitening(_data, batch_axis = 0, depth_axis = 1, dtype = float):
   return data
 
 #-------------------------------------------------------------------------------
-def random_flip(data, horz_spec=False, vert_spec=False, depth_last_dim=False):
+def random_flip(_data, horz_spec=False, vert_spec=False, depth_last_dim=False):
+  data = np.copy(_data)
+  if type(horz_spec) is not np.ndarray and type(vert_spec) is not np.ndarray:
+    if not horz_spec and not vert_spec:
+      return data
   num_data = len(data)
-  horz_axis = None
-  vert_axis = None
-  horz_flip = None
-  vert_flip = None
-  if horz_spec:
-    horz_axis = HORZ_FLIP_AXIS[self.depth_last_dim]
+  horz_flip = horz_spec
+  vert_flip = vert_spec
+  if type(horz_spec) is np.ndarray:
+    horz_spec = True
+    assert len(horz_flip) == num_data, "Flip specification incommensurate"
+    assert horz_flip.dtype is np.dtype(bool), "Flip specification type must be bool"
+  elif horz_spec:
     horz_flip = np.random.binomial(1, 0.5, num_data)
-  if vert_spec:
-    vert_axis = VERT_FLIP_AXIS[self.depth_last_dim]
+  if type(vert_spec) is np.ndarray:
+    vert_spec = True
+    assert len(vert_flip) == num_data, "Flip specification incommensurate"
+    assert vert_flip.dtype is np.dtype(bool), "Flip specification type must be bool"
+  elif vert_spec:
     vert_flip = np.random.binomial(1, 0.5, num_data)
+  horz_axis = HORZ_FLIP_AXIS[depth_last_dim]
+  vert_axis = VERT_FLIP_AXIS[depth_last_dim]
   for i in range(num_data):
     if horz_spec:
       if horz_flip[i]:
-        inputs[i] = np.flip(inputs[i], horz_axis)
+        data[i] = np.flip(data[i], horz_axis)
     if vert_spec:
       if vert_flip[i]:
-        inputs[i] = np.flip(inputs[i], vert_axis)
-  return inputs
+        data[i] = np.flip(data[i], vert_axis)
+  return data
 
 #-------------------------------------------------------------------------------
-def random_crop(data, horz_spec=0, vert_spec=0, depth_last_dim=False):
-  if not horz_spec and not vert_spec:
-    return data
+def random_crop(_data, horz_spec=0, vert_spec=0, depth_last_dim=False):
+  data = np.copy(_data)
+  if type(horz_spec) is not np.ndarray and type(vert_spec) is not np.ndarray:
+    if not horz_spec and not vert_spec:
+      return data
   num_data = data.shape[0]
-  horz_crop = None
-  vert_crop = None
-  if horz_spec:
+  horz_crop = horz_spec
+  vert_crop = vert_spec
+  if type(horz_spec) is np.ndarray:
+    horz_spec = int(np.max(np.abs(horz_spec)))
+    assert len(horz_crop) == num_data, "Crop specification incommensurate"
+    assert horz_crop.dtype is np.dtype(int), "Crop specification type must be int"
+    horz_crop = np.copy(horz_crop) + horz_spec
+  elif horz_spec:
     horz_crop = np.random.randint(0, 2*horz_spec+1, size=num_data)
-  if vert_spec:
+  if type(vert_spec) is np.ndarray:
+    vert_spec = int(np.max(np.abs(vert_spec)))
+    assert len(vert_crop) == num_data, "Crop specification incommensurate"
+    assert vert_crop.dtype is np.dtype(int), "Crop specification type must be int"
+    vert_crop = np.copy(vert_crop) + vert_spec
+  elif vert_spec:
     vert_crop = np.random.randint(0, 2*vert_spec+1, size=num_data)
   if not depth_last_dim:
     width, height = data.shape[3], data.shape[2]
