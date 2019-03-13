@@ -332,7 +332,7 @@ class hypervisor (supervisor, master, stem):
     self.error_metrics = [None] * len(self.errors)
     for i in range(len(self.errors)):
       self.error_metrics[i] = self.add_metric()
-      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'eval')
+      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'tests')
       self.error_metrics[i].__call__(self.errors[i])
     return self.errors
 
@@ -352,7 +352,7 @@ class hypervisor (supervisor, master, stem):
                     name = self.name + "/metrics/costs"),
                     name = self.name + "/metrics/cost")
     self.cost_metric = self.add_metric()
-    self.cost_metric.set_label('COST', 'train', 'eval')
+    self.cost_metric.set_label('COST', 'train', 'tests')
     self.cost_metric.__call__(self.cost)
     return self.cost
 
@@ -372,7 +372,7 @@ class hypervisor (supervisor, master, stem):
                     name = self.name + "/metrics/losses"),
                     name = self.name + "/metrics/loss")
     self.loss_metric = self.add_metric()
-    self.loss_metric.set_label('LOSS', 'train', 'eval')
+    self.loss_metric.set_label('LOSS', 'train', 'tests')
     self.loss_metric.__call__(self.loss)
     return self.loss
 
@@ -397,13 +397,13 @@ class hypervisor (supervisor, master, stem):
     for i in range(self.n_params):
       if self.dev is None:
         self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
-                            name = self.name + "/" + self.gradient_names[i] + "_con"), axis=0,
-                            name = self.name + "/" + self.gradient_names[i] + "_mean")
+                            name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
+                            name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
       else:
         with Device(self.dev):
           self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
-                              name = self.name + "/" + self.gradient_names[i] + "_con"), axis=0,
-                              name = self.name + "/" + self.gradient_names[i] + "_mean")
+                              name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
+                              name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
     for i, grad in enumerate(self.gradients):
       self.grad_and_vars[i] = list(self.grad_and_vars[i])
       self.grad_and_vars[i][0] = grad
