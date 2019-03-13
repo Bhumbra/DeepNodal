@@ -17,10 +17,10 @@ class recorder (slave):
   A recorder is a slave that record metrics. It is abstract because the absract
   method __call__ is not implemented.
   """
+  scalar_objects = None            # list of scalar objects
   scalars = None                   # list of summary scalars
   scalar_labels = None             # list of scalar labels
   scalar_sublabels = None          # list of scalar sublabels
-  scalar_logs = None               # list of scalar logs
   scalar_group = None              # spec-keyed dictionary of above
 
 #-------------------------------------------------------------------------------
@@ -38,9 +38,7 @@ class recorder (slave):
 #-------------------------------------------------------------------------------
   def add_metric(self, creation = None, *args, **_kwds):
     kwds = dict(_kwds)
-    name = self.name + "/metrics/metric"
-    if self.n_metrics:
-      name +="_{}".format(self.n_metrics)
+    name = self.name + "/metrics"
     dev = self.dev
     if 'name' in kwds:
       name = kwds['name']
@@ -77,40 +75,39 @@ class recorder (slave):
     return (objects, scalars, labels, sublabels)
 
 #-------------------------------------------------------------------------------
-  def _call_scalars(self, specs = 'train'):
-    """ Returns appended scalars, labels, sublabels, and_logs """
+  def _call_scalars(self, specs='train'):
+    """ Returns appended objects, scalars, labels, sublabels """
 
     if type(specs) is str: specs = [specs]
 
     # Initialiase scalar lists
+    if self.scalar_objects is None:
+      self.scalar_objects = []
     if self.scalars is None:
       self.scalars = []
     if self.scalar_labels is None:
       self.scalar_labels = []
     if self.scalar_sublabels is None:
       self.scalar_sublabels = []
-    if self.scalar_logs is None:
-      self.scalar_logs = []
 
     n = len(self.scalars)
 
     # Append to scalar lists
     for spec in specs:
-      scalars, objects, labels, sublabels = self.ret_metrics(spec)
-      for scalar, _, __, sublabel in zip(
-          scalars, objects, labels, sublabels):
-        label = self.name+"/metrics/summaries/"+sublabel
+      objects, scalars, labels, sublabels = self.ret_metrics(spec)
+      for obj, scalar, label, sublabel in zip(
+          objects, scalars, labels, sublabels):
+        self.scalar_objects += [obj]
         self.scalars += [scalar]
         self.scalar_labels += [label]
         self.scalar_sublabels += [sublabel]
-        self.scalar_logs += [Summary('scalar')(label, scalar)]
 
     # Add relevant fields to scalar_dict
     if self.scalar_group is None:
       self.scalar_group = {}
 
-    self.scalar_group.update({spec: [self.scalars[n:], self.scalar_labels[n:],
-           self.scalar_sublabels[n:], self.scalar_logs[n:]]})
+    self.scalar_group.update({spec: [self.scalar_objects[n:], self.scalars[n:], 
+      self.scalar_labels[n:], self.scalar_sublabels[n:]]})
 
     return self.scalar_group[spec]
 

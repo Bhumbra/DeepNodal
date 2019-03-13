@@ -196,7 +196,7 @@ class supervisor (overseer):
     self.error_metrics = [None] * len(self.errors)
     for i in range(len(self.errors)):
       self.error_metrics[i] = self.add_metric()
-      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'eval')
+      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'tests')
       self.error_metrics[i].__call__(self.errors[i])
 
     return self.errors
@@ -252,7 +252,7 @@ class supervisor (overseer):
                          str(ndim_hatval) + "-D vs " + str(ndim_labels) + "-D")
 
     self.cost_metric = self.add_metric()
-    self.cost_metric.set_label('COST', 'train', 'eval')
+    self.cost_metric.set_label('COST', 'train', 'tests')
     self.cost_metric.__call__(self.cost)
     return self.cost
 
@@ -271,7 +271,7 @@ class supervisor (overseer):
         with Device(self.dev):
           self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/metrics/loss")
     self.loss_metric = self.add_metric()
-    self.loss_metric.set_label('LOSS', 'train', 'eval')
+    self.loss_metric.set_label('LOSS', 'train', 'tests')
     self.loss_metric.__call__(self.loss)
     return self.loss
 
@@ -279,11 +279,11 @@ class supervisor (overseer):
   def _call_gradients(self):
     # We calculate all parameter gradients, whether schedule-specified or not
     if self.dev is None:
-      with Scope('var', self.name + "/", reuse = Flag('auto_reuse')):
+      with Scope('var', self.name + "/batch/", reuse = Flag('auto_reuse')):
         self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
     else:
       with Device(self.dev):
-        with Scope('var', self.name + "/", reuse = Flag('auto_reuse')):
+        with Scope('var', self.name + "/batch/", reuse = Flag('auto_reuse')):
           self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
     self.gradients = [grad_and_vars[0] for grad_and_vars in self.grad_and_vars]
     self.gradient_names = [variable_name + "_gradients" for variable_name in self.variable_names]
@@ -323,26 +323,25 @@ class supervisor (overseer):
   def _call_scalars(self):
 
     # Call trainer metrics
-    self.train_scalars, self.train_scalar_labels, self.train_scalar_sublabels, \
-        self.train_scalar_logs = overseer._call_scalars(self, 'train')
+    _, self.train_scalars, self.train_scalar_labels, self.train_scalar_sublabels, \
+        = overseer._call_scalars(self, 'train')
 
-    # Call evaluation metrics
-    self.eval_scalars, self.eval_scalar_labels, self.eval_scalar_sublabels, \
-        self.eval_scalar_logs = overseer._call_scalars(self, 'eval')
+    # Call tests metrics
+    _, self.tests_scalars, self.tests_scalar_labels, self.tests_scalar_sublabels, \
+        = overseer._call_scalars(self, 'tests')
 
-    # Test metrics are the averages of evaluation metrics
-    self.test_scalar_labels = [lbl.replace('EVAL', 'TEST') \
-        for lbl in self.eval_scalar_labels]
-    self.test_scalar_sublabels = [lbl.replace('EVAL', 'TEST') \
-        for lbl in self.eval_scalar_sublabels]
-    self.test_scalars = [None] * len(self.eval_scalars)
-    self.test_scalar_logs = []
-    for i in range(len(self.eval_scalars)):
-      if self.eval_scalars[i] is not None:
-        self.test_scalars[i] = Creation('var')(0., name=self.name+"/metrics/test_scalar_"+str(i))
-        self.test_scalar_logs.append(Summary('scalar')(self.test_scalar_labels[i], self.test_scalars[i]))
-    return self.scalars, self.scalar_labels, \
-           self.scalar_sublabels, self.scalar_logs
+    # Test metrics are the averages of tests metrics
+    self.test_scalar_labels = [lbl.replace('TESTS', 'TEST') \
+        for lbl in self.tests_scalar_labels]
+    self.test_scalar_sublabels = [lbl.replace('TESTS', 'TEST') \
+        for lbl in self.tests_scalar_sublabels]
+    self.test_scalars = []
+    self.test_scalar_objects = []
+    for i in range(len(self.tests_scalars)):
+      if self.tests_scalars[i] is not None:
+        self.test_scalar_objects.append(Creation('var')(0., name=self.name+"/metrics/test_scalar_"+str(i)))
+        self.test_scalars.append(Summary('scalar')(self.test_scalar_labels[i], self.test_scalar_objects[-1]))
+    return self.scalars, self.scalar_labels, self.scalar_sublabels
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None, feed_labels = None):
@@ -390,13 +389,13 @@ class supervisor (overseer):
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
     scalars_val, sublabels = None, None
     if calc_scalars or force_log:
-      scalars, labels, sublabels, logs = self.ret_scalar_group('train')
-      scalars_val_log = self.session.run(scalars + logs, feed_dict = self.feed_dict)
+      objects, scalars, labels, sublabels = self.ret_scalar_group('train')
+      scalars_obj_log = self.session.run(objects + scalars, feed_dict = self.feed_dict)
       num_scalars = len(scalars)
-      scalars_val, scalars_log = scalars_val_log[:num_scalars], scalars_val_log[num_scalars:]
+      scalars_obj, scalars_log = scalars_obj_log[:num_scalars], scalars_obj_log[num_scalars:]
       self._add_logs(scalars_log)
       summary_strs = [name + "=" + str(num) for name, num in zip(
-        sublabels, scalars_val)]
+        sublabels, scalars_obj)]
       self.train_summary_str = ', '.join(summary_strs)
 
     # Distros
@@ -415,20 +414,20 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot test without first invoking new_session")
     split = 1 if 'split' not in kwds else kwds['split']
-    scalars, labels, sublabels, logs = self.ret_scalar_group('eval')
+    objects, scalars, labels, sublabels = self.ret_scalar_group('tests')
     num_scalars = len(scalars)
-    eval_scalars = np.empty([split, num_scalars], dtype = np.float32)
+    tests_obj = np.empty([split, num_scalars], dtype = np.float32)
     arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
     for i in range(split):
       feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
-      eval_scalars[i, :] = self.session.run(scalars, feed_dict=feed_dict)
-    test_scalars = np.mean(eval_scalars, axis=0)
+      tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
+    test_obj = np.mean(tests_obj, axis=0)
     for i in range(num_scalars):
-      self.session.run(self.test_scalars[i].assign(test_scalars[i]), feed_dict = {})
-    scalars_log = self.session.run(self.test_scalar_logs)
+      self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict = {})
+    scalars_log = self.session.run(self.test_scalars)
     self._add_logs(scalars_log)
-    summary_strs = [name + "=" + str(num) for name, num in zip(
-      self.test_scalar_sublabels, test_scalars)]
+    summary_strs = [name + "=" + str(obj) for name, obj in zip(
+      self.test_scalar_sublabels, test_obj)]
     self.test_summary_str = ', '.join(summary_strs)
     return ', '.join([self.train_summary_str, self.test_summary_str])
 

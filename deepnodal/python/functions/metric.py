@@ -174,10 +174,10 @@ class metric (function):
 #-------------------------------------------------------------------------------
   def __call__scalars(self, out = None):
     if out is None: return None
-    label = self._label
 
     # Handle trivial case first
     if not len(self._scalars):
+      label = self._label
       if self.dev is None:
         self._scalar = Summary('scalar')(label, out)
       else:
@@ -186,9 +186,10 @@ class metric (function):
       return self._scalar
     
     # Handle multiple key method:
-    label_lower = self._label.split(self.__delimiter)[0].lower()
+    label_lower = self._label.split(self.__delimiter)[-1].lower()
     keys = list(self._scalars.keys())
     for key in keys:
+      label = self._label
       if len(keys) > 1:
         if key.lower() not in label_lower:
           label += "_" + key.upper()
@@ -203,13 +204,6 @@ class metric (function):
 
 #-------------------------------------------------------------------------------
   def call_assign(self, target, reuse=False):
-    if reuse is None:
-      if self.dev is None:
-        op = self._out.assign(target)
-      else:
-        with Device(self.dev):
-          op = self._out.assign(target)
-      return op
     with Scope('var', self.name+"_update", reuse=reuse):
       if self.dev is None:
         op = self._out.assign(target)

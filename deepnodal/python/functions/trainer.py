@@ -164,7 +164,7 @@ class trainer (recorder):
   def _call_batch_size(self):
     # At the time of coding, batch_size evaluation is not GPU-compatible
     self.batch_size_metric = self.add_metric('var', 0, trainable=False, 
-        name=self.name+"/batch/batch_size") 
+        name=self.name+"/metrics/batch_size") 
     self.batch_size_metric.set_label("BATCH_SIZE", 'train')
     self.batch_size = self.batch_size_metric.__call__()
     with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
@@ -188,7 +188,7 @@ class trainer (recorder):
     args = self._lrn_args
     kwds = dict(self._lrn_kwds)
     if 'name' not in kwds:
-      kwds.update({'name': self.name + '/learning_rate'})
+      kwds.update({'name': self.name + '/metrics/learning_rate'})
 
     if not callable(lrn):
       if self.dev is None:
@@ -221,7 +221,8 @@ class trainer (recorder):
 
 #-------------------------------------------------------------------------------
   def _call_global_step(self): # global_step is not device dependent
-    self.gst = Creation('var')(0, trainable=False, name=self.name + "/global_step")
+    self.gst = Creation('var')(0, trainable=False, 
+                                  name=self.name+"/batch/global_step")
     self.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
@@ -414,9 +415,9 @@ class trainer (recorder):
     calc_scalars = self.write_intervals[0]
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
     if calc_scalars:
-      scalars_num_log = self.session.run(self.scalars + self.scalar_logs, feed_dict = self.feed_dict)
+      scalars_obj_log = self.session.run(self.scalar_objects + self.scalars, feed_dict = self.feed_dict)
       n_scalars = len(self.scalars)
-      scalars_num, scalars_log = scalars_num_log[:n_scalars], scalars_num_log[n_scalars:]
+      scalars_obj, scalars_log = scalars_obj_log[:n_scalars], scalars_obj_log[n_scalars:]
       self._add_logs(scalars_logs)
 
     # Distros
