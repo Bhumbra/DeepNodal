@@ -122,7 +122,7 @@ class overseer (trainer):
 
     # Set up the schedule index scalar - at the time of coding, not GPU-compatible
     self.schedule_index_metric = self.add_metric('var', self.using_schedule, trainable=False, 
-                                 name=self.name+"/schedules/index")
+                                 name=self.name+"/metrics/schedule_index")
     self.schedule_index_metric.set_label("SCHEDULE_INDEX", 'train')
     self.schedule_index = self.schedule_index_metric.__call__()
 
