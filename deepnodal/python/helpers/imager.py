@@ -191,7 +191,7 @@ class imager (batcher):
       inputs, labels = super().read_data(input_spec, label_spec)
     else:
       inputs, labels = input_spec, label_spec
-    inputs = self._preprocess(inputs)
+    inputs = self._preprocess(inputs, gcn, zca, gcn_within_depth=True)
     return self.set_data(inputs, labels)
 
 #-------------------------------------------------------------------------------
