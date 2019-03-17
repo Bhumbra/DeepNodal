@@ -468,6 +468,17 @@ class hypervisor (supervisor, master, stem):
     return self.train_ops
 
 #-------------------------------------------------------------------------------
+  def use_schedule(self, using_schedule = -1, _update_dropout=True): 
+    """ overloads overseer.use_schedules """
+    if self.unit_dev: 
+      return supervisor.use_schedule(self, using_schedule, _update_dropout)
+    update_schedule = supervisor.use_schedule(self, using_schedule, False)
+    if not update_schedule or not _update_dropout : return update_schedule
+    for slave in self.slaves:
+      slave.work.set_dropout(self.session, self.schedules[self.using_schedule].dro)
+    return update_schedule
+
+#-------------------------------------------------------------------------------
   def test(self, *args, **kwds): # overloading supervisor.test(*args)
     if self.param_ops is not None: # all we need to do update the slave parameters
       self.session.run(self.param_ops, feed_dict = {})
