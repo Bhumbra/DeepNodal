@@ -70,8 +70,8 @@ skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}
 optimiser = 'mom'
 optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
 
-gcn, zca, gcn_within_depth = True, False, False
-rand_horz_flip, rand_bord_crop = True, True
+gcn, zca, gcn_within_depth = True, True, True
+rand_flip, rand_crop = [True, False], 2
 net_name = 'wide_resnet_' + str(N) + '_' + str(k)
 write_dir = '/tmp/dn_logs/'
 save_interval = 10
@@ -81,7 +81,7 @@ def main():
   # INPUT DATA
 
   source = dn.loaders.cifar10()
-  source.read_data()
+  source.read_data(gcn=gcn, zca=zca, gcn_within_depth=gcn_within_depth)
   source.partition()
 
   # SPECIFY ARCHITECTURE
@@ -138,7 +138,8 @@ def main():
         schedule += 1
         sup.use_schedule(schedule)
       while True:
-        data = source.next_batch('train', batch_size)
+        data = source.next_batch('train', batch_size, \
+                                 rand_flip=rand_flip, rand_crop=rand_crop)
         if not data:
           break
         sup.train(*data)
