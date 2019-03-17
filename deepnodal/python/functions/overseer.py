@@ -166,8 +166,9 @@ class overseer (trainer):
     pass
 
 #-------------------------------------------------------------------------------
-  def use_schedule(self, using_schedule = -1): # this updates schedule index and learning rate
-    # Returns whether the schedule must be updated online
+  def use_schedule(self, using_schedule = -1, _update_dropout=True): 
+    # This updates schedule index and learning rate
+    # and returns whether the schedule must be updated online
     if self.session is None:
       self.using_schedule = using_schedule
       return False
@@ -182,7 +183,8 @@ class overseer (trainer):
       with Scope('var', self.name+"/schedule_updates", reuse=True):
         op = self.schedule_index.assign(self.using_schedule)
         self.session.run(op)
-      self.work.set_dropout(self.session, self.schedules[self.using_schedule].dro)
+      if _update_dropout:
+        self.work.set_dropout(self.session, self.schedules[self.using_schedule].dro)
 
     return update_schedule
     
