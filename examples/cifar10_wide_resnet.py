@@ -128,7 +128,7 @@ def main():
 
   with sup.call_session(log_out, restore_point):
     if restore_point is not None:
-      epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.train_num_examples)))
+      epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.sets['train']['support'])))
       for i in range(epoch_0):
         if i in learning_rates:
           schedule += 1
