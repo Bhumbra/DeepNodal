@@ -18,7 +18,7 @@ learning_rates = {0:lr0, 60:lr0*0.2, 120:lr0*0.04, 160:lr0*0.008}
 devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
-k, N = 6, 3
+k, N = 10, 4
 k16, k32, k64, N2 = k*16, k*32, k*64, N*2
 arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
        [ [k16, [3, 3], [1, 1]] ] * N2                   +\
@@ -50,15 +50,16 @@ skipcv =  [None]                   +\
           [None, None]
 order =   ['ant']                  +\
           ['ant', 'a']             +\
-          ['nta', 'nta'] * (N - 1) +\
+          ['nta', 'dnta'] * (N - 1) +\
           ['nt', 'ant', 'a']       +\
-          ['nta', 'nta'] * (N - 1) +\
+          ['nta', 'dnta'] * (N - 1) +\
           ['nt', 'ant', 'a']       +\
-          ['nta', 'nta'] * (N - 1) +\
-          ['nta', 'dat']
+          ['nta', 'dnta'] * (N - 1) +\
+          ['nta', 'at']
 
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 kernfn = ['xcorr'] * (len(arch)-2) + ['avg', None]
+dropout = 0.3
 normal = 'batch_norm'
 normal_kwds = {'decay':0.997, 'epsilon':1e-5}
 padwin = 'same'
@@ -72,7 +73,7 @@ optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
 
 gcn, zca, gcn_within_depth = True, True, True
 rand_flip, rand_crop = [True, False], 2
-net_name = 'wide_resnet_' + str(N) + '_' + str(k)
+net_name = 'wide_resnet_N' + str(N) + '_k' + str(k)
 write_dir = '/tmp/dn_logs/'
 save_interval = 10
 
@@ -94,6 +95,7 @@ def main():
   mod.set_transfn(transfn)
   mod.set_kernfn(kernfn)
   mod.set_padwin(padwin)
+  mod.set_dropout(dropout)
   mod.set_normal(normal, **normal_kwds)
   mod.set_weights(weights)
   mod.set_reguln(reguln, **reguln_kwds)
