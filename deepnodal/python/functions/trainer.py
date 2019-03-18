@@ -330,7 +330,7 @@ class trainer (recorder):
     return self.session
 
 #-------------------------------------------------------------------------------
-  def call_session(self, write_dir = None, restore_point = None, *args, **kwds):
+  def call_session(self, write_dir=None, seed=None, *args, **kwds):
 
     # Call the write_directory logger and saver.
     if self.write_dir is None: self.set_write_dir(write_dir)
@@ -342,7 +342,7 @@ class trainer (recorder):
 
     # Ideal point to confirm whether self.gvi has been setup and run
     if session is not None and self.gvi is None: 
-      self._init_variables(restore_point)
+      self._init_variables(seed)
     return session
 
 #-------------------------------------------------------------------------------
@@ -363,17 +363,19 @@ class trainer (recorder):
     self.saver = Creation(saver)(name = self.name + "/saver")
 
 #-------------------------------------------------------------------------------
-  def _init_variables(self, restore_point = None):
+  def _init_variables(self, seed=None):
     if self.session is None:
       raise AttributeError("Cannot initialise variables before calling new_session")
     with Scope('name', self.name):
       self.gvi = Creation('gvi')()
+    if type(seed) is int:
+      Seed(seed)
     self.session.run(self.gvi)
-    if restore_point is not None:
+    if isinstance(seed, str):
       if self.saver is None:
-        raise AttributeError("Cannot load restore point without saver created")
-      self.saver.restore(self.session, restore_point)
-      load_path = restore_point + '.tab'
+        raise AttributeError("Cannot load restore seed without saver created")
+      self.saver.restore(self.session, seed)
+      load_path = seed + '.tab'
       with open(load_path, 'rt') as tab_file:
         tab_reader = csv.reader(tab_file, delimiter = '\t')
         progress = []

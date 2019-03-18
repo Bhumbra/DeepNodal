@@ -76,6 +76,7 @@ rand_flip, rand_crop = [True, False], 2
 net_name = 'wide_resnet_N' + str(N) + '_k' + str(k)
 write_dir = '/tmp/dn_logs/'
 save_interval = 10
+seed = 42
 
 def main():
 
@@ -83,7 +84,7 @@ def main():
 
   source = dn.loaders.cifar10()
   source.read_data(gcn=gcn, zca=zca, gcn_within_depth=gcn_within_depth)
-  source.partition()
+  source.partition(seed=seed)
 
   # SPECIFY ARCHITECTURE
 
@@ -118,6 +119,8 @@ def main():
 
   modfiler = dn.helpers.model_filer(write_dir, net_name)
   restore_point = modfiler.interview()
+  if restore_point is not None:
+    seed = restore_point
 
   # TRAIN AND TEST
 
@@ -128,7 +131,7 @@ def main():
   epoch_0 = 0
   t0 = time()
 
-  with sup.call_session(log_out, restore_point):
+  with sup.call_session(log_out, seed):
     if restore_point is not None:
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.sets['train']['support'])))
       for i in range(epoch_0):
