@@ -24,6 +24,7 @@ optimiser = 'adam'
 optimiser_kwds = {'beta1':0.9, 'beta2':0.999, 'epsilon':0.001}
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
+seed = 42
 
 def main():
 
@@ -31,7 +32,7 @@ def main():
 
   source = dn.loaders.mnist()
   source.read_data()
-  source.partition()
+  source.partition(seed=seed)
 
   # SPECIFY ARCHITECTURE
 
@@ -63,7 +64,7 @@ def main():
 
   now = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
   t0 = time()
-  with sup.call_session(write_dir+net_name+"_"+now):
+  with sup.call_session(write_dir+net_name+"_"+now, seed=seed):
     for i in range(n_epochs):
       if i == n_epochs // 4:
         sup.use_schedule(1)
@@ -84,4 +85,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
