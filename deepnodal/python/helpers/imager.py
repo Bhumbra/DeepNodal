@@ -184,13 +184,20 @@ class imager (batcher):
     self.depth_last_dim = depth_last_dim
 
 #-------------------------------------------------------------------------------
-  def read_data(self, input_spec, label_spec, 
+  def read_data(self, *args, 
                       gcn=False, zca=False, gcn_within_depth=True):
     if self.dims is None: raise ValueError("Data dimensions not set")
-    if isinstance(input_spec, bytes) and isinstance(label_spec, bytes):
-      inputs, labels = super().read_data(input_spec, label_spec)
+    inputs, labels = None, None
+    if len(args) == 1:
+      inputs = args[0]
+    elif len(args) == 2:
+      if isinstance(args[0], bytes) and isinstance(args[1], bytes):
+        inputs, labels = super().read_data(*args)
+      else:
+        inputs, labels = args[0], args[1]
     else:
-      inputs, labels = input_spec, label_spec
+      raise ValueError("Ambiguous data reading specification with {} arguments".
+                       format(len(args)))
     inputs = self._preprocess(inputs, gcn, zca, gcn_within_depth=True)
     return self.set_data(inputs, labels)
 

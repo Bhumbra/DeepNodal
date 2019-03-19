@@ -58,10 +58,11 @@ class batcher (object):
     self.directory = directory
 
 #-------------------------------------------------------------------------------
-  def read_data(self, input_key, label_key):
+  def read_data(self, *args):
     """
     A Pickle reader, with no relationship to partitioning.
     """
+    input_key, label_key = args
     if self.directory is None: raise ValueError("Directory not set")
     if self.files is None: raise ValueError("Data files not set")
     inputs = []
