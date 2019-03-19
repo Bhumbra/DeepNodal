@@ -332,6 +332,11 @@ class trainer (recorder):
 #-------------------------------------------------------------------------------
   def call_session(self, write_dir=None, seed=None, *args, **kwds):
 
+    # Initialise seed if specified
+    if type(seed) is int:
+      Seed(seed)
+      seed = None
+
     # Call the write_directory logger and saver.
     if self.write_dir is None: self.set_write_dir(write_dir)
     if self.outputs is None: self.__call__()
@@ -368,8 +373,6 @@ class trainer (recorder):
       raise AttributeError("Cannot initialise variables before calling new_session")
     with Scope('name', self.name):
       self.gvi = Creation('gvi')()
-    if type(seed) is int:
-      Seed(seed)
     self.session.run(self.gvi)
     if isinstance(seed, str):
       if self.saver is None:

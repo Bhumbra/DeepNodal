@@ -82,6 +82,5 @@ def main():
       summary_str = sup.test(*data)
       print("".join(["Epoch {} ({} s): ", summary_str]).format(str(i), str(round(time()-t0))))
 
-
 if __name__ == '__main__':
   main()
