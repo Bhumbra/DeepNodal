@@ -16,10 +16,10 @@ CIFAR100_SOURCE = 'cifar-100-python'
 CIFAR10_FILES = ['data_batch_1', 'data_batch_2', 
                  'data_batch_3', 'data_batch_4', 
                  'data_batch_5', 'test_batch']
-CIFAR10_KEYS = [b'data', b'labels']
+CIFAR10_KEYS = (b'data', b'labels')
 CIFAR10_DIMS = [3, 32, 32]
 CIFAR100_FILES = ['train', 'test']
-CIFAR100_KEYS = [b'data', b'fine_labels']
+CIFAR100_KEYS = (b'data', b'fine_labels')
 CIFAR100_DIMS = [3, 32, 32]
 
 #-------------------------------------------------------------------------------
@@ -63,9 +63,10 @@ class cifar10 (imager):
                     dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
-  def read_data(self, input_spec=CIFAR10_KEYS[0], label_spec=CIFAR10_KEYS[1], 
-                      gcn=False, zca=False, gcn_within_depth=True):
-    return super().read_data(input_spec, label_spec, gcn, zca, gcn_within_depth)
+  def read_data(self, *args, gcn=False, zca=False, gcn_within_depth=True):
+    args = CIFAR10_KEYS if not args else tuple(args)
+    return super().read_data(*args, gcn=gcn, zca=zca, 
+                             gcn_within_depth=gcn_within_depth)
 
 #-------------------------------------------------------------------------------
 class cifar100 (imager):
@@ -88,8 +89,9 @@ class cifar100 (imager):
                     dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
-  def read_data(self, input_spec=CIFAR100_KEYS[0], label_spec=CIFAR100_KEYS[1], 
-                      gcn=False, zca=False, gcn_within_depth=True):
-    return super().read_data(input_spec, label_spec, gcn, zca, gcn_within_depth)
+  def read_data(self, *args, gcn=False, zca=False, gcn_within_depth=True):
+    args = CIFAR100_KEYS if not args else tuple(args)
+    return super().read_data(*args, gcn=gcn, zca=zca, 
+                             gcn_within_depth=gcn_within_depth)
 
 #-------------------------------------------------------------------------------

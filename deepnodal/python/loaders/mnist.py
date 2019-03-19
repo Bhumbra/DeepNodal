@@ -68,8 +68,8 @@ class mnist (imager):
                     dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
-  def read_data(self, input_key=None, label_key=None, 
-                gcn = False, zca = False, gcn_within_depth = True):
+  def read_data(self, *args, 
+                gcn=False, zca=False, gcn_within_depth=True):
     # MNIST source data is not conveniently pickled so we overload here.
     if self.directory is None: raise ValueError("Directory not set")
     if self.files is None: raise ValueError("Data files not set")
@@ -84,6 +84,7 @@ class mnist (imager):
         counts.append(len(labels[-1]))
     self._counts = counts
     return super().read_data(np.concatenate(inputs, axis=0)/255., 
-                             np.concatenate(labels), gcn, zca, gcn_within_depth)
+                             np.concatenate(labels), gcn=gcn, zca=zca, 
+                             gcn_within_depth=gcn_within_depth)
 
 #-------------------------------------------------------------------------------
