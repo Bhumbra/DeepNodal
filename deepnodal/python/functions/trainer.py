@@ -13,6 +13,7 @@ logging, and saving.
 
 #-------------------------------------------------------------------------------
 import csv
+import numpy as np
 from deepnodal.python.structures.network import *
 from deepnodal.python.functions.recorder import *
 from deepnodal.python.interfaces.calls import *
@@ -378,14 +379,25 @@ class trainer (recorder):
       if self.saver is None:
         raise AttributeError("Cannot load restore seed without saver created")
       self.saver.restore(self.session, seed)
+      np_random_state = []
       load_path = seed + '.tab'
       with open(load_path, 'rt') as tab_file:
         tab_reader = csv.reader(tab_file, delimiter = '\t')
         progress = []
-        for row in tab_reader:
-          if not(len(progress)):
-            progress = row
+        for i, row in enumerate(tab_reader):
+          if not i:
+            if not progress:
+              progress = row
+          else:
+            np_random_state.append(row)
       self.progress = [int(progress[0]), int(progress[1])]
+      if len(np_random_state) == 5:
+        np_random_state[0] = np_random_state[0][0]
+        np_random_state[1] = np.array([int(element) for element in np_random_state[1]])
+        np_random_state[2] = int(np_random_state[2][0])
+        np_random_state[3] = int(np_random_state[3][0])
+        np_random_state[4] = float(np_random_state[4][0])
+        np.random.set_state(tuple(np_random_state))
 
 #-------------------------------------------------------------------------------
   def save(self, *args, **kwds):
@@ -398,9 +410,16 @@ class trainer (recorder):
     # so we save it manually.
     save_path = args[0] + "-" + str(int(self.gst.eval())) + ".tab"
     progress = [str(self.progress[0]), str(self.progress[1])]
+    np_random_state = list(np.random.get_state())
+    np_random_state[1] = [str(element) for element in np_random_state[1]]
     with open(save_path, 'wt', newline="") as tab_file:
       tab_writer = csv.writer(tab_file, delimiter = '\t')
       tab_writer.writerow(progress)
+      for row_data in np_random_state:
+        if isinstance(row_data, list):
+          tab_writer.writerow(row_data)
+        else:
+          tab_writer.writerow([str(row_data)])
 
 #-------------------------------------------------------------------------------
   def _add_logs(self, logs_str):
