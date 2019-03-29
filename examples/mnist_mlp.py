@@ -11,6 +11,7 @@ import datetime
 n_epochs = 20
 batch_size = 60
 learning_rate = 0.01
+epochs_per_schedule = 5
 
 input_dims = [28, 28, 1]
 arch = [100, 100, 10]
@@ -57,8 +58,8 @@ def main():
   sup.add_schedule(learning_rate)
   sup.add_schedule(0.1*learning_rate)
   sup.add_schedule(0.01*learning_rate)
-  sup.add_schedule(0.01*learning_rate)
-  sup.set_schedule(3, False) # disable dropout
+  index = sup.add_schedule(0.01*learning_rate)
+  sup.set_schedule(index, False) # disable dropout
 
   # TRAIN AND TEST
 
@@ -66,12 +67,8 @@ def main():
   t0 = time()
   with sup.call_session(write_dir+net_name+"_"+now, seed=seed):
     for i in range(n_epochs):
-      if i == n_epochs // 4:
-        sup.use_schedule(1)
-      elif i == n_epochs // 2:
-        sup.use_schedule(2)
-      elif i == 3 * n_epochs // 4:
-        sup.use_schedule(3)
+      if not (i % epochs_per_schedule):
+        sup.use_schedule(i // epochs_per_schedule)
       while True:
         data = source.next_batch('train', batch_size)
         if data:

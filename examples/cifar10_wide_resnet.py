@@ -1,6 +1,4 @@
-"""
-An example of a wide resnet network with Nestorov-momentum back-prop on CIFAR10 data.
-(details in Zagoruyko and Komodakis, 2017)
+""" An example of a wide resnet network with Nestorov-momentum back-prop on CIFAR10 data.  (details in Zagoruyko and Komodakis, 2017)
 """
 
 import deepnodal as dn
@@ -13,8 +11,8 @@ import numpy as np
 n_epochs = 180
 batch_size = 120
 test_split = 20
-lr0 = 0.1
-learning_rates = {0:lr0, 60:lr0*0.2, 120:lr0*0.04, 160:lr0*0.008}
+max_lr = 0.1
+learning_rates = {0:max_lr*0.1, 5:max_lr, 65:lr0*0.2, 125:lr0*0.04, 165:lr0*0.008}
 devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
@@ -112,8 +110,8 @@ def main():
   sup = dn.hypervisor(devs = devs)
   sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
-  for i in sorted(list(learning_rates)):
-    sup.add_schedule(learning_rates[i])
+  for epoch in sorted(list(learning_rates.keys())):
+    index = sup.add_schedule(learning_rates[epoch])
 
   # CHECK FOR RESTOREPOINT
 

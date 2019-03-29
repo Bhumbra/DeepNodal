@@ -62,10 +62,10 @@ def main():
   sup = dn.supervisor()
   sup.set_optimiser(optimiser, **optimiser_kwds)
   sup.set_work(net)
-  for i in sorted(list(learning_rates)):
-    sup.add_schedule(learning_rates[i])
-    if i == len(learning_rates) - 1:
-      sup.set_schedule(i, False) # disable dropout
+  for epoch in sorted(list(learning_rates.keys())):
+    index = sup.add_schedule(learning_rates[epoch])
+    if index == len(learning_rates) - 1:
+      sup.set_schedule(index, False) # disable dropout
 
   # CHECK FOR RESTOREPOINT
 
