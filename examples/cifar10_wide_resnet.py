@@ -12,7 +12,7 @@ n_epochs = 180
 batch_size = 120
 test_split = 20
 max_lr = 0.1
-learning_rates = {0:max_lr*0.1, 5:max_lr, 65:lr0*0.2, 125:lr0*0.04, 165:lr0*0.008}
+learning_rates = {0:max_lr, 60:lr0*0.2, 120:lr0*0.04, 160:lr0*0.008}
 devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
