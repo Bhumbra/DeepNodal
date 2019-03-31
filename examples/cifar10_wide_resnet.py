@@ -10,7 +10,7 @@ import numpy as np
 
 n_epochs = 180
 batch_size = 120
-test_split = 20
+test_split = 100
 max_lr = 0.1
 learning_rates = {0:max_lr, 60:max_lr*0.2, 120:max_lr*0.04, 160:max_lr*0.008}
 devs = 2 # set to None if using only one device
