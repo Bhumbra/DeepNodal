@@ -65,7 +65,7 @@ normal_kwds = {'decay':0.997, 'epsilon':1e-5}
 padwin = 'same'
 weights = 'vsi'
 reguln = 2
-reguln_kwds = {'scale': 1e-4}
+reguln_kwds = {'scale': 2e-4}
 opverge_kwds = {'vergence_fn': 'sum'}
 skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}       
 optimiser = 'mom'
@@ -76,10 +76,8 @@ rand_flip, rand_crop = [True, False], 2
 net_name = 'wide_resnet_N' + str(N) + '_k' + str(k)
 write_dir = '/tmp/dn_logs/'
 save_interval = 10
-seed = 42
 
-def main():
-  seed = 42
+def main(seed=42):
 
   # INPUT DATA
 
