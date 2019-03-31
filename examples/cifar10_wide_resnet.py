@@ -12,14 +12,16 @@ n_epochs = 180
 batch_size = 120
 test_split = 20
 max_lr = 0.1
-learning_rates = {0:max_lr, 60:lr0*0.2, 120:lr0*0.04, 160:lr0*0.008}
+learning_rates = {0:max_lr, 60:max_lr*0.2, 120:max_lr*0.04, 160:max_lr*0.008}
 devs = 2 # set to None if using only one device
 
 input_dims = [32, 32, 3]
 k, N = 10, 4
 k16, k32, k64, N2 = k*16, k*32, k*64, N*2
 arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
-       [ [k16, [3, 3], [1, 1]] ] * N2                   +\
+       [([k16, [3, 3], [1, 1]], None)]                  +\
+       [([k16, [3, 3], [1, 1]], [k16, [1, 1], [1, 1]])] +\
+       [ [k16, [3, 3], [1, 1]] ] * (N2 - 2)             +\
        [ [] ]                                           +\
        [([k32, [3, 3], [2, 2]], None)]                  +\
        [([k32, [3, 3], [1, 1]], [k32, [1, 1], [2, 2]])] +\
@@ -30,28 +32,28 @@ arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
        [ [k64, [3, 3], [1, 1]] ] * (N2 - 2)             +\
        [ [[8, 8], [1, 1]], 
          10 ]
-
-opverge = [None]                   +\
-          [None] * N2              +\
-          [None, None, True]       +\
-          [None] * (N2 - 2)        +\
-          [None, None, True]       +\
-          [None] * (N2 - 2)        +\
+opverge = [None]                    +\
+          [None, True]              +\
+          [None] * (N2 - 2)         +\
+          [None, None, True]        +\
+          [None] * (N2 - 2)         +\
+          [None, None, True]        +\
+          [None] * (N2 - 2)         +\
           [None, None]            
-skipcv =  [None]                   +\
-          [None, None]             +\
-          [None, -1] * (N - 1)     +\
-          [None, None, None]       +\
-          [None, -1] * (N - 1)     +\
-          [None, None, None]       +\
-          [None, -1] * (N - 1)     +\
+skipcv =  [None]                    +\
+          [None, None]              +\
+          [None, -1] * (N - 1)      +\
+          [None, None, None]        +\
+          [None, -1] * (N - 1)      +\
+          [None, None, None]        +\
+          [None, -1] * (N - 1)      +\
           [None, None]
-order =   ['ant']                  +\
-          ['ant', 'a']             +\
+order =   ['ant']                   +\
+          ['ant', 'a']              +\
           ['nta', 'dnta'] * (N - 1) +\
-          ['nt', 'ant', 'a']       +\
+          ['nt', 'ant', 'a']        +\
           ['nta', 'dnta'] * (N - 1) +\
-          ['nt', 'ant', 'a']       +\
+          ['nt', 'ant', 'a']        +\
           ['nta', 'dnta'] * (N - 1) +\
           ['nta', 'at']
 
@@ -77,6 +79,7 @@ save_interval = 10
 seed = 42
 
 def main():
+  seed = 42
 
   # INPUT DATA
 
