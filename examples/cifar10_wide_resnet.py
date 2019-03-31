@@ -9,11 +9,11 @@ import numpy as np
 # PARAMETERS
 
 n_epochs = 180
-batch_size = 120
-test_split = 100
+batch_size = 128
+test_split = 50
 max_lr = 0.1
-learning_rates = {0:max_lr, 60:max_lr*0.2, 120:max_lr*0.04, 160:max_lr*0.008}
-devs = 2 # set to None if using only one device
+learning_rates = {0:max_lr*0.2, 1:max_lr, 60:max_lr*0.2, 120:max_lr*0.04, 160:max_lr*0.008}
+devs = None # set to None if using only one device or N to use N GPUs
 
 input_dims = [32, 32, 3]
 k, N = 10, 4
