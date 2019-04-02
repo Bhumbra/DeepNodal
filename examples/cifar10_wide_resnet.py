@@ -71,7 +71,7 @@ skipcv_kwds = {'vergence_fn': 'sum', 'skip_end': 'inp'}
 optimiser = 'mom'
 optimiser_kwds = {'momentum': 0.9, 'use_nesterov': True}
 
-gcn, zca, gcn_within_depth = True, True, True
+gcn, zca, gcn_within_depth = True, False, False
 rand_flip, rand_crop = [True, False], 2
 net_name = 'wide_resnet_N' + str(N) + '_k' + str(k)
 write_dir = '/tmp/dn_logs/'
