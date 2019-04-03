@@ -81,6 +81,8 @@ class link (leaf):
     self._params = []
     self._n_params = 0
     if self.__var_scope is None: return self._params
+
+    # Add parameters belonging to architecture
     for Param in list(Param_Dict):
       with Scope('var', self.__var_scope, reuse=True):
         try:
@@ -89,7 +91,18 @@ class link (leaf):
           param = None
         if param is not None:
           self.add_param(mapping({self.__var_scope+"/"+Param_Dict[Param]: param}))
+     
+    # Add parameters belonging to normalisation
+    for Norm in list(Norm_Dict):
+      with Scope('var', self.__var_scope, reuse=True):
+        try:
+          param = Creation('ret_var')(Norm)
+        except ValueError:
+          param = None
+        if param is not None:
+          self.add_param(mapping({self.__var_scope+"/"+Norm_Dict[Norm]: param}))
     self._n_params = len(self._params)
+
     return self._params
 
 #-------------------------------------------------------------------------------
@@ -108,4 +121,3 @@ class link (leaf):
     return other
 
 #-------------------------------------------------------------------------------
-

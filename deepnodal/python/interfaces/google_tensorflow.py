@@ -164,6 +164,7 @@ def Device(spec = None, number = None): # returns a string if number is not None
 # Parameters list
 
 Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
+Norm_Dict = {'gamma': 'scale', 'beta': 'offset'}
 Param_Reg = {'weights': 'kernel'}
 
 #-------------------------------------------------------------------------------
