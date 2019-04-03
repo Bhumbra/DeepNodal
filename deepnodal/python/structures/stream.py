@@ -490,8 +490,9 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def _setup_params(self):
     self._params = []
-    for obj in self._subobjects:
-      self._params.extend(obj._setup_params())
+    if self._subobjects:
+      for obj in self._subobjects:
+        self._params.extend(obj._setup_params())
     self._n_params = len(self._params)
     return self._params
 
