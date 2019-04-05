@@ -235,5 +235,3 @@ class batcher (object):
     else:
       batch_labels = np.array([labels[i] for i in idx])
     return batch_inputs, batch_labels
-
-#-------------------------------------------------------------------------------
