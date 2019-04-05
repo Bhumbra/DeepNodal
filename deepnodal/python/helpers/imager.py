@@ -13,27 +13,42 @@ HORZ_FLIP_AXIS = {False: 2, True: 1}
 VERT_FLIP_AXIS = {False: 1, True: 0}
 
 #--------------------------------------------------------------------------------
-def global_middle_scale(data, middle = True, scale = True, batch_axis = None, depth_axis = None, 
-    locat_val = 0., scale_val = 2., dtype = float):
+def global_middle_scale(data, 
+                        batch_axis=0, 
+                        depth_axis=None, 
+                        within_depth=False,
+                        locat_val=0., 
+                        scale_val=2., 
+                        dtype=float):
   # This is just a fancy name for middle-scale() except with pre-ordained batch and depth axes
+  if depth_axis is None:
+    depth_axis = batch_axis + 1
+  elif depth_axis < 0:
+    depth_axis += data.ndim
   tr_axes = np.arange(data.ndim)
   tr_axes = tr_axes[tr_axes != batch_axis]
-  if depth_axis is not None:
-    if depth_axis < 0: depth_axis += data.ndim
-    tr_axes = tr_axes[tr_axes != depth_axis] 
-  return middle_scale(data, tr_axes, tr_axes, dtype = dtype, locat_val = locat_val, scale_val = scale_val)
-
+  if within_depth:
+    tr_axes = tr_axes[tr_axes != depth_axis]
+  return middle_scale(data, tr_axes, tr_axes, locat_val=locat_val, scale_val=scale_val, dtype=dtype)
 
 #--------------------------------------------------------------------------------
-def global_contrast_norm(data, center = True, scale = True, batch_axis = 0, depth_axis = 1,
-    locat_val = 0., scale_val = 2., dtype = float):
+def global_contrast_norm(data, 
+                         batch_axis=0, 
+                         depth_axis=None, 
+                         within_depth=False,
+                         locat_val=0., 
+                         scale_val=1., 
+                         dtype=float):
   # This is just a fancy name for center-scale() except with pre-ordained batch and depth axes
+  if depth_axis is None:
+    depth_axis = batch_axis + 1
+  elif depth_axis < 0:
+    depth_axis += data.ndim
   tr_axes = np.arange(data.ndim)
   tr_axes = tr_axes[tr_axes != batch_axis]
-  if depth_axis is not None:
-    if depth_axis < 0: depth_axis += data.ndim
-    tr_axes = tr_axes[tr_axes != depth_axis] 
-  return center_scale(data, tr_axes, tr_axes, dtype = dtype, locat_val = locat_val, scale_val = scale_val)
+  if within_depth:
+    tr_axes = tr_axes[tr_axes != depth_axis]
+  return center_scale(data, tr_axes, tr_axes, locat_val=locat_val, scale_val=scale_val, dtype=dtype)
 
 #--------------------------------------------------------------------------------
 def zca_whitening(_data, batch_axis = 0, depth_axis = 1, dtype = float):
@@ -198,7 +213,10 @@ class imager (batcher):
     else:
       raise ValueError("Ambiguous data reading specification with {} arguments".
                        format(len(args)))
-    inputs = self._preprocess(inputs, gcn, zca, gcn_within_depth=True)
+    inputs = self._preprocess(inputs, 
+                              gcn, 
+                              zca, 
+                              gcn_within_depth=gcn_within_depth)
     return self.set_data(inputs, labels)
 
 #-------------------------------------------------------------------------------
@@ -208,9 +226,11 @@ class imager (batcher):
     self.gcn_within_depth = gcn_within_depth
     dims = np.hstack([len(inputs), self.dims])
     inputs = np.reshape(inputs, dims)
-    depth_axis = 1 if self.gcn_within_depth else None
+    depth_axis = 1
     if self.gcn:
-      inputs = global_contrast_norm(inputs, depth_axis=depth_axis)
+      inputs = global_contrast_norm(inputs, 
+                                    depth_axis=depth_axis, 
+                                    within_depth=self.gcn_within_depth)
     if self.zca:
       inputs = zca_whitening(inputs)
     if self.depth_last_dim:
