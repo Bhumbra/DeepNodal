@@ -36,6 +36,18 @@ def tf_l2_loss(t, name=None, scale = 1.):
     return tf.multiply(tf.nn.l2_loss(t), scale)
 
 #-------------------------------------------------------------------------------
+def tf_max_norm(weights, clip_norm, axes=1., name='max_norm', **_):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    return tf.clipped(weights, clip_norm=clip_norm, axes=axes)
+
+#-------------------------------------------------------------------------------
+def tf_weight_decay(weights, scale=0., learning_rate=0.01, name='weight_decay', **_):
+  with variable_scope(name, reuse=tf.AUTO_REUSE):
+    if scale == 1.:
+      return weights * (-learning_rate + 1.)
+    return weights * (learning_rate * (-scale) + 1.)
+
+#-------------------------------------------------------------------------------
 def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
     return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))

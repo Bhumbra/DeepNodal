@@ -150,7 +150,7 @@ class hypervisor (supervisor, master, stem):
     4. Before setting up hypersupervisor performance metrics (e.g. cost, loss, gradients),
        complete the setup of all slaves and associated clones.
     5. Setup hypervisor performance metrics and gradients as averages from slaves.
-    6. In addition to the delta operations setup parameter update operations for clones.
+    6. In addition to the apply operations setup parameter update operations for clones.
     """
 
     # 1. and 2. 
@@ -415,7 +415,6 @@ class hypervisor (supervisor, master, stem):
   def _call_train_ops(self): # overloading supervisor._call_train_ops()
     """
     For multidevice superivsed learning, this comprises of three stages:
-
     1. Assign clones with parameters (weights & biases) of original model.
     2. Calculate loss gradients of master (and therefore all slaves)
     3. Apply gradient updates to master parameters
@@ -424,10 +423,7 @@ class hypervisor (supervisor, master, stem):
     """
     if self.unit_dev: 
       return supervisor._call_train_ops(self)
-
-    # 1. Assign clones with parameters (weights & biases) of original model.
     self.param_ops = [None] * self.n_devs * self.n_params
-
     k = -1
     for _slave in self.slaves:
       for i in range(self.n_params):
@@ -440,31 +436,26 @@ class hypervisor (supervisor, master, stem):
               self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
 
     # Parameter updates are schedule-dependent
-    self.schedule_grad_and_vars = [None] * self.n_schedules
-    self.lrate_ops = [None] * self.n_schedules # learning rate ops
     self.prepa_ops = [None] * self.n_schedules # preparatory ops
-    self.delta_ops = [None] * self.n_schedules # delta parameter ops
+    self.apply_ops = [None] * self.n_schedules # apply parameter ops
     self.train_ops = [None] * self.n_schedules # training ops
-    for i, _schedule in enumerate(self.schedules):
-      self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
+    for i in range(self.n_schedules):
       if self.dev is None:
         with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
-          self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
+          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op, self.param_ops)
         with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.prepa_ops[i]]):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
+            self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                global_step = self.gst)
       else:
         with Device(self.dev):
           with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
-            self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
+            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op, self.param_ops)
           with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
             with Creation('deps')([self.prepa_ops[i]]):
-              self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
+              self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                  global_step = self.gst)
-      self.train_ops[i] = self.delta_ops[i]
+      self.train_ops[i] = self.apply_ops[i]
     return self.train_ops
 
 #-------------------------------------------------------------------------------
