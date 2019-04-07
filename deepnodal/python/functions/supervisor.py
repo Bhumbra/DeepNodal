@@ -296,6 +296,7 @@ class supervisor (overseer):
     self.schedule_grad_and_vars = [None] * self.n_schedules
     self.lrate_ops = [None] * self.n_schedules # learning rate ops
     self.delta_ops = [None] * self.n_schedules # delta operations
+    var_scope = self.name + "/reg_ops"
     for i in range(self.n_schedules):
       self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
       schedule_vars = [grad_and_vars[1] for grad_and_vars in self.schedule_grad_and_vars[i]]
@@ -304,7 +305,7 @@ class supervisor (overseer):
         with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
           if self.n_reguln:
-            for reguln in enumerate(self._reguln):
+            for reguln in self._reguln:
               if isinstance(reguln, dict):
                 var = list(reguln.values())[0]
                 reg = reguln['reg']
@@ -320,7 +321,7 @@ class supervisor (overseer):
           with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
             self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
             if self.n_reguln:
-              for reguln in enumerate(self._reguln):
+              for reguln in self._reguln:
                 if isinstance(reguln, dict):
                   var = list(reguln.values())[0]
                   reg = reguln['reg']
