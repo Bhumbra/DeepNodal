@@ -143,6 +143,7 @@ class supervisor (overseer):
 
     # Call gradient computations and parameter update operations
     self._call_gradients()
+    self._call_batch_ops()
     self._call_train_ops()
 
     # Call summary scalars and distributions
@@ -290,33 +291,68 @@ class supervisor (overseer):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _call_train_ops(self):
-    # Parameter updates are schedule-dependent
+  def _call_batch_ops(self):
+    # Includes batch and learning rate and dependent ops 
     self.schedule_grad_and_vars = [None] * self.n_schedules
     self.lrate_ops = [None] * self.n_schedules # learning rate ops
-    self.prepa_ops = [None] * self.n_schedules # preparatory ops
-    self.delta_ops = [None] * self.n_schedules # delta parameter ops
-    self.train_ops = [None] * self.n_schedules # training ops
-    for i, _schedule in enumerate(self.schedules):
+    self.delta_ops = [None] * self.n_schedules # delta operations
+    for i in range(self.n_schedules):
       self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
+      schedule_vars = [grad_and_vars[1] for grad_and_vars in self.schedule_grad_and_vars[i]]
+      self.delta_ops[i] = []
       if self.dev is None:
         with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
-        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
-          with Creation('deps')([self.prepa_ops[i]]):
-            self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
-                                                           global_step = self.gst)
+          if self.n_reguln:
+            for reguln in enumerate(self._reguln):
+              if isinstance(reguln, dict):
+                var = list(reguln.values())[0]
+                reg = reguln['reg']
+                reg_name = reguln['name']
+                reg_args = reguln['reg_args']
+                reg_kwds = reguln['reg_kwds']
+                reg_kwds.update({'learning_rate': self.learning_rate})
+                if var in schedule_vars:
+                  self.delta_ops[i].append(var.assign(Creation(reg)(reguln[reg_name], *reg_args,
+                                 name = var_scope + "/" + reg_name, **reg_kwds)))
       else:
         with Device(self.dev):
           with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
             self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
+            if self.n_reguln:
+              for reguln in enumerate(self._reguln):
+                if isinstance(reguln, dict):
+                  var = list(reguln.values())[0]
+                  reg = reguln['reg']
+                  reg_name = reguln['name']
+                  reg_args = reguln['reg_args']
+                  reg_kwds = reguln['reg_kwds']
+                  reg_kwds.update({'learning_rate': self.learning_rate})
+                  if var in schedule_vars:
+                    self.delta_ops[i].append(var.assign(Creation(reg)(reguln[reg_name], *reg_args,
+                                   name = var_scope + "/" + reg_name, **reg_kwds)))
+
+#-------------------------------------------------------------------------------
+  def _call_train_ops(self):
+    # Parameter updates are schedule-dependent
+    self.prepa_ops = [None] * self.n_schedules # preparatory ops
+    self.apply_ops = [None] * self.n_schedules # apply gradient ops
+    self.train_ops = [None] * self.n_schedules # training ops
+    for i in range(self.n_schedules):
+      if self.dev is None:
+        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op)
+          with Creation('deps')([self.prepa_ops[i]]):
+            self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
+                                                               global_step = self.gst)
+      else:
+        with Device(self.dev):
           with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
+            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op)
             with Creation('deps')([self.prepa_ops[i]]):
-              self.delta_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
-                                                             global_step = self.gst)
-      self.train_ops[i] = self.delta_ops[i]
+              self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
+                                                                 global_step = self.gst)
+      self.train_ops[i] = self.apply_ops[i]
     return self.train_ops
 
 #-------------------------------------------------------------------------------
