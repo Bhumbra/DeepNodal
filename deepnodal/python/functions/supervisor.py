@@ -30,22 +30,28 @@ class supervisor (overseer):
 
   """
   def_name = 'supervisor'
-  cfn = None                   # cost function
-  lbl = None                   # labels
-  erq = None                   # error quotient 
-  gradients = None             # gradients
-  grad_and_vars = None         # gradients and variables
+  cfn = None                     # cost function
+  lbl = None                     # labels
+  erq = None                     # error quotient 
+  gradients = None               # gradients
+  grad_and_vars = None           # gradients and variables
   schedule_grad_and_vars = None  # grad_and_vars relevant to each schedule
-  hatval = None                # object to compare labels for error calculations
-  arch_out = None              # object to compare labels for cost calculations 
-  cost = None                  # cost object
-  cost_metric = None           # cost metric
-  loss = None                  # loss object
-  loss_metric = None           # loss metric
-  errors = None                # list of errors
-  error_metrics = None         # list of error metrics
-  train_summary_str = None     # list of train summary string
-  test_summary_str = None      # list of train summary string
+  hatval = None                  # object to compare labels for error calculations
+  arch_out = None                # object to compare labels for cost calculations 
+  cost = None                    # cost object
+  cost_metric = None             # cost metric
+  loss = None                    # loss object
+  loss_metric = None             # loss metric
+  errors = None                  # list of errors
+  error_metrics = None           # list of error metrics
+  train_summary_str = None       # list of train summary string
+  test_summary_str = None        # list of train summary string
+  lrate_ops = None               # learning-rate associated ops
+  delta_ops = None               # regularisation-associated ops to gradients
+  preta_ops = None               # operations before applying gradient updates
+  apply_ops = None               # operations to apply gradients to variables
+  posta_ops = None               # operations after applying gradient updates
+  train_ops = None               # training operations
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
@@ -124,7 +130,6 @@ class supervisor (overseer):
     # Setup supervisor labels objects and metrics
     self._call_labels()
     self._call_metrics(skip_metrics)
-
     self.set_called(_called)
 
     return self.ist, self.gst
@@ -141,10 +146,13 @@ class supervisor (overseer):
     self._call_costfn()
     self._call_losses()
 
-    # Call gradient computations and parameter update operations
+    # Call gradient computations and pre-update operations
     self._call_gradients()
-    self._call_batch_ops()
-    self._call_train_ops()
+    self._call_preta_ops()
+     
+    # Call update and post-update operations
+    self._call_apply_ops()
+    self._call_posta_ops()
 
     # Call summary scalars and distributions
     self._call_summaries()
@@ -278,7 +286,7 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _call_gradients(self):
-    # We calculate all parameter gradients, whether schedule-specified or not
+    # Calculate all parameter gradients, whether schedule-specified or not
     if self.dev is None:
       with Scope('var', self.name + "/batch/", reuse = Flag('auto_reuse')):
         self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
@@ -286,74 +294,90 @@ class supervisor (overseer):
       with Device(self.dev):
         with Scope('var', self.name + "/batch/", reuse = Flag('auto_reuse')):
           self.grad_and_vars = self.optimiser.compute_gradients(self.loss, var_list = self.variables)
-    self.gradients = [grad_and_vars[0] for grad_and_vars in self.grad_and_vars]
+    gradients = [_grad_and_vars[0] for _grad_and_vars in self.grad_and_vars]
+    variables = [_grad_and_vars[1] for _grad_and_vars in self.grad_and_vars]
+    grad_and_vars = [list(_grad_and_vars) for _grad_and_vars in self.grad_and_vars]
+
+    # Gradient delta functions associated with regularisation (e.g. weight-decay)
+    self.delta_grad = None
+    if self.n_reguln:
+      for reguln in self._reguln:
+        if isinstance(reguln, dict):
+          reg = reguln['reg']
+          var = list(reguln.values())[0]
+          if Creation(reg) in Delta_Reg and var in variables:
+            index = variables.index(var)
+            reg_name = reguln['name']
+            reg_args = reguln['reg_args']
+            reg_kwds = reguln['reg_kwds']
+            if self.delta_grad is None: self.delta_grad = []
+            with variable_scope(self.name + "/gradients/" + reg_name, reuse=Flag('auto_reuse')):
+              if self.dev is None:
+                self.delta_grad.append(Creation(reg)(reguln[reg_name], *reg_args, **reg_kwds))
+                grad_and_vars[index][0] = Creation('add')(gradients[index], self.delta_grad[-1])
+              else:
+                with Device(self.dev):
+                  self.delta_grad.append(Creation(reg)(reguln[reg_name], *reg_args, **reg_kwds))
+                  grad_and_vars[index][0] = Creation('add')(gradients[index], self.delta_grad[-1])
+    self.grad_and_vars = [tuple(_grad_and_vars) for _grad_and_vars in grad_and_vars]
+    if self.delta_grad is None:
+      self.gradients = gradients
+    else:
+      self.gradients = [grad_and_vars[0] for grad_and_vars in self.grad_and_vars]
     self.gradient_names = [variable_name + "_gradients" for variable_name in self.variable_names]
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _call_batch_ops(self):
-    # Includes batch and learning rate and dependent ops 
-    self.schedule_grad_and_vars = [None] * self.n_schedules
+  def _call_preta_ops(self):
+    # Calls pre-training ops (i.e. update learning_rate and batch_size)
     self.lrate_ops = [None] * self.n_schedules # learning rate ops
-    self.delta_ops = [None] * self.n_schedules # delta operations
-    var_scope = self.name + "/reg_ops"
+    self.preta_ops = [None] * self.n_schedules # pre-training ops
     for i in range(self.n_schedules):
-      self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
-      schedule_vars = [grad_and_vars[1] for grad_and_vars in self.schedule_grad_and_vars[i]]
-      self.delta_ops[i] = []
       if self.dev is None:
-        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+        with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
           self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-          if self.n_reguln:
-            for reguln in self._reguln:
-              if isinstance(reguln, dict):
-                var = list(reguln.values())[0]
-                reg = reguln['reg']
-                reg_name = reguln['name']
-                reg_args = reguln['reg_args']
-                reg_kwds = reguln['reg_kwds']
-                reg_kwds.update({'learning_rate': self.learning_rate})
-                if var in schedule_vars:
-                  self.delta_ops[i].append(var.assign(Creation(reg)(reguln[reg_name], *reg_args,
-                                 name = var_scope + "/" + reg_name, **reg_kwds)))
+          self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
+          with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
             self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-            if self.n_reguln:
-              for reguln in self._reguln:
-                if isinstance(reguln, dict):
-                  var = list(reguln.values())[0]
-                  reg = reguln['reg']
-                  reg_name = reguln['name']
-                  reg_args = reguln['reg_args']
-                  reg_kwds = reguln['reg_kwds']
-                  reg_kwds.update({'learning_rate': self.learning_rate})
-                  if var in schedule_vars:
-                    self.delta_ops[i].append(var.assign(Creation(reg)(reguln[reg_name], *reg_args,
-                                   name = var_scope + "/" + reg_name, **reg_kwds)))
+            self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op)
+    return self.preta_ops
 
 #-------------------------------------------------------------------------------
-  def _call_train_ops(self):
-    # Parameter updates are schedule-dependent
-    self.prepa_ops = [None] * self.n_schedules # preparatory ops
+  def _call_apply_ops(self):
+    # Calls apply-gradient operations updates that are schedule-dependent
+    self.schedule_grad_and_vars = [None] * self.n_schedules
     self.apply_ops = [None] * self.n_schedules # apply gradient ops
-    self.train_ops = [None] * self.n_schedules # training ops
     for i in range(self.n_schedules):
+      self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
       if self.dev is None:
-        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
-          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op)
-          with Creation('deps')([self.prepa_ops[i]]):
+        with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/apply", reuse=Flag('auto_reuse')):
+          with Creation('deps')([self.preta_ops[i]]):
             self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                global_step = self.gst)
       else:
         with Device(self.dev):
-          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
-            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op)
-            with Creation('deps')([self.prepa_ops[i]]):
+          with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/apply/", reuse=Flag('auto_reuse')):
+            with Creation('deps')([self.preta_ops[i]]):
               self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
                                                                  global_step = self.gst)
-      self.train_ops[i] = self.apply_ops[i]
+
+#-------------------------------------------------------------------------------
+  def _call_posta_ops(self):
+    # Calls post-training update ops (e.g. max_norm) - TODO
+    self.posta_ops = []
+
+    # Combine post-training ops with apply-ops
+    self.train_ops = [None] * self.n_schedules
+    for i in range(self.n_schedules):
+      if self.dev is None:
+        with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
+          self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
+      else:
+        with Device(self.dev):
+          with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
+            self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
     return self.train_ops
 
 #-------------------------------------------------------------------------------
@@ -408,12 +432,12 @@ class supervisor (overseer):
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, *args)
     self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
-    val_lbl = self.summarise()
+    summary = self.summarise()
     save_session = self.write_intervals[2]
     save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
     if save_session and self.write_dir is not None:
       self.save(self.write_dir + "/" + self.name)
-    return val_lbl
+    return summary
 
 #-------------------------------------------------------------------------------
   def summarise(self, force_log = False): # only relevent for training sets
