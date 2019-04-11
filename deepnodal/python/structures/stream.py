@@ -62,7 +62,7 @@ class stream (chain):
   dropout_quotient = None # Graph object for the dropout coefficient
 
   # protected
-  _reguln = None      # list of dictionaries with parameter regularisation spec
+  _reguln = None      # dictionary of regularisation contributions
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = 'stream', dev = None):
@@ -343,8 +343,8 @@ class stream (chain):
     # Collate architectural parameters
     self._setup_params()
 
-    # Collate regularisation parameters
-    self._setup_reguln()
+    # Call regularisation
+    self._call_reguln()
 
     # Set outputs dictionary
     self._setup_outputs()
@@ -464,17 +464,6 @@ class stream (chain):
     if self.nor is None: return self.ret_out()
     kwds = dict(self.nor_kwds)
     if Creation(self.nor) == Creation('batch_norm'):
-      # Official batch_norm is broken...
-      """
-      if 'training' not in kwds:
-        if self.ist is None:
-          raise ValueError("Cannot setup batch_norm before setting training flag.")
-        else:
-          kwds.update({'training': self.ist})
-      if 'name' not in kwds:
-        kwds.update({'name': self.name + "/batch_norm"})
-      """
-      # Official batch_norm is broken...
       if 'is_training' not in kwds:
         if self.ist is None:
           raise ValueError("Cannot setup batch_norm before setting training flag.")
@@ -497,18 +486,25 @@ class stream (chain):
     return self._params
 
 #-------------------------------------------------------------------------------
-  def _setup_reguln(self):
-    self._reguln = []
+  def _call_reguln(self):
+    self._reguln = {'loss': [], 'grad': [], 'vars': []}
     if self.reg is None: return self._reguln
     param_reg = list(Param_Reg)[0]
     for param in self._params:
       param_name = list(param)[0]
       if param_reg in param_name:
-        self._reguln.append(param.copy())
-        self._reguln[-1].update({'reg': self.reg,
-                                 'reg_args': self.reg_args,
-                                 'reg_kwds': self.reg_kwds,
-                                 'name': param_name})
+        reg_type = None
+        for key, creations in Regularisation.items():
+          if Creation(self.reg) in creations:
+            reg_type = key
+        assert key is not None, "Unknown regurisation"
+        if self.dev is None:
+          self._reguln[key].append((param, Creation(self.reg)(param, *self.reg_args,
+            name = param_name + "/" + reg_type, **self.reg_kwds)))
+        else:
+          with Device(self.dev):
+            self._reguln[key].append((param, Creation(self.reg)(param, *self.reg_args,
+              name = param_name + "/" + reg_type, **self.reg_kwds)))
     return self._reguln
 
 #-------------------------------------------------------------------------------

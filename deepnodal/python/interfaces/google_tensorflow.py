@@ -167,8 +167,9 @@ def Device(spec = None, number = None): # returns a string if number is not None
 Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
 Norm_Dict = {'gamma': 'scale', 'beta': 'offset'}
 Param_Reg = {'weights': 'kernel'}
-Varia_Reg = []
-Delta_Reg = [Creation('weight_decay')]
+Regularisation = {'loss': [Creation('l1_reg'), Creation('l2_reg')],
+                  'grad': [Creation('weight_decay')],
+                  'vars': [Creation('max_norm')]}
 
 #-------------------------------------------------------------------------------
 # Logits list
