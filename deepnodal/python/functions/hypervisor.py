@@ -314,7 +314,6 @@ class hypervisor (supervisor, master, stem):
         for j in range(self.n_devs):
           slave_errors_by_slave[i][j] = slave_errors[j][i]
 
-
       self.errors = [None] * len(self.erq_args[0])
       K = [None] * len(self.erq_args[0])
       for i, k in enumerate(self.erq_args[0]):
@@ -412,23 +411,25 @@ class hypervisor (supervisor, master, stem):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _call_train_ops(self): # overloading supervisor._call_train_ops()
+  def _call_preta_ops(self): # overloading supervisor._call_apply_ops()
     """
     For multidevice superivsed learning, this comprises of three stages:
     1. Assign clones with parameters (weights & biases) of original model.
     2. Calculate loss gradients of master (and therefore all slaves)
     3. Apply gradient updates to master parameters
 
-    - only step 1 needs particularly special treatment
+    - only step 1 needs particularly special treatment, extending preta_ops
     """
     if self.unit_dev: 
-      return supervisor._call_train_ops(self)
+      return supervisor._call_preta_ops(self)
+
+    # Collate operations that assign master parameters
     self.param_ops = [None] * self.n_devs * self.n_params
     k = -1
     for _slave in self.slaves:
       for i in range(self.n_params):
         k += 1
-        with Scope('var', self.name + "/" + self.work.name + "/update_ops/param_"+str(k), Flag('auto_reuse')):
+        with Scope('var', self.name + "/" + self.work.name + "/updates/param_"+str(k), Flag('auto_reuse')):
           if self.dev is None:
             self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
           else:
@@ -436,27 +437,13 @@ class hypervisor (supervisor, master, stem):
               self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
 
     # Parameter updates are schedule-dependent
-    self.prepa_ops = [None] * self.n_schedules # preparatory ops
-    self.apply_ops = [None] * self.n_schedules # apply parameter ops
-    self.train_ops = [None] * self.n_schedules # training ops
+    self.lrate_ops = [None] * self.n_schedules # learning rate ops
+    self.preta_ops = [None] * self.n_schedules # pre-training ops
     for i in range(self.n_schedules):
-      if self.dev is None:
-        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
-          self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op, self.param_ops)
-        with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
-          with Creation('deps')([self.prepa_ops[i]]):
-            self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
-                                                               global_step = self.gst)
-      else:
-        with Device(self.dev):
-          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i), reuse=Flag('auto_reuse')):
-            self.prepa_ops[i] = Creation('combine')(self.lrate_ops[i], self.delta_ops[i], self.batch_size_op, self.param_ops)
-          with variable_scope(self.name + "/schedules/apply_schedule_"+str(i) + "/gradients", reuse=Flag('auto_reuse')):
-            with Creation('deps')([self.prepa_ops[i]]):
-              self.apply_ops[i] = self.optimiser.apply_gradients(self.schedule_grad_and_vars[i], 
-                                                                 global_step = self.gst)
-      self.train_ops[i] = self.apply_ops[i]
-    return self.train_ops
+      with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
+        self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
+        self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
+    return self.preta_ops
 
 #-------------------------------------------------------------------------------
   def use_schedule(self, using_schedule = -1, _update_dropout=True): 
