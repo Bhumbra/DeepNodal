@@ -297,34 +297,26 @@ class supervisor (overseer):
     gradients = [_grad_and_vars[0] for _grad_and_vars in self.grad_and_vars]
     variables = [_grad_and_vars[1] for _grad_and_vars in self.grad_and_vars]
     grad_and_vars = [list(_grad_and_vars) for _grad_and_vars in self.grad_and_vars]
+    self.gradient_names = [variable_name + "_gradients" for variable_name in self.variable_names]
 
     # Gradient delta functions associated with regularisation (e.g. weight-decay)
-    self.delta_grad = None
-    if self.n_reguln:
-      for reguln in self._reguln:
-        if isinstance(reguln, dict):
-          reg = reguln['reg']
-          var = list(reguln.values())[0]
-          if Creation(reg) in Delta_Reg and var in variables:
-            index = variables.index(var)
-            reg_name = reguln['name']
-            reg_args = reguln['reg_args']
-            reg_kwds = reguln['reg_kwds']
-            if self.delta_grad is None: self.delta_grad = []
-            with variable_scope(self.name + "/gradients/" + reg_name, reuse=Flag('auto_reuse')):
-              if self.dev is None:
-                self.delta_grad.append(Creation(reg)(reguln[reg_name], *reg_args, **reg_kwds))
-                grad_and_vars[index][0] = Creation('add')(gradients[index], self.delta_grad[-1])
-              else:
-                with Device(self.dev):
-                  self.delta_grad.append(Creation(reg)(reguln[reg_name], *reg_args, **reg_kwds))
-                  grad_and_vars[index][0] = Creation('add')(gradients[index], self.delta_grad[-1])
-    self.grad_and_vars = [tuple(_grad_and_vars) for _grad_and_vars in grad_and_vars]
-    if self.delta_grad is None:
+    self.reg_grad = self.work.ret_reguln()['grad']
+    self.n_reg_grad= len(self._reg_grad)
+    if not self.n_reg_grad:
       self.gradients = gradients
-    else:
-      self.gradients = [grad_and_vars[0] for grad_and_vars in self.grad_and_vars]
-    self.gradient_names = [variable_name + "_gradients" for variable_name in self.variable_names]
+      return self.gradients
+
+    # Add gradients
+    for (param, delta) in self.reg_grad:
+      index = variables.index(var)
+      with Scope('var',  self.name + "/regularisation/grad/", reuse=Flag('auto_reuse')):
+        if self.dev is None:
+          grad_and_vars[index][0] = Creation('add')(gradients[index], delta)
+        else:
+          with Device(self.dev):
+            grad_and_vars[index][0] = Creation('add')(gradients[index], delta)
+    self.grad_and_vars = [tuple(_grad_and_vars) for _grad_and_vars in grad_and_vars]
+    self.gradients = [grad_and_vars[0] for grad_and_vars in self.grad_and_vars]
     return self.gradients
 
 #-------------------------------------------------------------------------------

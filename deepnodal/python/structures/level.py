@@ -413,12 +413,12 @@ class level (stem):
 
 #-------------------------------------------------------------------------------
   def _setup_reguln(self):
-    self._reguln = []
+    self._reguln = {'loss': [], 'grad': [], 'vars': []}
+    keys = list(self._reguln.keys())
     for subobject in self._subobjects:
-      subobject._setup_reguln()
-      self._reguln += subobject._reguln
-    self._n_reguln = len(self._reguln)
-    return self._n_reguln
+      for key in keys:
+        self._reguln[key].extend(subobject._reguln[key])
+    return self._reguln
 
 #-------------------------------------------------------------------------------
 

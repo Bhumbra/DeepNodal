@@ -257,48 +257,19 @@ class trainer (recorder):
 
 #-------------------------------------------------------------------------------
   def _call_reguln(self):
-    self.reg_losses = []
     self.reg_loss = None
-    work_reguln = self.work.ret_reguln()
-    self.n_reguln = len(work_reguln)
-    if not self.n_reguln: return self.reg_loss
+    self.reg_losses = [param_and_loss[1] for param_and_loss in \
+                       self.work.ret_reguln()['loss']]
+    self.n_reg_losses= len(self._reg_losses)
+    if not self.n_reg_losses: return self.reg_loss
 
-    # Collate regularisation constributions
-    var_scope = self.name + "/reg_loss" # this is only active for loss-calls
-    self._reguln = [None] * self.n_reguln
-    self.reg_losses = []
-
-    for i, reguln in enumerate(work_reguln):
-      reg = reguln['reg']
-      reg_name = reguln['name']
-      reg_args = reguln['reg_args']
-      reg_kwds = reguln['reg_kwds']
-
-      # Call regularisation-added loss functions
-      reg_creation = Creation(reg)
-      if reg_creation == Creation('l1_reg') or reg_creation == Creation('l2_reg'):
-        if self.dev is None:
-          self._reguln[i] = Creation(reg)(reguln[reg_name], *reg_args,
-                                 name = var_scope + "/" + reg_name, **reg_kwds)
-        else:
-          with Device(self.dev):
-            self._reguln[i] = Creation(reg)(reguln[reg_name], *reg_args,
-                                   name = var_scope + "/" + reg_name, **reg_kwds)
-        self.reg_losses.append(self._reguln[i])
-
-      # Otherwise keep the mapping for later (to include learning_rate)
-      else:
-        self._reguln[i] = reguln
-
-    # Summate losses if a loss
-    if self.reg_losses:
+    # Summate losses
+    with Scope('var', self.name + "/regularisation/", Flag("auto_reuse")):
       if self.dev is None:
-        with Scope('var', var_scope, Flag("auto_reuse")):
-          self.reg_loss = Creation('add_ewise')(self.reg_losses)
+        self.reg_loss = Creation('add_ewise')(self.reg_losses)
       else:
         with Device(self.dev):
-          with Scope('var', var_scope, Flag("auto_reuse")):
-            self.reg_loss = Creation('add_ewise')(self.reg_losses)
+          self.reg_loss = Creation('add_ewise')(self.reg_losses)
 
     return self.reg_loss
 
