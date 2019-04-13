@@ -285,7 +285,7 @@ class supervisor (overseer):
     return self.loss
 
 #-------------------------------------------------------------------------------
-  def _call_gradients(self):
+  def _call_gradients(self, skip_reg_grad=False):
     # Calculate all parameter gradients, whether schedule-specified or not
     if self.dev is None:
       with Scope('var', self.name + "/batch/", reuse = Flag('auto_reuse')):
@@ -302,7 +302,7 @@ class supervisor (overseer):
     # Gradient delta functions associated with regularisation (e.g. weight-decay)
     self.reg_grad = self.work.ret_reguln()['grad']
     self.n_reg_grad = len(self.reg_grad)
-    if not self.n_reg_grad:
+    if skip_reg_grad or not self.n_reg_grad:
       self.gradients = gradients
       return self.gradients
 
