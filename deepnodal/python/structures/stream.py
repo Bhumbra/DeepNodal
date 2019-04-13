@@ -505,11 +505,11 @@ class stream (chain):
             param_name = param_name.replace(key, val)
         if self.dev is None:
           self._reguln[reg_type].append((param, Creation(self.reg)(param_obj, *self.reg_args,
-            name = param_name + "/" + reg_type, **self.reg_kwds)))
+            name = param_name + "/reg_" + reg_type, **self.reg_kwds)))
         else:
           with Device(self.dev):
             self._reguln[reg_type].append((param, Creation(self.reg)(param_obj, *self.reg_args,
-              name = param_name + "/" + reg_type, **self.reg_kwds)))
+              name = param_name + "/reg_" + reg_type, **self.reg_kwds)))
     return self._reguln
 
 #-------------------------------------------------------------------------------
