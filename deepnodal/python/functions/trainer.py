@@ -260,11 +260,11 @@ class trainer (recorder):
     self.reg_loss = None
     self.reg_losses = [param_and_loss[1] for param_and_loss in \
                        self.work.ret_reguln()['loss']]
-    self.n_reg_losses= len(self._reg_losses)
+    self.n_reg_losses= len(self.reg_losses)
     if not self.n_reg_losses: return self.reg_loss
 
     # Summate losses
-    with Scope('var', self.name + "/regularisation/", Flag("auto_reuse")):
+    with Scope('var', self.name + "/batch/reg_loss", Flag("auto_reuse")):
       if self.dev is None:
         self.reg_loss = Creation('add_ewise')(self.reg_losses)
       else:

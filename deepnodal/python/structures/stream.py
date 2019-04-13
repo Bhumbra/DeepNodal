@@ -488,22 +488,27 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def _call_reguln(self):
     self._reguln = {'loss': [], 'grad': [], 'vars': []}
+    rev_dict = {val: key for key, val in Param_Dict.items()}
     if self.reg is None: return self._reguln
     param_reg = list(Param_Reg)[0]
     for param in self._params:
-      param_name = list(param)[0]
+      param_name = list(param.keys())[0]
+      param_obj = param[param_name]
       if param_reg in param_name:
         reg_type = None
         for key, creations in Regularisation.items():
           if Creation(self.reg) in creations:
             reg_type = key
-        assert key is not None, "Unknown regurisation"
+        assert reg_type is not None, "Unknown regurisation"
+        for key, val in rev_dict.items():
+          if key in param_name:
+            param_name = param_name.replace(key, val)
         if self.dev is None:
-          self._reguln[key].append((param, Creation(self.reg)(param, *self.reg_args,
+          self._reguln[reg_type].append((param, Creation(self.reg)(param_obj, *self.reg_args,
             name = param_name + "/" + reg_type, **self.reg_kwds)))
         else:
           with Device(self.dev):
-            self._reguln[key].append((param, Creation(self.reg)(param, *self.reg_args,
+            self._reguln[reg_type].append((param, Creation(self.reg)(param_obj, *self.reg_args,
               name = param_name + "/" + reg_type, **self.reg_kwds)))
     return self._reguln
 
@@ -516,6 +521,10 @@ class stream (chain):
     self._outputs = [mapping({self.name + "/output": self.ret_out()})]
     self._n_outputs = len(self._outputs)
     return self._outputs
+
+#-------------------------------------------------------------------------------
+  def ret_reguln(self):
+    return self._reguln
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
@@ -557,4 +566,3 @@ class stream (chain):
     return other
 
 #-------------------------------------------------------------------------------
-
