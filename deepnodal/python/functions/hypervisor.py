@@ -377,8 +377,9 @@ class hypervisor (supervisor, master, stem):
 
 #-------------------------------------------------------------------------------
   def _call_gradients(self): # overloading supervisor._call_gradients()
-    argout = supervisor._call_gradients(self)
+    argout = supervisor._call_gradients(self, skip_reg_grad=not self.unit_dev)
     if self.unit_dev: return argout
+    # Note the slaves gradients will already include any regularisation deltas
     slave_gradients = [_slave.gradients for _slave in self.slaves]
     self.slave_grad = [None] * self.n_params
     for j in range(self.n_params):
@@ -403,6 +404,8 @@ class hypervisor (supervisor, master, stem):
           self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
                               name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
                               name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
+    variables = [_grad_and_vars[1] for _grad_and_vars in self.grad_and_vars]
+
     for i, grad in enumerate(self.gradients):
       self.grad_and_vars[i] = list(self.grad_and_vars[i])
       self.grad_and_vars[i][0] = grad
