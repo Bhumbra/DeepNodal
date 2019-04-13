@@ -301,15 +301,16 @@ class supervisor (overseer):
 
     # Gradient delta functions associated with regularisation (e.g. weight-decay)
     self.reg_grad = self.work.ret_reguln()['grad']
-    self.n_reg_grad= len(self._reg_grad)
+    self.n_reg_grad = len(self.reg_grad)
     if not self.n_reg_grad:
       self.gradients = gradients
       return self.gradients
 
     # Add gradients
     for (param, delta) in self.reg_grad:
+      var_name, var = list(param.keys())[0], list(param.values())[0]
       index = variables.index(var)
-      with Scope('var',  self.name + "/regularisation/grad/", reuse=Flag('auto_reuse')):
+      with Scope('var',  self.name + "/batch/reg_grad/"+var_name, reuse=Flag('auto_reuse')):
         if self.dev is None:
           grad_and_vars[index][0] = Creation('add')(gradients[index], delta)
         else:

@@ -391,9 +391,13 @@ class stack (stem):
     self._reguln = {'loss': [], 'grad': [], 'vars': []}
     keys = list(self._reguln.keys())
     for subobject in self._subobjects:
+      sub_reg = subobject.ret_reguln()
       for key in keys:
-        self._reguln[key].extend(subobject._reguln[key])
+        self._reguln[key].extend(sub_reg[key])
     return self._reguln
 
 #-------------------------------------------------------------------------------
+  def ret_reguln(self):
+    return self._setup_reguln()
 
+#-------------------------------------------------------------------------------
