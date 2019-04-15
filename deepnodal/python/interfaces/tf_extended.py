@@ -11,37 +11,23 @@ from tensorflow.python.ops import random_ops
 from tensorflow.python.ops.init_ops import Initializer, _compute_fans
 
 #-------------------------------------------------------------------------------
-# TensorFlow has no max_norm regulariser
-
-def tf_max_norm_regularizer(clip_norm, axes = 1., name = "max_norm", collection = "max_norm"):
-  def max_norm(weights):
-    clipped = tf.clipped(weights, clip_norm = clip_norm, axes = axes)
-    clip_weights = tf.assign(weights, clipped, name = name)
-    tf.add_to_collection(collection, clip_weights)
-    return None
-  return maxnorm
-
-#-------------------------------------------------------------------------------
 def tf_l1_loss(t, name=None, scale = 1.):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
-    if scale == 1.:
-      return tf.reduce_sum(tf.abs(t))
     return tf.multiply(tf.reduce_sum(tf.abs(t)), scale)
 
 #-------------------------------------------------------------------------------
 def tf_l2_loss(t, name=None, scale = 1.):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
-    if scale == 1.:
-      return tf.nn.l2_loss(t)
-    return tf.multiply(tf.nn.l2_loss(t), scale)
+    #return tf.multiply(tf.nn.l2_loss(t), scale) # Cannot replicate
+    return tf.multiply(tf.divide(tf.reduce_sum(tf.square(t)), 2), scale)
 
 #-------------------------------------------------------------------------------
 def tf_weight_decay(t, scale=1., name='weight_decay'):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
-    return tf.multiply(t, scale)
+    return tf.multiply(scale, t)
 
 #-------------------------------------------------------------------------------
-def tf_max_norm(weights, clip_norm, axes=1., name='max_norm', **_):
+def tf_max_norm(weights, clip_norm, axes=1., name='max_norm'):
   with variable_scope(name, reuse=tf.AUTO_REUSE):
     return tf.clipped(weights, clip_norm=clip_norm, axes=axes)
 
