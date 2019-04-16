@@ -404,7 +404,6 @@ class hypervisor (supervisor, master, stem):
           self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
                               name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
                               name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
-    variables = [_grad_and_vars[1] for _grad_and_vars in self.grad_and_vars]
 
     for i, grad in enumerate(self.gradients):
       self.grad_and_vars[i] = list(self.grad_and_vars[i])

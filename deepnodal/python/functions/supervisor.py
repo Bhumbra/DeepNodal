@@ -358,7 +358,7 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _call_posta_ops(self):
-    # Calls post-training update ops (e.g. max_norm) - TODO
+    # Calls post-training update ops (e.g. max_norm - TODO)
     self.posta_ops = []
 
     # Combine post-training ops with apply-ops

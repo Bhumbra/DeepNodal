@@ -343,6 +343,9 @@ class stream (chain):
     # Collate architectural parameters
     self._setup_params()
 
+    # Collate normalisation moments
+    self._setup_moments()
+
     # Call regularisation
     self._call_reguln()
 
@@ -555,8 +558,7 @@ class stream (chain):
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
     if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)
 
-    # Copy over the summary transfer function
-
+    # Copy over the summary transfer function 
     other.trans_fn = self.trans_fn
 
     # Rename and redevice

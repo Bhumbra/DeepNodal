@@ -27,12 +27,15 @@ class leaf (structure):
   _out = None         # output
   _params = None      # a list of dictionaries containing parameter objects.
   _n_params = None    # number of parameters
+  _moments = None      # a list of dictionaries containing moment objects.
+  _n_moments = None    # number of moments
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None):
     self.set_name(name)
     self.set_dev(dev)
     self.setup_params()
+    self.setup_moments()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -140,6 +143,29 @@ class leaf (structure):
     if not(self._called): return self, leaf.ret_param, param_spec
     param = self._ret_param(param_spec)
     return list(param.values())[0]
+
+#-------------------------------------------------------------------------------
+  def setup_moments(self, moments = None):
+    self._moments = moments
+    if self._moments is None: self._moments = []
+    self._n_moments = len(self._moments)
+    if self._n_moments:
+      for moment_dict in self._moments:
+        assert isinstance(moment_dict, mapping),\
+          "Only mappings are accepted moments"
+    return self._params
+
+#-------------------------------------------------------------------------------
+  def add_moment(self, moment_dict):
+    assert isinstance(moment_dict, mapping),\
+      "Only mappings are accepted moments."
+    self._moments.append(moment_dict)
+    self._n_moments = len(self._moments)
+    return self._moments
+
+#-------------------------------------------------------------------------------
+  def ret_moments(self):
+    return self._moments
 
 #-------------------------------------------------------------------------------
 
