@@ -221,6 +221,9 @@ class network (stem):
     # Collate architectural parameters
     self._setup_params()
 
+    # Collate normalisation moments
+    self._setup_moments()
+
     # Collate regularisation parameters
     self._setup_reguln()
 

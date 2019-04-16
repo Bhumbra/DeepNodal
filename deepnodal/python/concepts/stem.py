@@ -282,6 +282,29 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     return list(param.values())[0]
 
 #-------------------------------------------------------------------------------
+  def _setup_moments(self):
+    """
+    Collates lists of moemnts ordered dictionaries to a single list self.moments.
+    Classes inheriting from stemes do not possess autonomous moment lists
+    but must collate their lists from subobjects, until eventually reaching leaf-derived
+    classes each of which may posses an autonomous parameter list associated with
+    a single TensorFlow call.
+    """
+    self._moments = []
+    for subobject in self._subobjects:
+      subobject._setup_moments()
+      self._moments += subobject._moments
+    self._n_moments = len(self._moments)
+    return self._moments
+
+#-------------------------------------------------------------------------------
+  def ret_moments(self):
+    """
+    Returns moment mappings
+    """
+    return self._moments
+
+#-------------------------------------------------------------------------------
   def _setup_outputs(self):
     """
     Collates lists of output ordered dictionaries to a single list self.outputs.
@@ -342,4 +365,3 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     return list(output.values())[0]
 
 #-------------------------------------------------------------------------------
-

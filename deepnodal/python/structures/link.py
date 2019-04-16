@@ -101,9 +101,22 @@ class link (leaf):
           param = None
         if param is not None:
           self.add_param(mapping({self.__var_scope+"/"+Norm_Dict[Norm]: param}))
-    self._n_params = len(self._params)
 
     return self._params
+
+#-------------------------------------------------------------------------------
+  def _setup_moments(self):
+    self._moments = []
+    self._n_moments = 0
+    for Moment in Norm_Moments:
+      with Scope('var', self.__var_scope, reuse=True):
+        try:
+          moment = Creation('ret_var')(Moment)
+        except ValueError:
+          moment = None
+        if moment is not None:
+          self.add_moment(mapping({self.__var_scope+"/"+Moment: moment}))
+    return self._moments
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):
