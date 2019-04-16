@@ -201,9 +201,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     a single TensorFlow call.
     """
     self._params = []
-    for subobject in self._subobjects:
-      subobject._setup_params()
-      self._params += subobject._params
+    if self._subobjects:
+      for subobject in self._subobjects:
+        subobject._setup_params()
+        self._params += subobject._params
     self._n_params = len(self._params)
     return self._params
 
@@ -291,9 +292,10 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     a single TensorFlow call.
     """
     self._moments = []
-    for subobject in self._subobjects:
-      subobject._setup_moments()
-      self._moments += subobject._moments
+    if self._subobjects:
+      for subobject in self._subobjects:
+        subobject._setup_moments()
+        self._moments += subobject._moments
     self._n_moments = len(self._moments)
     return self._moments
 
