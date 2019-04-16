@@ -37,6 +37,8 @@ class hypervisor (supervisor, master, stem):
   clones = None             # Network clones
   slaves = None             # Supervisor slaves
   param_ops = None          # Parameter operations for the master to update slaves.   
+  moments = None            # Moment mappings
+  n_moments = None          # len(Moment)
 
 #-------------------------------------------------------------------------------
   def __init__(self, name = None, dev = None, devs = None):
@@ -413,7 +415,7 @@ class hypervisor (supervisor, master, stem):
     return self.gradients
 
 #-------------------------------------------------------------------------------
-  def _call_preta_ops(self): # overloading supervisor._call_apply_ops()
+  def _call_preta_ops(self): # overloading supervisor._call_preta_ops()
     """
     For multidevice superivsed learning, this comprises of three stages:
     1. Assign clones with parameters (weights & biases) of original model.
@@ -425,6 +427,20 @@ class hypervisor (supervisor, master, stem):
     if self.unit_dev: 
       return supervisor._call_preta_ops(self)
 
+    self._call_param_ops(self)
+    self._call_moment_ops(self)
+
+    # Parameter updates are schedule-dependent
+    self.lrate_ops = [None] * self.n_schedules # learning rate ops
+    self.preta_ops = [None] * self.n_schedules # pre-training ops
+    for i in range(self.n_schedules):
+      with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
+        self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
+        self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
+    return self.preta_ops
+
+#-------------------------------------------------------------------------------
+  def _call_param_ops(self):
     # Collate operations that assign master parameters
     self.param_ops = [None] * self.n_devs * self.n_params
     k = -1
@@ -437,15 +453,26 @@ class hypervisor (supervisor, master, stem):
           else:
             with Device(self.dev):
               self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
+    return self.param_ops
 
-    # Parameter updates are schedule-dependent
-    self.lrate_ops = [None] * self.n_schedules # learning rate ops
-    self.preta_ops = [None] * self.n_schedules # pre-training ops
-    for i in range(self.n_schedules):
-      with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
-        self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-        self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
-    return self.preta_ops
+#-------------------------------------------------------------------------------
+  def _call_moment_ops(self): # overloading supervisor._call_preta_ops()
+    # Collate operations that assign master moments
+    self.moments = self.work.ret_moments()
+    self.n_moments = len(self.moments)
+    self.moment_ops = [None] * self.n_devs * self.n_moments
+    k = -1
+    for _slave in self.slaves:
+      slave_moments
+      for i in range(self.n_moments):
+        k += 1
+        with Scope('var', self.name + "/" + self.work.name + "/updates/moment_"+str(k), Flag('auto_reuse')):
+          if self.dev is None:
+            self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
+          else:
+            with Device(self.dev):
+              self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
+    return self.param_ops
 
 #-------------------------------------------------------------------------------
   def use_schedule(self, using_schedule = -1, _update_dropout=True): 
