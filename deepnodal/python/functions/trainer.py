@@ -243,7 +243,7 @@ class trainer (recorder):
     self.params is list of dictionaries in the form:
     self.param[i] = {self.variable_names[i]: self.variables}
     """
-    # Set up variables
+    # Set up params
     self.params = self.work.ret_params()
     self.n_params = len(self.params)
     self.variable_names = [None] * self.n_params
@@ -252,6 +252,16 @@ class trainer (recorder):
     for i, param_dict in enumerate(self.params):
       self.variable_names[i] = list(param_dict)[0]
       self.variables[i] = param_dict[self.variable_names[i]]
+
+    # Set up moments
+    self.moments = self.work.ret_moments()
+    self.n_moments = len(self.moments)
+    self.moment_objects = [None] * self.n_moments
+    self.moment_names = [None] * self.n_moments
+
+    for i, moment_dict in enumerate(self.moments):
+      self.moment_names[i] = list(moment_dict)[0]
+      self.moment_objects[i] = moment_dict[self.moment_names[i]]
 
     return self.variables
 
