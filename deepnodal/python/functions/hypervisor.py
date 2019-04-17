@@ -378,34 +378,43 @@ class hypervisor (supervisor, master, stem):
     return self.loss
 
 #-------------------------------------------------------------------------------
+  def _call_slave_means(self, values_by_slave, value_names):
+    n_values = len(value_names)
+    slave_values = [None] * n_values
+    for j in range(n_values):
+      slave_values = [None] * self.n_devs
+      for i in range(self.n_devs):
+        value_name = self.name + "/slave_" + str(i) + "/" + value_names[i]
+        if self.slaves[i].dev is None:
+          slave_values[j][i] = Creation('aug_dims')(values_by_slave[i][j], 0,
+                                  name=value_name)
+        else:
+          with Device(self.slaves[i].dev):
+            slave_values[j][i] = Creation('aug_dims')(values_by_slave[i][j], 0,
+                                    name=value_name)
+    
+    mean_values = [None] * n_values
+    for i in range(n_values):
+      value_name = self.name + "/batch/" + value_names[i]
+      if self.dev is None:
+        mean_values[i] = Creation('mean')(Creation('con')(slave_values[i], axis=0,
+                         name=value_name + "_con"), axis=0,
+                         name=value_name + "_mean")
+      else:
+        with Device(self.dev):
+          mean_values[i] = Creation('mean')(Creation('con')(slave_values[i], axis=0,
+                           name=value_name + "_con"), axis=0,
+                           name=value_name + "_mean")
+    return slave_values, mean_values
+
+#-------------------------------------------------------------------------------
   def _call_gradients(self): # overloading supervisor._call_gradients()
     argout = supervisor._call_gradients(self, skip_reg_grad=not self.unit_dev)
     if self.unit_dev: return argout
     # Note the slaves gradients will already include any regularisation deltas
     slave_gradients = [_slave.gradients for _slave in self.slaves]
-    self.slave_grad = [None] * self.n_params
-    for j in range(self.n_params):
-      self.slave_grad[j] = [None] * self.n_devs
-      for i in range(self.n_devs):
-        grad_name = self.name + "/slave_" + str(i) + "/" + self.gradient_names[j]
-        if self.slaves[i].dev is None:
-          self.slave_grad[j][i] = Creation('aug_dims')(slave_gradients[i][j], 0,
-                                  name = grad_name)
-        else:
-          with Device(self.slaves[i].dev):
-            self.slave_grad[j][i] = Creation('aug_dims')(slave_gradients[i][j], 0,
-                                    name = grad_name)
-                                 
-    for i in range(self.n_params):
-      if self.dev is None:
-        self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
-                            name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
-                            name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
-      else:
-        with Device(self.dev):
-          self.gradients[i] = Creation('mean')(Creation('con')(self.slave_grad[i], axis=0,
-                              name=self.name + "/batch/" + self.gradient_names[i] + "_con"), axis=0,
-                              name=self.name + "/batch/" + self.gradient_names[i] + "_mean")
+    self.slave_grad, self.gradients = self._call_slave_means(
+                                        slave_gradients, self.gradient_names)
 
     for i, grad in enumerate(self.gradients):
       self.grad_and_vars[i] = list(self.grad_and_vars[i])
@@ -436,7 +445,8 @@ class hypervisor (supervisor, master, stem):
     for i in range(self.n_schedules):
       with variable_scope(self.name + "/schedules/schedule_"+str(i), reuse=Flag('auto_reuse')):
         self.lrate_ops[i] = self.learning_rate.assign(self.schedules[i].learning_rate)
-        self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, self.param_ops)
+        self.preta_ops[i] = Creation('combine')(self.lrate_ops[i], self.batch_size_op, 
+                                                self.param_ops, self.moment_preta_ops)
     return self.preta_ops
 
 #-------------------------------------------------------------------------------
@@ -447,7 +457,8 @@ class hypervisor (supervisor, master, stem):
     for _slave in self.slaves:
       for i in range(self.n_params):
         k += 1
-        with Scope('var', self.name + "/" + self.work.name + "/updates/param_"+str(k), Flag('auto_reuse')):
+        var_scope = self.name + '/assign_to_slaves/' + self.param_names[i]
+        with Scope('var', var_scope, Flag('auto_reuse')):
           if self.dev is None:
             self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
           else:
@@ -457,23 +468,60 @@ class hypervisor (supervisor, master, stem):
 
 #-------------------------------------------------------------------------------
   def _call_moment_ops(self): # overloading supervisor._call_preta_ops()
-    # Collate operations that assign master moments
-    self.moments = self.work.ret_moments()
-    self.n_moments = len(self.moments)
-    self.moment_ops = [None] * self.n_devs * self.n_moments
+    # Call moment means and collate operations that assign master moments
+    slave_moments = [_slave.moments for _slave in self.slaves]
+    self.slave_moments, self.mean_moments = self._call_slave_means(
+                                            slave_moments, self.moment_names)
+    self.moment_preta_ops = []
+    self.moment_posta_ops = []
+    if not self.n_moments:
+      return self.moment_preta_ops, self.moment_posta_ops
+    self.moment_preta_ops = [None] * self.n_devs * self.n_moments
+    self.moment_posta_ops = [None] * self.n_devs * self.n_moments
     k = -1
     for _slave in self.slaves:
-      slave_moments
       for i in range(self.n_moments):
         k += 1
-        with Scope('var', self.name + "/" + self.work.name + "/updates/moment_"+str(k), Flag('auto_reuse')):
+        master_object = self.moments[i]
+        slave_object = _slave.moments[i]
+        mean_object = self.mean_moments[i]
+        var_scope_to = self.name + '/assign_to_slaves/' + self.moment_names[i]
+        var_scope_from = self.name + '/assign_from_slaves/' + self.moment_names[i]
+        with Scope('var', var_scope_to, Flag('auto_reuse')):
           if self.dev is None:
-            self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
+            self.moment_preta_ops[k] = slave_object.assign(master_object)
           else:
             with Device(self.dev):
-              self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
-    return self.param_ops
+              self.moment_preta_ops[k] = slave_object.assign(master_object)
+        with Scope('var', var_scope_from, Flag('auto_reuse')):
+          with Creation('deps')(mean_object):
+            if self.dev is None:
+              self.moment_posta_ops[k] = master_object.assign(mean_object)
+            else:
+              with Device(self.dev):
+                self.moment_posta_ops[k] = master_object.assign(mean_object)
 
+    return self.moment_preta_ops, self.moment_posta_ops
+
+#-------------------------------------------------------------------------------
+  def _call_posta_ops(self): # overloading supervisor._call_post_ops
+    argout = supervisor._call_posta_ops(self)
+    if self.unit_dev: return argout
+
+    # Call moment averages
+    self.posta_ops = self.moment_preta_ops
+
+    # Combine post-training ops with apply-ops
+    self.train_ops = [None] * self.n_schedules
+    for i in range(self.n_schedules):
+      if self.dev is None:
+        with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
+          self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
+      else:
+        with Device(self.dev):
+          with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
+            self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
+    return self.train_ops
 #-------------------------------------------------------------------------------
   def use_schedule(self, using_schedule = -1, _update_dropout=True): 
     """ overloads overseer.use_schedules """

@@ -8,7 +8,7 @@ import numpy as np
 
 # PARAMETERS
 
-n_epochs = 180
+n_epochs = 200
 batch_size = 128
 test_split = 50
 max_lr = 0.1
@@ -61,7 +61,7 @@ transfn = ['relu'] * (len(arch)-1) + ['softmax']
 kernfn = ['xcorr'] * (len(arch)-2) + ['avg', None]
 dropout = 0.3
 normal = 'batch_norm'
-normal_kwds = {'decay':0.9, 'epsilon':1e-3}
+normal_kwds = {'decay':0.9, 'epsilon':1e-5}
 padwin = 'same'
 weights = 'vsi'
 reguln = "weight_decay"
