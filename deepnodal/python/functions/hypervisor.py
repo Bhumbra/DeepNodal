@@ -382,7 +382,7 @@ class hypervisor (supervisor, master, stem):
     n_values = len(value_names)
     slave_values = [None] * n_values
     for j in range(n_values):
-      slave_values = [None] * self.n_devs
+      slave_values[j] = [None] * self.n_devs
       for i in range(self.n_devs):
         value_name = self.name + "/slave_" + str(i) + "/" + value_names[i]
         if self.slaves[i].dev is None:
@@ -436,8 +436,8 @@ class hypervisor (supervisor, master, stem):
     if self.unit_dev: 
       return supervisor._call_preta_ops(self)
 
-    self._call_param_ops(self)
-    self._call_moment_ops(self)
+    self._call_param_ops()
+    self._call_moment_ops()
 
     # Parameter updates are schedule-dependent
     self.lrate_ops = [None] * self.n_schedules # learning rate ops
@@ -457,7 +457,7 @@ class hypervisor (supervisor, master, stem):
     for _slave in self.slaves:
       for i in range(self.n_params):
         k += 1
-        var_scope = self.name + '/assign_to_slaves/' + self.param_names[i]
+        var_scope = self.name + '/assign_to_slaves/' + self.variable_names[i]
         with Scope('var', var_scope, Flag('auto_reuse')):
           if self.dev is None:
             self.param_ops[k] = _slave.variables[i].assign(self.variables[i])
@@ -469,7 +469,10 @@ class hypervisor (supervisor, master, stem):
 #-------------------------------------------------------------------------------
   def _call_moment_ops(self): # overloading supervisor._call_preta_ops()
     # Call moment means and collate operations that assign master moments
-    slave_moments = [_slave.moments for _slave in self.slaves]
+    slave_moments = [None] * len(self.slaves)
+    for i, slave in enumerate(self.slaves):
+      slave_moments[i] = [list(moment_dict.values())[0] \
+                          for moment_dict in slave.moments]
     self.slave_moments, self.mean_moments = self._call_slave_means(
                                             slave_moments, self.moment_names)
     self.moment_preta_ops = []
@@ -482,8 +485,8 @@ class hypervisor (supervisor, master, stem):
     for _slave in self.slaves:
       for i in range(self.n_moments):
         k += 1
-        master_object = self.moments[i]
-        slave_object = _slave.moments[i]
+        master_object = list(self.moments[i].values())[0]
+        slave_object = list(_slave.moments[i].values())[0]
         mean_object = self.mean_moments[i]
         var_scope_to = self.name + '/assign_to_slaves/' + self.moment_names[i]
         var_scope_from = self.name + '/assign_from_slaves/' + self.moment_names[i]
@@ -494,12 +497,11 @@ class hypervisor (supervisor, master, stem):
             with Device(self.dev):
               self.moment_preta_ops[k] = slave_object.assign(master_object)
         with Scope('var', var_scope_from, Flag('auto_reuse')):
-          with Creation('deps')(mean_object):
-            if self.dev is None:
+          if self.dev is None:
+            self.moment_posta_ops[k] = master_object.assign(mean_object)
+          else:
+            with Device(self.dev):
               self.moment_posta_ops[k] = master_object.assign(mean_object)
-            else:
-              with Device(self.dev):
-                self.moment_posta_ops[k] = master_object.assign(mean_object)
 
     return self.moment_preta_ops, self.moment_posta_ops
 
