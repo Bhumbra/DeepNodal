@@ -200,11 +200,11 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     classes each of which may posses an autonomous parameter list associated with
     a single TensorFlow call.
     """
+    assert self._called, "Cannot setup params without object being called"
     self._params = []
     if self._subobjects:
-      for subobject in self._subobjects:
-        subobject._setup_params()
-        self._params += subobject._params
+      for obj in self._subobjects:
+        self._params.extend(obj._setup_params())
     self._n_params = len(self._params)
     return self._params
 
@@ -285,7 +285,7 @@ class stem (structure): # we inherit structure because a stem is never a leaf
 #-------------------------------------------------------------------------------
   def _setup_moments(self):
     """
-    Collates lists of moemnts ordered dictionaries to a single list self.moments.
+    Collates lists of moments ordered dictionaries to a single list self._moments.
     Classes inheriting from stemes do not possess autonomous moment lists
     but must collate their lists from subobjects, until eventually reaching leaf-derived
     classes each of which may posses an autonomous parameter list associated with
@@ -305,6 +305,30 @@ class stem (structure): # we inherit structure because a stem is never a leaf
     Returns moment mappings
     """
     return self._moments
+
+#-------------------------------------------------------------------------------
+  def _setup_updates(self):
+    """
+    Collates lists of updates ordered dictionaries to a single list self._updates.
+    Classes inheriting from stemes do not possess autonomous moment lists
+    but must collate their lists from subobjects, until eventually reaching leaf-derived
+    classes each of which may posses an autonomous parameter list associated with
+    a single TensorFlow call.
+    """
+    self._updates = []
+    if self._subobjects:
+      for subobject in self._subobjects:
+        subobject._setup_updates()
+        self._updates += subobject._updates
+    self._n_updates = len(self._updates)
+    return self._updates
+
+#-------------------------------------------------------------------------------
+  def ret_updates(self):
+    """
+    Returns update mappings
+    """
+    return self._updates
 
 #-------------------------------------------------------------------------------
   def _setup_outputs(self):

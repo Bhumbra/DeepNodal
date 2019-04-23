@@ -34,8 +34,6 @@ class leaf (structure):
   def __init__(self, name = None, dev = None):
     self.set_name(name)
     self.set_dev(dev)
-    self.setup_params()
-    self.setup_moments()
 
 #-------------------------------------------------------------------------------
   def set_name(self, name = None):
@@ -65,14 +63,8 @@ class leaf (structure):
     return self._out
 
 #-------------------------------------------------------------------------------
-  def setup_params(self, params = None):
-    self._params = params
-    if self._params is None: self._params = []
-    self._n_params = len(self._params)
-    if self._n_params:
-      for param_dict in self._params:
-        if not(isinstance(param_dict, mapping)):
-          raise TypeError("Only mappings are accepted parameters.")
+  def _setup_params(self, params = None):
+    assert self._called, "Cannot setup params without object being called"
     return self._params
 
 #-------------------------------------------------------------------------------
@@ -145,15 +137,9 @@ class leaf (structure):
     return list(param.values())[0]
 
 #-------------------------------------------------------------------------------
-  def setup_moments(self, moments = None):
-    self._moments = moments
-    if self._moments is None: self._moments = []
-    self._n_moments = len(self._moments)
-    if self._n_moments:
-      for moment_dict in self._moments:
-        assert isinstance(moment_dict, mapping),\
-          "Only mappings are accepted moments"
-    return self._params
+  def _setup_moments(self, moments = None):
+    assert self._called, "Cannot setup moments without object being called"
+    return self._moments
 
 #-------------------------------------------------------------------------------
   def add_moment(self, moment_dict):
@@ -166,6 +152,23 @@ class leaf (structure):
 #-------------------------------------------------------------------------------
   def ret_moments(self):
     return self._moments
+
+#-------------------------------------------------------------------------------
+  def _setup_updates(self, updates=None):
+    assert self._called, "Cannot setup updates without object being called"
+    return self._updates
+
+#-------------------------------------------------------------------------------
+  def add_update(self, update_dict):
+    assert isinstance(update_dict, mapping),\
+      "Only mappings are accepted updates."
+    self._updates.append(update_dict)
+    self._n_updates = len(self._updates)
+    return self._updates
+
+#-------------------------------------------------------------------------------
+  def ret_updates(self):
+    return self._updates
 
 #-------------------------------------------------------------------------------
 

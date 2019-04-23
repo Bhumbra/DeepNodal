@@ -61,8 +61,8 @@ creation_dict = {'identity': tf.identity,
                  'flatten': tf.layers.flatten,
                  'dense2card': tf_dense2card,
                  'card2dense': tf_card2dense,
-                 #'batch_norm': tf.layers.batch_normalization,
-                 'batch_norm': batch_norm,
+                 'batch_norm': tf.layers.batch_normalization,
+                 #'batch_norm': batch_norm,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,
@@ -171,6 +171,10 @@ Param_Reg = {'weights': 'kernel'}
 Regularisation = {'loss': [Creation('l1_reg'), Creation('l2_reg')],
                   'grad': [Creation('weight_decay')],
                   'vars': [Creation('max_norm')]}
+
+#-------------------------------------------------------------------------------
+def Updates(scope=None):
+  return tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=scope)
 
 #-------------------------------------------------------------------------------
 # Logits list

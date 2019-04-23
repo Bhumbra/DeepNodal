@@ -366,11 +366,11 @@ class supervisor (overseer):
     for i in range(self.n_schedules):
       if self.dev is None:
         with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
-          self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
+          self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.update_objects, self.posta_ops)
       else:
         with Device(self.dev):
           with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/train", reuse=Flag('auto_reuse')):
-            self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.posta_ops)
+            self.train_ops[i] = Creation('combine')(self.apply_ops[i], self.update_objects, self.posta_ops)
     return self.train_ops
 
 #-------------------------------------------------------------------------------

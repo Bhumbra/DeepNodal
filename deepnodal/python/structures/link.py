@@ -74,10 +74,14 @@ class link (leaf):
         with Device(self.dev):
           self._out = self._creation(self._inp, *args, **kwds)
     self.set_called(_called)
+    self._map_params()
+    self._map_moments()
+    self._map_updates()
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _setup_params(self):
+  def _map_params(self):
+    assert self._called, "Cannot setup params without object being called"
     self._params = []
     self._n_params = 0
     if self.__var_scope is None: return self._params
@@ -105,7 +109,7 @@ class link (leaf):
     return self._params
 
 #-------------------------------------------------------------------------------
-  def _setup_moments(self):
+  def _map_moments(self):
     self._moments = []
     self._n_moments = 0
     for Moment in Norm_Moments:
@@ -117,6 +121,16 @@ class link (leaf):
         if moment is not None:
           self.add_moment(mapping({self.__var_scope+"/"+Moment: moment}))
     return self._moments
+
+#-------------------------------------------------------------------------------
+  def _map_updates(self):
+    self._updates = []
+    self._n_updates = 0
+    updates = Updates(scope=self.name)
+    for update in updates:
+      if update is not None:
+        self.add_update(mapping({self.name+"/"+str(update): update}))
+    return self._updates
 
 #-------------------------------------------------------------------------------
   def clone(self, other = None):

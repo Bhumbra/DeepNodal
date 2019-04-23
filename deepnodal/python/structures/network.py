@@ -217,6 +217,7 @@ class network (stem):
 
     # Call subnets
     self._call_subnets()
+    self.set_called(_called)
 
     # Collate architectural parameters
     self._setup_params()
@@ -227,11 +228,11 @@ class network (stem):
     # Collate regularisation parameters
     self._setup_reguln()
 
+    # Collate updates
+    self._setup_updates()
+
     # Collate list of outputs
     self._setup_outputs()
-
-    # Flag network as called
-    self.set_called(_called)
 
     return self.ret_out()
 
