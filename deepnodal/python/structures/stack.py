@@ -292,10 +292,10 @@ class stack (stem):
     for i in range(self._n_subobjects):
       inp = self._subobjects[i].__call__(inp)
       inp = self._call_skipcv(inp, i)
+    self.set_called(_called)
     self.arch_out = self[-1].arch_out
     self._out = inp
     self._setup_outputs() # concatenate output list of dictionaries
-    self._called = _called
     return self.ret_out()
 
 #-------------------------------------------------------------------------------

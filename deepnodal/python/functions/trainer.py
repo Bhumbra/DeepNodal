@@ -263,6 +263,16 @@ class trainer (recorder):
       self.moment_names[i] = list(moment_dict)[0]
       self.moment_objects[i] = moment_dict[self.moment_names[i]]
 
+    # Set up updates
+    self.updates = self.work.ret_updates()
+    self.n_updates = len(self.updates)
+    self.update_objects = [None] * self.n_updates
+    self.update_names = [None] * self.n_updates
+
+    for i, update_dict in enumerate(self.updates):
+      self.update_names[i] = list(update_dict)[0]
+      self.update_objects[i] = update_dict[self.update_names[i]]
+
     return self.variables
 
 #-------------------------------------------------------------------------------

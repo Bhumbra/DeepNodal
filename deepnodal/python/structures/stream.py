@@ -336,6 +336,7 @@ class stream (chain):
 
     # Now create the objects
     chain.__call__(self, self._inp, False)
+    self.set_called(_called)
 
     # Flag the tensor from the architecture-dependent link in the chain
     if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
@@ -351,8 +352,6 @@ class stream (chain):
 
     # Set outputs dictionary
     self._setup_outputs()
-
-    self._called = _called
 
     return self.ret_out()
 
@@ -471,11 +470,12 @@ class stream (chain):
         if self.ist is None:
           raise ValueError("Cannot setup batch_norm before setting training flag.")
         else:
-          kwds.update({'is_training': self.ist})
-      if 'update_collections' not in kwds:
-        kwds.update({'updates_collections': None})
-      if 'scope' not in kwds:
-        kwds.update({'scope': self.name + "/batch_norm"})
+          kwds.update({'training': self.ist})
+      else:
+        kwds.update({'training': self.kwds['is_training']})
+        kwds.pop('is_training')
+      if 'name' not in kwds:
+        kwds.update({'name': self.name + "/batch_norm"})
     self.add_link(Creation(self.nor), *self.nor_args, **kwds)
     return self.ret_out()
 

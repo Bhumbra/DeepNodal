@@ -331,10 +331,10 @@ class level (stem):
     if self._inp is None: return self._inp # nothing in, nothing out
     for _inp, subobject in zip(list(inp), self._subobjects):
       subobject.__call__(_inp)
+    self.set_called(_called)
     Out = [subobject.ret_out() for subobject in self._subobjects]
     self.arch_out = None if not self._unit_subobject else self[0].arch_out
     argout = self._call_output(tuple(Out)) # does not touch self._subobjects
-    self.set_called(_called)
     return argout
 
 #-------------------------------------------------------------------------------
