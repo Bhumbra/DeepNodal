@@ -165,8 +165,9 @@ def Device(spec = None, number = None): # returns a string if number is not None
 # Parameters list
 
 Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
-Norm_Moments = {'moving_mean', 'moving_variance'}
-Norm_Dict = {'gamma': 'scale', 'beta': 'offset'}
+Norm_Moments = {'moving_mean', 'moving_variance', 'renorm_mean', 'renorm_stddev'}
+Norm_Dict = {'gamma': 'scale', 'beta': 'offset', \
+             'renorm_mean_weight': 'renorm_offset', 'renorm_stddev_weight': 'renorm_scale'}
 Param_Reg = {'weights': 'kernel'}
 Regularisation = {'loss': [Creation('l1_reg'), Creation('l2_reg')],
                   'grad': [Creation('weight_decay')],
