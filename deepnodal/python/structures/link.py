@@ -29,6 +29,7 @@ class link (leaf):
   _creation = None
   _args = None
   _kwds = None
+  _aux = None
 
   # private
   __var_scope = None
@@ -73,6 +74,8 @@ class link (leaf):
       else:
         with Device(self.dev):
           self._out = self._creation(self._inp, *args, **kwds)
+    if isinstance(self._out, (list, tuple)):
+      self._out, self._aux = self._out[0], self._out[1:]
     self.set_called(_called)
     self._map_params()
     self._map_moments()
@@ -105,6 +108,11 @@ class link (leaf):
           param = None
         if param is not None:
           self.add_param(mapping({self.__var_scope+"/"+Norm_Dict[Norm]: param}))
+
+    # Add auxilliary parameters
+    if self._aux:
+      for i, aux in enumerate(self._aux):
+        self.add_param(mapping({self.__var_scope+"/aux_param_"+str(i): aux}))
 
     return self._params
 
