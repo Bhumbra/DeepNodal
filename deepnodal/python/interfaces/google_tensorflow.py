@@ -5,8 +5,7 @@
 #-------------------------------------------------------------------------------
 import tensorflow as tf
 from tensorflow import name_scope, variable_scope
-from tensorflow.contrib.framework import arg_scope
-from tensorflow.contrib.layers import batch_norm
+from deepnodal.python.interfaces.arg_scope import arg_scope
 from tensorflow.python.ops.init_ops import VarianceScaling
 from deepnodal.python.interfaces.tf_extended import *
 
