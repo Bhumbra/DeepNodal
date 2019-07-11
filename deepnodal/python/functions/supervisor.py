@@ -37,7 +37,7 @@ class supervisor (overseer):
   grad_and_vars = None           # gradients and variables
   schedule_grad_and_vars = None  # grad_and_vars relevant to each schedule
   hatval = None                  # object to compare labels for error calculations
-  arch_out = None                # object to compare labels for cost calculations 
+  pre_trans = None               # object to compare labels for cost calculations 
   cost = None                    # cost object
   cost_metric = None             # cost metric
   loss = None                    # loss object
@@ -214,20 +214,20 @@ class supervisor (overseer):
   def _call_costfn(self):
     self.arch_out = self.work.outnets
     self.cost = None
-    if len(self.arch_out) != 1:
+    if len(self.work.outnets) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')
-    self.trans_fn_out = Creation(self.arch_out[0].trans_fn)
+    self.pre_trans = self.work.outnets[0].pre_trans
+    self.trans_fn_out = Creation(self.work.outnets[0].trans_fn)
     kwds = dict(self.cfn_kwds)
     if Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
-      self.arch_out = self.arch_out[0].arch_out
       kwds.update({'name': self.name + "/metrics/cost"})
       if self.dev is None:
-        self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
-                                       activation_fn = self.trans_fn_out, **kwds)
+        self.cost = Creation(self.cfn)(self.pre_trans, self.labels, *self.cfn_args,
+                                       activation_fn=self.trans_fn_out, **kwds)
       else:
         with Device(self.dev):
-          self.cost = Creation(self.cfn)(self.arch_out, self.labels, *self.cfn_args,
-                                         activation_fn = self.trans_fn_out, **kwds)
+          self.cost = Creation(self.cfn)(self.pre_trans, self.labels, *self.cfn_args,
+                                         activation_fn=self.trans_fn_out, **kwds)
     else: # we'll just use the hat values
       ndim_hatval, ndim_labels = len(Shape(self.hatval)), len(Shape(self.labels))
       if ndim_hatval == ndim_labels:

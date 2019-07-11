@@ -45,6 +45,7 @@ class stream (chain):
   arch_kwds = None    # optional archetectural kwds for when arch is callable
   arch_link = None    # architecture link
   arch_out = None     # architecture output (i.e. raw weighted sum or pool result)
+  pre_trans = None    # pre-transfer function
   type_arch = None    # architecture type without dimension
   type_adim = None    # architecture type with dimension
   order = None        # string denoting order of operation (default 'dotn')
@@ -59,6 +60,7 @@ class stream (chain):
   reg = None          # Regularisation
   vsi = None          # An instance of custom weights initialiser class if needed
   trans_fn = None     # trans_fn = tfn, used as a summary tf by higher objects
+  trans_link = None   # transfer function link
   dropout_quotient = None # Graph object for the dropout coefficient
 
   # protected
@@ -338,8 +340,11 @@ class stream (chain):
     chain.__call__(self, self._inp, False)
     self.set_called(_called)
 
-    # Flag the tensor from the architecture-dependent link in the chain
+    # Flag the output tensor from the architecture-dependent link in the chain
     if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
+
+    # Flag the input tensor from the transfer function link in the chain
+    self.pre_trans = self.ret_out() if self.trans_link is None else self.trans_link.ret_inp()
 
     # Collate architectural parameters
     self._setup_params()
@@ -459,7 +464,8 @@ class stream (chain):
     kwds = dict(self.tfn_kwds)
     if 'var_scope' not in kwds:
       kwds.update({'var_scope': self.name})
-    return self.add_link(Creation(self.tfn), *self.tfn_args, **kwds)
+    self.trans_link = self.add_link(Creation(self.tfn), *self.tfn_args, **kwds)
+    return self.trans_link
 
 #-------------------------------------------------------------------------------
   def _call_norm(self):
