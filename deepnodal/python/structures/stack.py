@@ -28,7 +28,6 @@ class stack (stem):
   arch = None             # architecture
   type_arch = None        # level architectures if all stream types are the same
   trans_fn = None         # transfer function of last level if identical for all streams
-  arch_out = None         # archecture output of last level if unit_stream
   pre_trans = None        # pre-trasnfer function of last evel
   scv = None              # Skip vergence specification (across levels)
 
@@ -294,7 +293,6 @@ class stack (stem):
       inp = self._subobjects[i].__call__(inp)
       inp = self._call_skipcv(inp, i)
     self.set_called(_called)
-    self.arch_out = self[-1].arch_out
     self.pre_trans = self[-1].pre_trans
     self._out = inp
     self._setup_outputs() # concatenate output list of dictionaries
