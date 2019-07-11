@@ -29,6 +29,7 @@ class level (stem):
   type_arch = None         # architecture if all stream archectures are the same
   arch_out = None          # architecture output for a single stream
   trans_fn = None          # transfer function if identical for all streams
+  trans_link = None        # transfer function link
   ipv = None               # Input vergence specification (across streams)
   opv = None               # Output vergence specification (across streams)
   Inp = None               # post_vergence input (a tuple)
@@ -334,6 +335,7 @@ class level (stem):
     self.set_called(_called)
     Out = [subobject.ret_out() for subobject in self._subobjects]
     self.arch_out = None if not self._unit_subobject else self[0].arch_out
+    self.pre_trans = None if not self._unit_subobject else self[0].pre_trans
     argout = self._call_output(tuple(Out)) # does not touch self._subobjects
     return argout
 
