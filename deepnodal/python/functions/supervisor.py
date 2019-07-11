@@ -212,7 +212,6 @@ class supervisor (overseer):
 
 #-------------------------------------------------------------------------------
   def _call_costfn(self):
-    self.arch_out = self.work.outnets
     self.cost = None
     if len(self.work.outnets) != 1:
       raise ValueError('Supervisor class currently supports only a single unit stream output')

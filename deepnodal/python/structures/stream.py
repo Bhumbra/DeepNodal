@@ -44,7 +44,6 @@ class stream (chain):
   arch_args = None    # optional archetectural args for when arch is callable
   arch_kwds = None    # optional archetectural kwds for when arch is callable
   arch_link = None    # architecture link
-  arch_out = None     # architecture output (i.e. raw weighted sum or pool result)
   pre_trans = None    # pre-transfer function
   type_arch = None    # architecture type without dimension
   type_adim = None    # architecture type with dimension
@@ -88,7 +87,6 @@ class stream (chain):
 
     self.arch = arch # arch = None is the default signifying a 'none'
     self.arch_link = None
-    self.arch_out = None
     self.type_arch = None
     self.type_adim = None
     if self.arch is None:
@@ -339,9 +337,6 @@ class stream (chain):
     # Now create the objects
     chain.__call__(self, self._inp, False)
     self.set_called(_called)
-
-    # Flag the output tensor from the architecture-dependent link in the chain
-    if self.arch_link is not None: self.arch_out = self.arch_link.ret_out()
 
     # Flag the input tensor from the transfer function link in the chain
     self.pre_trans = self.ret_out() if self.trans_link is None else self.trans_link.ret_inp()
