@@ -4,7 +4,8 @@
 
 #-------------------------------------------------------------------------------
 import tensorflow as tf
-from tensorflow import name_scope, variable_scope
+from tensorflow import name_scope
+from tensorflow.compat.v1 import variable_scope
 from deepnodal.python.interfaces.arg_scope import arg_scope
 from tensorflow.python.ops.init_ops import VarianceScaling
 from deepnodal.python.interfaces.tf_extended import *
@@ -12,7 +13,7 @@ from deepnodal.python.interfaces.tf_extended import *
 #-------------------------------------------------------------------------------
 # It seems tf.AUTO_REUSE does not feature in early TensorFlow versions
 try:
-  TF_AUTO_REUSE = tf.AUTO_REUSE
+  TF_AUTO_REUSE = tf.compat.v1.AUTO_REUSE
 except AttributeError:
   TF_AUTO_REUSE = False
 
@@ -22,11 +23,11 @@ except AttributeError:
 creation_dict = {'identity': tf.identity,
                  'transpose': tf.transpose,
                  'expand_dims': tf.expand_dims,
-                 'ret_var': tf.get_variable,
+                 'ret_var': tf.compat.v1.get_variable,
                  'add': tf.add,
                  'add_ewise': tf.add_n,
                  'aug_dims': tf.expand_dims,
-                 'assign': tf.assign,
+                 'assign': tf.compat.v1.assign,
                  'combine': tf.group,
                  'deps': tf.control_dependencies,
                  'subtract': tf.subtract,
@@ -73,27 +74,27 @@ creation_dict = {'identity': tf.identity,
                  'softmax': tf.nn.softmax,
                  'sigmoid': tf.nn.sigmoid,
                  'var': tf.Variable,
-                 'tensor': tf.placeholder,
+                 'tensor': tf.compat.v1.placeholder,
                  's2d': tf.sparse_to_dense,
                  'vs': VarianceScaling, # TensorFlow's version
                  'vsi': tf_variance_scaling_initialiser, # mine
                  'zoi': tf.zeros_initializer,
-                 'lvi': tf.local_variables_initializer,
-                 'gvi': tf.global_variables_initializer,
-                 'sgd': tf.train.GradientDescentOptimizer,
-                 'mom': tf.train.MomentumOptimizer,
-                 'adagrad': tf.train.AdagradOptimizer,
-                 'rmsprop': tf.train.RMSPropOptimizer,
-                 'adam': tf.train.AdamOptimizer,
+                 'lvi': tf.compat.v1.local_variables_initializer,
+                 'gvi': tf.compat.v1.global_variables_initializer,
+                 'sgd': tf.compat.v1.train.GradientDescentOptimizer,
+                 'mom': tf.compat.v1.train.MomentumOptimizer,
+                 'adagrad': tf.compat.v1.train.AdagradOptimizer,
+                 'rmsprop': tf.compat.v1.train.RMSPropOptimizer,
+                 'adam': tf.compat.v1.train.AdamOptimizer,
                  'in_top_k_error': tf_in_top_k_error,
-                 'mse': tf.losses.mean_squared_error,
+                 'mse': tf.compat.v1.losses.mean_squared_error,
                  'mce': tf_mean_cross_entropy,
                  'nce': tf.nn.nce_loss,
                  'onehot': tf.one_hot,
-                 'logger': tf.summary.FileWriter,
-                 'saver': tf.train.Saver,
-                 'defaults': tf.get_default_graph,
-                 'session': tf.Session}
+                 'logger': tf.compat.v1.summary.FileWriter,
+                 'saver': tf.compat.v1.train.Saver,
+                 'defaults': tf.compat.v1.get_default_graph,
+                 'session': tf.compat.v1.Session}
 
 def Creation(*args):
   if not(len(args)): return None
@@ -129,7 +130,7 @@ def Scope(spec, *args, **kwds):
 
 #-------------------------------------------------------------------------------
 # Keys (not yet in use in deepnodal)
-keys_dict = {'reg': tf.GraphKeys.REGULARIZATION_LOSSES}
+keys_dict = {'reg': tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES}
 
 def Keys(arg, *args, **kwds):
   return tf.get_collection(keys_dict[arg], *args, **kwds)
@@ -143,7 +144,7 @@ def Flag(arg):
 
 #-------------------------------------------------------------------------------
 # Summary 
-summary_dict = {'scalar': tf.summary.scalar, 'distro': tf.summary.histogram}
+summary_dict = {'scalar': tf.compat.v1.summary.scalar, 'distro': tf.compat.v1.summary.histogram}
 
 def Summary(arg):
   return summary_dict[arg]
