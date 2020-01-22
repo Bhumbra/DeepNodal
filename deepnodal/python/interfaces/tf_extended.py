@@ -5,7 +5,8 @@
 import numpy as np
 import math
 from deepnodal.python.interfaces.tf_layers import *
-from tensorflow import name_scope, variable_scope
+from tensorflow import name_scope
+from tensorflow.compat.v1 import variable_scope
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
 from tensorflow.python.ops.init_ops import Initializer, _compute_fans

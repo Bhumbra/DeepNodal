@@ -11,7 +11,7 @@ from tensorflow.python.layers import base
 from tensorflow.python.framework import tensor_shape
 
 #------------------------------------------------------------------------------- 
-class tf_Dense(tf.layers.Dense):
+class tf_Dense(tf.compat.v1.layers.Dense):
   """
   Identical to tf.layer.Dense but initializers may be replaced with graph objects
   to share weight and/or bias parameters.
