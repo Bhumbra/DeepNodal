@@ -146,7 +146,7 @@ class stream (chain):
     self.set_arch_args()
     self.set_biases()
     self.set_transfn()
-    self.set_padwin()
+    self.set_window()
     self.set_kernfn()
     return self.type_arch
 
@@ -252,7 +252,7 @@ class stream (chain):
     self.trans_fn = self.tfn
 
 #-------------------------------------------------------------------------------
-  def set_padwin(self, win = None, *win_args, **win_kwds):
+  def set_window(self, win = None, *win_args, **win_kwds):
     """
     win = 'same' or 'valid'
     """
@@ -401,7 +401,7 @@ class stream (chain):
 
     # Initialise padding/kernel settings
     if self.type_arch == 'conv' or self.type_arch == 'pool':
-      if self.win is None: self.set_padwin()
+      if self.win is None: self.set_window()
       if self.kfn is None: self.set_kernfn()
 
     # Initialise biases/weights parameter settings
@@ -554,7 +554,7 @@ class stream (chain):
     if self.wgt is not None: other.set_weights(self.wgt, *self.wgt_args, **self.wgt_kwds)
     if self.dro is not None: other.set_dropout(self.dro, *self.dro_args, **self.dro_kwds)
     if self.tfn is not None: other.set_transfn(self.tfn, *self.tfn_args, **self.tfn_kwds)
-    if self.win is not None: other.set_padwin(self.win, *self.win_args, **self.win_kwds)
+    if self.win is not None: other.set_window(self.win, *self.win_args, **self.win_kwds)
     if self.kfn is not None: other.set_kernfn(self.kfn, *self.kfn_args, **self.kfn_kwds)
     if self.nor is not None: other.set_normal(self.nor, *self.nor_args, **self.nor_kwds)
     if self.reg is not None: other.set_reguln(self.reg, *self.reg_args, **self.reg_kwds)

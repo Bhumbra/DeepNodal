@@ -217,11 +217,11 @@ class stack (stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def set_padwin(self, spec = None, *args, **kwds):
+  def set_window(self, spec = None, *args, **kwds):
     """
     spec = 'same' or 'valid'
     """
-    return self._set_spec(self._subobject.set_padwin, spec, *args, **kwds)
+    return self._set_spec(self._subobject.set_window, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, spec = None, *args, **kwds):
