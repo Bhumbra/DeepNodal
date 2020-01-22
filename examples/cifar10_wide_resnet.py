@@ -62,7 +62,7 @@ kernfn = ['xcorr'] * (len(arch)-2) + ['avg', None]
 dropout = 0.3
 normal = 'batch_norm'
 normal_kwds = {'decay':0.9, 'epsilon':1e-5}
-padwin = 'same'
+window = 'same'
 weights = 'vsi'
 reguln = "weight_decay"
 reguln_kwds = {'scale': 5e-4}
@@ -94,7 +94,7 @@ def main(seed=42):
   mod.set_opverge(opverge, **opverge_kwds)
   mod.set_transfn(transfn)
   mod.set_kernfn(kernfn)
-  mod.set_padwin(padwin)
+  mod.set_window(window)
   mod.set_dropout(dropout)
   mod.set_normal(normal, **normal_kwds)
   mod.set_weights(weights)

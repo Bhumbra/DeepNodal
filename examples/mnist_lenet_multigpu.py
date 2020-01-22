@@ -20,7 +20,7 @@ arch = [ [6, [5, 5], [1, 1]], [[2, 2], [2, 2]],
          10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 kernfn = ['xcorr', 'avg'] * 3 + [None, None]
-padwin = ['valid'] + ['same'] * (len(arch)-1)
+window = ['valid'] + ['same'] * (len(arch)-1)
 weights = 'vsi'
 net_name = 'lenet_mnist'
 write_dir = '/tmp/dn_logs/'
@@ -39,7 +39,7 @@ def main():
   mod.set_arch(arch)
   mod.set_transfn(transfn)
   mod.set_kernfn(kernfn)
-  mod.set_padwin(padwin)
+  mod.set_window(window)
   mod.set_weights(weights)
 
   # SPECIFY NETWORK
