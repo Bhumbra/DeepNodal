@@ -13,7 +13,7 @@ batch_size = 128
 test_split = 50
 max_lr = 0.1
 learning_rates = {0:max_lr*0.2, 1:max_lr, 60:max_lr*0.2, 120:max_lr*0.04, 160:max_lr*0.008}
-devs = 2 # set to None if using only one device or N to use N GPUs
+devs = None # set to None if using only one device or N to use N GPUs
 
 input_dims = [32, 32, 3]
 k, N = 10, 4
@@ -61,7 +61,7 @@ transfn = ['relu'] * (len(arch)-1) + ['softmax']
 kernfn = ['xcorr'] * (len(arch)-2) + ['avg', None]
 dropout = 0.3
 normal = 'batch_norm'
-normal_kwds = {'decay':0.9, 'epsilon':1e-5}
+normal_kwds = {'epsilon':1e-5}
 window = 'same'
 weights = 'vsi'
 reguln = "weight_decay"
