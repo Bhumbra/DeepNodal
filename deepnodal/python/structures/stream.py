@@ -12,9 +12,11 @@ from deepnodal.python.concepts.structure import *
 DEFAULT_STREAM_ORDER = 'dant' # over-ruled to only 'a' for absent architectures.
 DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
+DEFAULT_RECURRENT_KERNEL_FUNCTION = 'rec'   # others: 'gru', 'lstm'
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
 DEFAULT_POOLING_KERNEL_FUNCTION = 'max'       # other: 'avg'
-DEFAULT_PADDING_WINDOW = 'same'
+DEFAULT_PADDING_WINDOW = 'same'               # other: 'valid'
+DEFAULT_RECURRENT_WINDOW = 'last'             # other: 'seq'
 
 #-------------------------------------------------------------------------------
 class stream (chain):
@@ -122,7 +124,8 @@ class stream (chain):
         self.type_arch = 'identity'
         self.type_adim = self.type_arch
       elif len(self.arch) == 1:
-        raise ValueError("List length of 1 reserved (for recurrent architectures)")
+        self.type_arch = 'recurrent'
+        self.type_adim = self.type_arch
       elif len(self.arch) > 3:
         raise ValueError("Unknown architecture specification")
       else:
@@ -259,10 +262,17 @@ class stream (chain):
     self.win = win
     self.win_args = win_args
     self.win_kwds = dict(win_kwds)
-    if self.type_arch != 'conv' and self.type_arch != 'pool': return
+    if self.type_arch == 'recurrent':
+      return_sequence = {'last': False, 'seq': True}
+      if self.win is None:
+        self.win = DEFAULT_RECURRENT_WINDOW
+      if 'return_sequence' not in self.win_kwds:
+        self.win_kwds.update({'return_sequence': return_sequence[self.win]})
+    elif self.type_arch != 'conv' and self.type_arch != 'pool': 
+      return
     if self.win is None: self.win = DEFAULT_PADDING_WINDOW
     if 'padding' not in self.win_kwds:
-      self.win_kwds.update({'padding':self.win})
+      self.win_kwds.update({'padding': self.win})
 
 #-------------------------------------------------------------------------------
   def set_kernfn(self, kfn = None, *kfn_args, **kfn_kwds):
@@ -274,6 +284,8 @@ class stream (chain):
     self.kfn_args = kfn_args
     self.kfn_kwds = dict(kfn_kwds)
     if self.kfn is not None: return
+    if self.type_arch == 'recurrent':
+      self.kfn = DEFAULT_RECURRENT_KERNEL_FUNCTION
     if self.type_arch == 'pool':
       self.kfn = DEFAULT_POOLING_KERNEL_FUNCTION
     elif self.type_arch == 'conv':
@@ -433,6 +445,8 @@ class stream (chain):
       kwds.update(self.bia_kwds)
       kwds.update(self.wgt_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
+    elif self.type_arch == 'recurrent':
+      pass
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
       kwds.update({'activation': None})
