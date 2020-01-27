@@ -100,6 +100,7 @@ creation_dict = {'identity': tf.identity,
                  'defaults': tf.compat.v1.get_default_graph,
                  'session': tf.compat.v1.Session}
 
+#-------------------------------------------------------------------------------
 def Creation(*args):
   if not(len(args)): return None
   creation = creation_dict
