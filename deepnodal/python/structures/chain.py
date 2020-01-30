@@ -56,6 +56,17 @@ class chain (stem):
 
 #-------------------------------------------------------------------------------
   def add_link(self, creation = None, *args, **kwds):
+    def _parse_args(args_in):
+      args_out = ()
+      kwds_out = {}
+      for i in range(len(args_in), -1, -1):
+        _arg = args_in[i]
+        if isinstance(_arg, dict) and not len(kwds_out):
+          kwds_out.update(_arg)
+        else:
+          args_out.append(_args)
+      return tuple(args_out), kwds_out
+          
     # this requires no input since it does not create graph objects
     if self._links is None:
       self._links = []
@@ -65,6 +76,33 @@ class chain (stem):
       return
     if isinstance(creation, link) and not(len(args)) and not(len(kwds)):
       self._links.append(creation)
+    elif isinstance(creation, (set, dict)):
+      assert len(creation) == 1, "Prototyped creations have a single element"
+      if isinstance(creation, set):
+        creation = {list(creation)[0]: '__call__'}
+        if kwds:
+          raise ValueError("Prototyped creations require tuple args not kwds")
+        assert len(args) > 2, "Prototyped creations require <=2 arguments"
+        creator_args, creation_args = [], []
+        creator_kwds, creation_kwds = {}, {}
+        if len(args) == 1:
+          creation_args, creation_kwds = _parse_args(args[0])
+        elif len(args) == 2:
+          creator_args, creator_kwds = _parse_args(args[0])
+          creation_args, creation_kwds = _parse_args(args[1])
+      kwds = creation_kwds
+      if 'name' in kwds:
+        name = kwds['name']
+      elif 'scope' in kwds:
+        name = kwds['scope']
+      else:
+        name = 'link_' + str(self._n_links)
+        if self.name is not None:
+          name = self.name + "/" + name
+      self._links.append(link(name, self.dev))
+      self._links[-1].set_creator(creator, *creator_args, **creator_kwds)
+      self._links[-1].set_creation(creation, *creation_args, **creation_kwds)
+      self._links[-1].set_parent(self)
     else:
       if 'name' in kwds:
         name = kwds['name']
@@ -75,10 +113,10 @@ class chain (stem):
         if self.name is not None:
           name = self.name + "/" + name
       self._links.append(link(name, self.dev))
+      self._links[-1].set_creation(creation, *args, **kwds)
+      self._links[-1].set_parent(self)
     self._n_links = len(self._links)
     self._unit_link = self._n_links == 1
-    self._links[-1].set_creation(creation, *args, **kwds)
-    self._links[-1].set_parent(self)
     return self._links[-1]
 
 #-------------------------------------------------------------------------------

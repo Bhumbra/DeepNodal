@@ -447,6 +447,8 @@ class stream (chain):
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'recurrent':
       kwds.update({'units': self.arch[0]})
+      kwds.update(self.bia_kwds)
+      kwds.update(self.wgt_kwds)
       pass
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})

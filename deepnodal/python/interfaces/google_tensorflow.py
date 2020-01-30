@@ -18,6 +18,24 @@ except AttributeError:
   TF_AUTO_REUSE = False
 
 #-------------------------------------------------------------------------------
+# Creator dictionary
+creator_dict = {
+                 'batch_norm': tf.keras.layers.BatchNormalization,
+                 'recurrent': tf.keras.layers.RNN,
+                 'rec': tf.keras.layers.SimpleRNNCell,
+                 'gru': tf.keras.layers.GRUCell,
+                 'lstm': tf.keras.layers.LSTMCell,
+               }
+
+#-------------------------------------------------------------------------------
+def Creator(*args):
+  if not(len(args)): return None
+  creator = creator_dict
+  for arg in args:
+    creator = arg if type(arg) is not str else creator[arg.lower()]
+  return creator
+
+#-------------------------------------------------------------------------------
 # Creation dictionary
 
 creation_dict = {'identity': tf.identity,
@@ -59,14 +77,10 @@ creation_dict = {'identity': tf.identity,
                  'pool3d': {'max':tf.layers.max_pooling3d,
                             'avg':tf.layers.average_pooling3d},
                  'recurrent': tf.keras.layers.RNN,
-                 'rec': tf.keras.layers.SimpleRNNCell,
-                 'gru': tf.keras.layers.GRUCell,
-                 'lstm': tf.keras.layers.LSTMCell,
                  'flatten': tf.layers.flatten,
                  'dense2card': tf_dense2card,
                  'card2dense': tf_card2dense,
                  'batch_norm': tf.layers.batch_normalization,
-                 #'batch_norm': batch_norm,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,
@@ -162,8 +176,6 @@ device_dict = {'device': tf.device,
 
 def Device(spec = None, number = None): # returns a string if number is not None
   if number is None: return device_dict['device'](spec)
-  if spec == 'cpu' and number != 0:
-    raise ValueError("TensorFlow support for only single CPU device")
   return device_dict[spec] + str(number)
 
 #-------------------------------------------------------------------------------
