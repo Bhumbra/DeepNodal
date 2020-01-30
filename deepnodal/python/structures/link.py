@@ -61,7 +61,6 @@ class link (leaf):
     if self._creation is not None:
       assert self._creator is None, "Cannot specific both creator and creation"
      
-
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
     self._call_creator()
@@ -74,7 +73,7 @@ class link (leaf):
 
 #-------------------------------------------------------------------------------
   def _call_creator(self):
-    if self._prototype = None
+    self._prototype = None
     if self._creator is None: return self._prototype
     args = tuple(self._creator_args)
     kwds = dict(self._creator_kwds)
