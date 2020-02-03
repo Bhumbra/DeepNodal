@@ -30,10 +30,11 @@ class link (leaf):
   _creator_args = None
   _creator_kwds = None
   _creator = None
-  _prototype = None
   _creation = None
   _creation_args = None
   _creation_kwds = None
+  _prototype = None
+  _call_function = None
   _aux = None
 
   # private
@@ -50,17 +51,13 @@ class link (leaf):
     self._creator = Creation(creator)
     self._creator_args = args
     self._creator_kwds = dict(kwds)
-    if self._creator is not None:
-      assert self._creation is None, "Cannot specific both creator and creation"
-
+ 
 #-------------------------------------------------------------------------------
   def set_creation(self, creation=None, *args, **kwds):
-    self._creation = Creation(creation)
+    self._creation = Creation(creation) if self._creator is None else creation
     self._creation_args = args
     self._creation_kwds = dict(kwds)
-    if self._creation is not None:
-      assert self._creator is None, "Cannot specific both creator and creation"
-     
+
 #-------------------------------------------------------------------------------
   def __call__(self, inp = None, _called = True):
     self._call_creator()
@@ -78,7 +75,7 @@ class link (leaf):
     args = tuple(self._creator_args)
     kwds = dict(self._creator_kwds)
     args, kwds = structuref2unique(*args, **kwds)
-    self._prototype = self._prototype(*args, **kwds)
+    self._prototype = self._creator(*args, **kwds)
     return self._prototype
 
 #-------------------------------------------------------------------------------
@@ -96,22 +93,23 @@ class link (leaf):
       self.__var_scope = kwds['scope']
     if self._inp is None or self._creation is None: return self.ret_out()
     args, kwds = structuref2unique(*args, **kwds)
-    if self._prototype is None:
-      self._prototype = self._creation
-    if 'var_scope' in self._kwds:
+    self._call_function = self._creation
+    if self._prototype is not None:
+      self._call_function = getattr(self._prototype, self._creation)
+    if 'var_scope' in self._creation_kwds:
       if self.dev is None:
         with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
-          self._out = self._prototype(self._inp, *args, **kwds)
+          self._out = self._call_function(self._inp, *args, **kwds)
       else:
         with Device(self.dev):
           with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
-            self._out = self._prototype(self._inp, *args, **kwds)
+            self._out = self._call_function(self._inp, *args, **kwds)
     else:
       if self.dev is None:
-        self._out = self._prototype(self._inp, *args, **kwds)
+        self._out = self._call_function(self._inp, *args, **kwds)
       else:
         with Device(self.dev):
-          self._out = self._prototype(self._inp, *args, **kwds)
+          self._out = self._call_function(self._inp, *args, **kwds)
     if isinstance(self._out, (list, tuple)):
       self._out, self._aux = self._out[0], self._out[1:]
 

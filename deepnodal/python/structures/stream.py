@@ -482,6 +482,8 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def _call_norm(self):
     if self.nor is None: return self.ret_out()
+    """
+    NATIVE TF VERSION (REPLACED BY TF.KERAS VERSION)
     kwds = dict(self.nor_kwds)
     if Creation(self.nor) == Creation('batch_norm'):
       if 'is_training' not in kwds:
@@ -495,6 +497,20 @@ class stream (chain):
       if 'name' not in kwds:
         kwds.update({'name': self.name + "/batch_norm"})
     self.add_link(Creation(self.nor), *self.nor_args, **kwds)
+    """
+    kwds = dict(self.nor_kwds)
+    call_kwds = {}
+    if Creator(self.nor) == Creator('batch_norm'):
+      if 'is_training' not in kwds:
+        if self.ist is None:
+          raise ValueError("Cannot setup batch_norm before setting training flag.")
+        else:
+          call_kwds.update({'training': self.ist})
+      else:
+        call_kwds.update({'training': self.kwds['is_training']})
+        kwds.pop('is_training')
+    call_kwds.update({'var_scope': self.name + "/batch_norm"})
+    self.add_link(set([Creator(self.nor)]), list(self.nor_args) + [dict(kwds)], [dict(call_kwds)])
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
