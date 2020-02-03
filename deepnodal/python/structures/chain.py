@@ -55,16 +55,15 @@ class chain (stem):
       _link.set_dev(dev)
 
 #-------------------------------------------------------------------------------
-  def add_link(self, creation = None, *args, **kwds):
+  def add_link(self, creat = None, *args, **kwds):
     def _parse_args(args_in):
       args_out = ()
       kwds_out = {}
-      for i in range(len(args_in), -1, -1):
-        _arg = args_in[i]
-        if isinstance(_arg, dict) and not len(kwds_out):
-          kwds_out.update(_arg)
+      for i, arg_in in enumerate(args_in):
+        if i == len(args_in)-1 and isinstance(arg_in, dict):
+          kwds_out.update(arg_in)
         else:
-          args_out.append(_args)
+          args_out.append(arg_in)
       return tuple(args_out), kwds_out
           
     # this requires no input since it does not create graph objects
@@ -72,24 +71,26 @@ class chain (stem):
       self._links = []
       self._n_links = 0
       self._unit_link = False
-    if creation is None:
+    if creat is None:
       return
-    if isinstance(creation, link) and not(len(args)) and not(len(kwds)):
-      self._links.append(creation)
-    elif isinstance(creation, (set, dict)):
-      assert len(creation) == 1, "Prototyped creations have a single element"
-      if isinstance(creation, set):
-        creation = {list(creation)[0]: '__call__'}
-        if kwds:
-          raise ValueError("Prototyped creations require tuple args not kwds")
-        assert len(args) > 2, "Prototyped creations require <=2 arguments"
-        creator_args, creation_args = [], []
-        creator_kwds, creation_kwds = {}, {}
-        if len(args) == 1:
-          creation_args, creation_kwds = _parse_args(args[0])
-        elif len(args) == 2:
-          creator_args, creator_kwds = _parse_args(args[0])
-          creation_args, creation_kwds = _parse_args(args[1])
+    if isinstance(creat, link) and not(len(args)) and not(len(kwds)):
+      self._links.append(creat)
+    elif isinstance(creat, (set, dict)):
+      assert len(creat) == 1, "Prototyped creations have a single element"
+      if isinstance(creat, set):
+        creat = {list(creat)[0]: '__call__'}
+      creator = list(creat.keys())[0]
+      creation = list(creat.values())[0]
+      if kwds:
+        raise ValueError("Prototyped creations require tuple args not kwds")
+      assert len(args) <= 2, "Prototyped creations require <=2 arguments"
+      creator_args, creation_args = [], []
+      creator_kwds, creation_kwds = {}, {}
+      if len(args) == 1:
+        creation_args, creation_kwds = _parse_args(args[0])
+      elif len(args) == 2:
+        creator_args, creator_kwds = _parse_args(args[0])
+        creation_args, creation_kwds = _parse_args(args[1])
       kwds = creation_kwds
       if 'name' in kwds:
         name = kwds['name']
@@ -113,7 +114,7 @@ class chain (stem):
         if self.name is not None:
           name = self.name + "/" + name
       self._links.append(link(name, self.dev))
-      self._links[-1].set_creation(creation, *args, **kwds)
+      self._links[-1].set_creation(creat, *args, **kwds)
       self._links[-1].set_parent(self)
     self._n_links = len(self._links)
     self._unit_link = self._n_links == 1
