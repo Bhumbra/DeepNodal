@@ -73,7 +73,7 @@ class stream (chain):
     self.set_arch() # defaults to 'none'
 
 #-------------------------------------------------------------------------------
-  def set_arch(self, arch = None):
+  def set_arch(self, arch=None, *arch_args, **arch_kwds):
     """
     arch = None or []:  identity
     arch = integer:     dense
@@ -88,6 +88,7 @@ class stream (chain):
     # the stream.setup(inp) stage.
 
     self.arch = arch # arch = None is the default signifying a 'none'
+    self.set_arch_args(*arch_args, **arch_kwds)
     self.arch_link = None
     self.type_arch = None
     self.type_adim = None
@@ -447,9 +448,12 @@ class stream (chain):
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'recurrent':
       kwds.update({'units': self.arch[0]})
-      kwds.update(self.bia_kwds)
-      kwds.update(self.wgt_kwds)
-      pass
+      kwds.update(self._kfn_kwds)
+      self.arch_link = self.add_link(set([Creator(self.type_adim)]),
+                                     [self._kfn(*self._kfn_args, **kwds), 
+                                      list(self._win_args) + [dict(self._win_kwds)]],
+                                     list(self._arch_args) + [dict(self._arch_kwds)])
+                                      
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
       kwds.update({'activation': None})

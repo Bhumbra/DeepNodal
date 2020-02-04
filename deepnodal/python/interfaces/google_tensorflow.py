@@ -22,9 +22,6 @@ except AttributeError:
 creator_dict = {
                  'batch_norm': tf.keras.layers.BatchNormalization,
                  'recurrent': tf.keras.layers.RNN,
-                 'rec': tf.keras.layers.SimpleRNNCell,
-                 'gru': tf.keras.layers.GRUCell,
-                 'lstm': tf.keras.layers.LSTMCell,
                }
 
 #-------------------------------------------------------------------------------
@@ -81,6 +78,9 @@ creation_dict = {'identity': tf.identity,
                  'dense2card': tf_dense2card,
                  'card2dense': tf_card2dense,
                  'batch_norm': tf.layers.batch_normalization,
+                 'rec': tf.keras.layers.SimpleRNNCell,
+                 'gru': tf.keras.layers.GRUCell,
+                 'lstm': tf.keras.layers.LSTMCell,
                  'lresp_norm': tf.nn.local_response_normalization,
                  'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,
