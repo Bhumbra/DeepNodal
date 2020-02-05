@@ -57,7 +57,7 @@ class chain (stem):
 #-------------------------------------------------------------------------------
   def add_link(self, creat = None, *args, **kwds):
     def _parse_args(args_in):
-      args_out = ()
+      args_out = []
       kwds_out = {}
       for i, arg_in in enumerate(args_in):
         if i == len(args_in)-1 and isinstance(arg_in, dict):

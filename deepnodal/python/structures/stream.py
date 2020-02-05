@@ -12,7 +12,7 @@ from deepnodal.python.concepts.structure import *
 DEFAULT_STREAM_ORDER = 'dant' # over-ruled to only 'a' for absent architectures.
 DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
-DEFAULT_RECURRENT_KERNEL_FUNCTION = 'rec'   # others: 'gru', 'lstm'
+DEFAULT_RECURRENT_KERNEL_FUNCTION = 'rec'     # others: 'gru', 'lstm'
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
 DEFAULT_POOLING_KERNEL_FUNCTION = 'max'       # other: 'avg'
 DEFAULT_PADDING_WINDOW = 'same'               # other: 'valid'
@@ -131,7 +131,7 @@ class stream (chain):
         raise ValueError("Unknown architecture specification")
       else:
         if type(self.arch[1]) is not list:
-          raise ValueError("Unknown architecture specification")
+          raise ValueError("Unknown architecture specification: {}".format(self.arch))
         self.type_arch = 'pool' if type(self.arch[0]) is list else 'conv'
         self.type_adim = self.type_arch + str(len(self.arch[1])) + "d"
         if self.type_arch == 'conv': # default to unit stride
@@ -436,7 +436,8 @@ class stream (chain):
 
     # Call layers
     type_adim = self.type_adim if self.type_arch != 'callable' else self.type_arch
-    kwds = {'name': self.name + "/" + type_adim}
+    kwds = dict(self.arch_kwds) 
+    kwds.update({'name': self.name + "/" + type_adim})
     if self.type_arch == 'callable':
       kwds.update(dict(arch_kwds))
       self.arch_link = self.add_link(self.type_adim, *self.arch_args, **kwds)
@@ -447,12 +448,12 @@ class stream (chain):
       kwds.update(self.wgt_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
     elif self.type_arch == 'recurrent':
-      kwds.update({'units': self.arch[0]})
-      kwds.update(self._kfn_kwds)
+      kfn_kwds = dict(self.kfn_kwds)
+      kfn_kwds.update({'units': self.arch[0]})
       self.arch_link = self.add_link(set([Creator(self.type_adim)]),
-                                     [self._kfn(*self._kfn_args, **kwds), 
-                                      list(self._win_args) + [dict(self._win_kwds)]],
-                                     list(self._arch_args) + [dict(self._arch_kwds)])
+                                     [Creation(self.kfn)(*self.kfn_args, **kfn_kwds), 
+                                      list(self.win_args) + [dict(self.win_kwds)]],
+                                      list(self.arch_args) + [kwds])
                                       
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
