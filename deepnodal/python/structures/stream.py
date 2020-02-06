@@ -377,9 +377,11 @@ class stream (chain):
     if type(self._inp) is not Dtype('tensor'):
       raise TypeError("Input type must be a tensor.")
 
-    # but will claim ownership over any needed flattening operation
+    # but will claim ownership over any needed flattening/squeezing operation
     if len(Shape(self._inp)) > 2 and self.type_arch == 'dense':
       self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
+    if len(Shape(self._inp)) == 4 and self.type_arch == 'recurrent':
+      self.add_link(Creation('squeeze'), axis=-1, name=self.name+"/input_flatten")
     elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
       self.add_link(Creation('expand_dims'), name = self.name+"/input_expand_dims", axis = -1)
     return inp
@@ -450,6 +452,7 @@ class stream (chain):
     elif self.type_arch == 'recurrent':
       kfn_kwds = dict(self.kfn_kwds)
       kfn_kwds.update({'units': self.arch[0]})
+      kwds['var_scope'] = kwds.pop('name')
       self.arch_link = self.add_link(set([Creator(self.type_adim)]),
                                      [Creation(self.kfn)(*self.kfn_args, **kfn_kwds), 
                                       list(self.win_args) + [dict(self.win_kwds)]],

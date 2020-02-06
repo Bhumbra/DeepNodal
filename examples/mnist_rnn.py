@@ -13,8 +13,8 @@ n_epochs = 20
 batch_size = 60
 learning_rate = 0.01
 
-input_dims = [28, 28]
-arch = [[5], 10]
+input_dims = [28, 28, 1]
+arch = [[20], 10]
 transfn = [None, 'softmax']
 
 net_name = 'recurrent_net'
