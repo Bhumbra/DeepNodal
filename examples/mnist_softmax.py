@@ -13,7 +13,7 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = 10
+arch = "10"
 transfn = 'softmax'
 
 net_name = 'softmax_layer'

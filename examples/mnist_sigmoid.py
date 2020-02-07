@@ -14,7 +14,7 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = (5, 5)
+arch = ("5", "5")
 transfn = 'sigmoid'
 
 net_name = 'sigmoid_layers'
