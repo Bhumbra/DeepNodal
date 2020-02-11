@@ -68,7 +68,7 @@ class stream (chain):
   _reguln = None      # dictionary of regularisation contributions
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = 'stream', dev = None):
+  def __init__(self, name='stream', dev = None):
     chain.__init__(self, name, dev)
     self.set_arch() # defaults to 'none'
 
@@ -162,14 +162,14 @@ class stream (chain):
     raise AttributeError("Method stream.add_arch() not supported by stream class.")
 
 #-------------------------------------------------------------------------------
-  def set_is_training(self, ist = None):
+  def set_is_training(self, ist=None):
     """
     ist = is_training must be set to handle some operations (e.g. batch normalisation)
     """
     self.ist = ist
 
 #-------------------------------------------------------------------------------
-  def set_order(self, order = None):
+  def set_order(self, order=None):
     """
     order = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
@@ -184,7 +184,7 @@ class stream (chain):
     self.arch_kwds = kwds
 
 #-------------------------------------------------------------------------------
-  def set_biases(self, bia = None, *bia_args, **bia_kwds):
+  def set_biases(self, bia=None, *bia_args, **bia_kwds):
     """
     bia enables/disables biases and initialisation. Valid inputs are:
     None (default bias settings), False/True, disable/enable biases,
@@ -201,7 +201,7 @@ class stream (chain):
     self.bia_kwds.update({'use_bias': self.bia})
 
 #-------------------------------------------------------------------------------
-  def set_weights(self, wgt = None, *wgt_args, **wgt_kwds):
+  def set_weights(self, wgt=None, *wgt_args, **wgt_kwds):
     """
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
@@ -220,7 +220,7 @@ class stream (chain):
           self.wgt_kwds.update({'kernel_transpose': False})
 
 #-------------------------------------------------------------------------------
-  def set_dropout(self, dro = None, *dro_args, **dro_kwds):
+  def set_dropout(self, dro=None, *dro_args, **dro_kwds):
     """
     dro = None: No dropout
     dro = 0.: Full dropout (i.e. useless)
@@ -246,7 +246,7 @@ class stream (chain):
     self.dro_kwds = dict(dro_kwds)
 
 #-------------------------------------------------------------------------------
-  def set_transfn(self, tfn = None, *tfn_args, **tfn_kwds):
+  def set_transfn(self, tfn=None, *tfn_args, **tfn_kwds):
     """
     tfn = 'relu': ReLU
     tfn = 'elu': ELU
@@ -259,7 +259,7 @@ class stream (chain):
     self.trans_fn = self.tfn
 
 #-------------------------------------------------------------------------------
-  def set_window(self, win = None, *win_args, **win_kwds):
+  def set_window(self, win=None, *win_args, **win_kwds):
     """
     win = 'same' or 'valid'
     """
@@ -279,7 +279,7 @@ class stream (chain):
       self.win_kwds.update({'padding': self.win})
 
 #-------------------------------------------------------------------------------
-  def set_kernfn(self, kfn = None, *kfn_args, **kfn_kwds):
+  def set_kernfn(self, kfn=None, *kfn_args, **kfn_kwds):
     """
     kfn = 'xcorr' or 'sconv' or 'tconv' for convolution layers
     kfn = 'max' or 'avg' for pooling layers
@@ -296,7 +296,7 @@ class stream (chain):
       self.kfn = DEFAULT_CONVOLUTION_KERNEL_FUNCTION
 
 #-------------------------------------------------------------------------------
-  def set_normal(self, nor = None, *nor_args, **nor_kwds):
+  def set_normal(self, nor=None, *nor_args, **nor_kwds):
     """
     nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
@@ -305,7 +305,7 @@ class stream (chain):
     self.nor_kwds = dict(nor_kwds)
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+  def set_reguln(self, reg=None, *reg_args, **reg_kwds):
     """
     nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
@@ -314,7 +314,7 @@ class stream (chain):
     self.reg_kwds = dict(reg_kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     """
     inp must be a single tensor.
 
@@ -372,7 +372,7 @@ class stream (chain):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _call_input(self, inp = None):
+  def _call_input(self, inp=None):
     # stream claims no ownership over input
     self._inp = inp
     self._out = None
@@ -575,7 +575,7 @@ class stream (chain):
     return self._reguln
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = stream()
     elif not isinstance(other, stream) and not issubclass(other, stream):

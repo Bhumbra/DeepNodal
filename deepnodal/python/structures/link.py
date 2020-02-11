@@ -59,7 +59,7 @@ class link (leaf):
     self._creation_kwds = dict(kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     self._call_creator()
     self._call_creation(inp)
     self.set_called(_called)
@@ -172,7 +172,7 @@ class link (leaf):
     return self._updates
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = link()
     elif not isinstance(other, link) and not issubclass(other, link):

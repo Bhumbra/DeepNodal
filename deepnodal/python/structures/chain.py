@@ -30,11 +30,11 @@ class chain (stem):
   _unit_link = None
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     stem.__init__(self, name, dev)
 
 #-------------------------------------------------------------------------------
-  def set_name(self, name = None):
+  def set_name(self, name=None):
     # We add links sequentially before declaring as subobjects so
     # the stem version of this function must be overloaded here...
 
@@ -46,7 +46,7 @@ class chain (stem):
       _link.set_name(link_name)
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev=None):
     # We add links sequentially before declaring as subobjects so
     # the stem version of this function must be overloaded here...
     self.dev = dev
@@ -55,7 +55,7 @@ class chain (stem):
       _link.set_dev(dev)
 
 #-------------------------------------------------------------------------------
-  def add_link(self, creat = None, *args, **kwds):
+  def add_link(self, creat=None, *args, **kwds):
     def _parse_args(args_in):
       args_out = []
       kwds_out = {}
@@ -121,7 +121,7 @@ class chain (stem):
     return self._links[-1]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     self._inp = inp
     self._out = inp
     if self._links is None: return
@@ -132,7 +132,7 @@ class chain (stem):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     # Create chain instance if necessary
     if other is None:
       other = chain()
@@ -152,4 +152,3 @@ class chain (stem):
     return other
 
 #-------------------------------------------------------------------------------
-
