@@ -38,14 +38,14 @@ class level (stem):
   _spec_type = tuple        # specification type
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     stem.__init__(self, name, dev)
     self.set_arch()    # defaults to absence of streams
     self.set_ipverge() # sets ipv_args and ipv_kwds
     self.set_opverge() # sets opv_args and opv_kwds
 
 #-------------------------------------------------------------------------------
-  def set_arch(self, arch = None):
+  def set_arch(self, arch=None):
     """
     Here, arch is a tuple of architecture specifications of a length that
     corresponds to the number of streams within the level, since each
@@ -83,7 +83,7 @@ class level (stem):
     return self.type_arch
 
 #-------------------------------------------------------------------------------
-  def add_arch(self, arch = None):
+  def add_arch(self, arch=None):
     output_list = True
     if type(arch) is not tuple:
       arch = (arch,)
@@ -107,7 +107,7 @@ class level (stem):
     return self.arch
 
 #-------------------------------------------------------------------------------
-  def set_ipverge(self, ipv = None, *ipv_args, **ipv_kwds):
+  def set_ipverge(self, ipv=None, *ipv_args, **ipv_kwds):
     """
     ipv is a vergence specification that unites inputs expressed as a tuple with a
     length corresponding to that of the number of streams.
@@ -146,7 +146,7 @@ class level (stem):
       self.ipv_kwds.update({'axis': ax})
 
 #-------------------------------------------------------------------------------
-  def _set_spec(self, func, spec = None, *args, **kwds): # overloads stem._set_spec
+  def _set_spec(self, func, spec=None, *args, **kwds): # overloads stem._set_spec
     """
     We overload here because here we 'None' any broadcast specifications to
     'none' architectures.
@@ -162,21 +162,21 @@ class level (stem):
     return stem._set_spec(self, func, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_is_training(self, spec = None, *args, **kwds):
+  def set_is_training(self, spec=None, *args, **kwds):
     """
     spec = is_training must be set to handle some operations (e.g. batch normalisation)
     """
     return self._set_spec(self._subobject.set_is_training, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_order(self, spec = None, *args, **kwds):
+  def set_order(self, spec=None, *args, **kwds):
     """
     spec = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
     return self._set_spec(self._subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_biases(self, spec = None, *args, **kwds):
+  def set_biases(self, spec=None, *args, **kwds):
     """
     spec enables/disables biases and initialisation. Valid inputs are:
     None (default bias settings), False/True, disable/enable biases,
@@ -185,7 +185,7 @@ class level (stem):
     return self._set_spec(self._subobject.set_biases, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_weights(self, spec = None, *args, **kwds):
+  def set_weights(self, spec=None, *args, **kwds):
     """
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
@@ -193,7 +193,7 @@ class level (stem):
     return self._set_spec(self._subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_dropout(self, spec = None, *args, **kwds):
+  def set_dropout(self, spec=None, *args, **kwds):
     """
     spec = None: No dropout
     spec = 0.: Full dropout (i.e. useless)
@@ -202,7 +202,7 @@ class level (stem):
     return self._set_spec(self._subobject.set_dropout, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_transfn(self, spec = None, *args, **kwds):
+  def set_transfn(self, spec=None, *args, **kwds):
     """
     spec = 'relu': ReLU
     spec = 'elu': ELU
@@ -217,35 +217,35 @@ class level (stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def set_window(self, spec = None, *args, **kwds):
+  def set_window(self, spec=None, *args, **kwds):
     """
     spec = 'same' or 'valid'
     """
     return self._set_spec(self._subobject.set_window, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_kernfn(self, spec = None, *args, **kwds):
+  def set_kernfn(self, spec=None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
     return self._set_spec(self._subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_normal(self, spec = None, *args, **kwds):
+  def set_normal(self, spec=None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
     return self._set_spec(self._subobject.set_normal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, spec = None, *args, **kwds):
+  def set_reguln(self, spec=None, *args, **kwds):
     """
     spec = 'l1_reg' or 'l2_reg' with accompanying keywords (scale) required.
     """
     return self._set_spec(self._subobject.set_reguln, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_opverge(self, opv = None, *opv_args, **opv_kwds):
+  def set_opverge(self, opv=None, *opv_args, **opv_kwds):
     """
     opv is a vergence specification that unites outputs expressed as a tuple of
     a length that may differ to that of the number of streams.
@@ -295,7 +295,7 @@ class level (stem):
       self.opv_kwds.update({'axis': ax})
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = level()
     elif not isinstance(other, level) and not issubclass(other, level):
@@ -326,7 +326,7 @@ class level (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     inp = self._call_input(inp)  # does not touch self._subobjects
     if self._inp is None: return self._inp # nothing in, nothing out
     for _inp, subobject in zip(list(inp), self._subobjects):
@@ -338,7 +338,7 @@ class level (stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def _call_input(self, inp = None):
+  def _call_input(self, inp=None):
     # inp may either be a level or a tuple of inputs.
     # self.inp -> vergence (if specified) -> self.Inp
     if self.ipv is None: self.set_ipverge()
@@ -384,7 +384,7 @@ class level (stem):
     return self.Inp
 
 #-------------------------------------------------------------------------------
-  def _call_output(self, Out = None):
+  def _call_output(self, Out=None):
     # Out is expected to be tuple of size self.n_streams. Optionally it may be
     # a single graph object for single stream levels.
     if self.opv is None: self.set_opverge()
