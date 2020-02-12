@@ -88,8 +88,6 @@ class supervisor (overseer):
     self.cfn_args = cfn_args
     self.cfn_kwds = dict(cfn_kwds)
     if self.cfn is None: self.cfn = DEFAULT_COST_FUNCTION
-    if Creation(self.cfn) == Creation("nce"):
-      pass
 
 #-------------------------------------------------------------------------------
   def set_errorq(self, erq = None, *erq_args, **erq_kwds):
@@ -218,7 +216,10 @@ class supervisor (overseer):
     self.pre_trans = self.work.outnets[0].pre_trans
     self.trans_fn_out = Creation(self.work.outnets[0].trans_fn)
     kwds = dict(self.cfn_kwds)
-    if Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
+    if Creation(self.cfn) == Creation("nce"):
+      # TODO: We have to retrieve the weights and biases from the last layer
+      pass
+    elif Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
       kwds.update({'name': self.name + "/metrics/cost"})
       if self.dev is None:
         self.cost = Creation(self.cfn)(self.pre_trans, self.labels, *self.cfn_args,
