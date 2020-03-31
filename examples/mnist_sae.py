@@ -13,7 +13,7 @@ batch_size = 60
 learning_rate = 0.0001
 
 input_dims = [784]
-arch = [1000, 500, 250, 30, 250, 500, 1000, 784]
+arch = ["1000", 500, 250, 30, 250, 500, 1000, 784]
 transfn = ['relu'] * (len(arch) - 1) + ['sigmoid']
 weights = 'vsi'
 weights_kwds = {'transpose': True}

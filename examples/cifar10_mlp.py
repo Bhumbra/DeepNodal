@@ -16,7 +16,7 @@ lr0 = 0.01
 learning_rates = {0:lr0, 5:lr0*0.1, 10:lr0*0.01, 15:lr0*0.01}
 
 input_dims = [32, 32, 3]
-arch = [100, 100, 10]
+arch = ["100", 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 dropout = [None] * (len(arch)-1) + [0.5]
 reguln = 'weight_decay'
