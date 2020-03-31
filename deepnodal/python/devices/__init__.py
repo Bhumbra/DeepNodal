@@ -1,1 +1,1 @@
-from deepnodal.python.devices.gpu import *
+from deepnodal.python.devices.gputemps import *
