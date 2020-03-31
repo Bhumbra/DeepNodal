@@ -6,6 +6,7 @@
 
 ## FEATURES
 
+- GPU Temp monitoring
 - support sequential architecture specification
 - support custom metric calculation
 - support nce_loss evaluation
