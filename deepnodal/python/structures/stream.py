@@ -60,6 +60,7 @@ class stream (chain):
   nor = None          # Normalisation
   reg = None          # Regularisation
   vsi = None          # An instance of custom weights initialiser class if needed
+  wgt_kwds = None     # Weight kwds
   trans_fn = None     # trans_fn = tfn, used as a summary tf by higher objects
   trans_link = None   # transfer function link
   dropout_quotient = None # Graph object for the dropout coefficient
