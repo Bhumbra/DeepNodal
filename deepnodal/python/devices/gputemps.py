@@ -16,7 +16,7 @@ class GPUTemps:
 #-------------------------------------------------------------------------------
   def __init__(self, com=None, *com_args):
     self.set_com(com, *com_args)
-    self.set_poling()
+    self.set_polling()
 
 #-------------------------------------------------------------------------------
   def set_com(self, com=None, *args):
@@ -29,8 +29,8 @@ class GPUTemps:
       self._com_args = tuple(DEF_COM_ARGS)
 
 #-------------------------------------------------------------------------------
-  def set_poling(self, poling=1.):
-    self._poling = poling
+  def set_polling(self, polling=1.):
+    self._polling = polling
 
 #-------------------------------------------------------------------------------
   def __call__(self):
