@@ -14,7 +14,7 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = [100, 100, 100, 10]
+arch = ["100", 100, 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 skipcv = [None] * (len(arch)-2) + [-2, None]
 

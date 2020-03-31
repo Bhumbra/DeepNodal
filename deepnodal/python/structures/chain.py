@@ -30,11 +30,11 @@ class chain (stem):
   _unit_link = None
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     stem.__init__(self, name, dev)
 
 #-------------------------------------------------------------------------------
-  def set_name(self, name = None):
+  def set_name(self, name=None):
     # We add links sequentially before declaring as subobjects so
     # the stem version of this function must be overloaded here...
 
@@ -46,7 +46,7 @@ class chain (stem):
       _link.set_name(link_name)
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev=None):
     # We add links sequentially before declaring as subobjects so
     # the stem version of this function must be overloaded here...
     self.dev = dev
@@ -55,16 +55,55 @@ class chain (stem):
       _link.set_dev(dev)
 
 #-------------------------------------------------------------------------------
-  def add_link(self, creation = None, *args, **kwds):
+  def add_link(self, creat=None, *args, **kwds):
+    def _parse_args(args_in):
+      args_out = []
+      kwds_out = {}
+      for i, arg_in in enumerate(args_in):
+        if i == len(args_in)-1 and isinstance(arg_in, dict):
+          kwds_out.update(arg_in)
+        else:
+          args_out.append(arg_in)
+      return tuple(args_out), kwds_out
+          
     # this requires no input since it does not create graph objects
     if self._links is None:
       self._links = []
       self._n_links = 0
       self._unit_link = False
-    if creation is None:
+    if creat is None:
       return
-    if isinstance(creation, link) and not(len(args)) and not(len(kwds)):
-      self._links.append(creation)
+    if isinstance(creat, link) and not(len(args)) and not(len(kwds)):
+      self._links.append(creat)
+    elif isinstance(creat, (set, dict)):
+      assert len(creat) == 1, "Prototyped creations have a single element"
+      if isinstance(creat, set):
+        creat = {list(creat)[0]: '__call__'}
+      creator = list(creat.keys())[0]
+      creation = list(creat.values())[0]
+      if kwds:
+        raise ValueError("Prototyped creations require tuple args not kwds")
+      assert len(args) <= 2, "Prototyped creations require <=2 arguments"
+      creator_args, creation_args = [], []
+      creator_kwds, creation_kwds = {}, {}
+      if len(args) == 1:
+        creation_args, creation_kwds = _parse_args(args[0])
+      elif len(args) == 2:
+        creator_args, creator_kwds = _parse_args(args[0])
+        creation_args, creation_kwds = _parse_args(args[1])
+      kwds = creation_kwds
+      if 'name' in kwds:
+        name = kwds['name']
+      elif 'scope' in kwds:
+        name = kwds['scope']
+      else:
+        name = 'link_' + str(self._n_links)
+        if self.name is not None:
+          name = self.name + "/" + name
+      self._links.append(link(name, self.dev))
+      self._links[-1].set_creator(creator, *creator_args, **creator_kwds)
+      self._links[-1].set_creation(creation, *creation_args, **creation_kwds)
+      self._links[-1].set_parent(self)
     else:
       if 'name' in kwds:
         name = kwds['name']
@@ -75,14 +114,14 @@ class chain (stem):
         if self.name is not None:
           name = self.name + "/" + name
       self._links.append(link(name, self.dev))
+      self._links[-1].set_creation(creat, *args, **kwds)
+      self._links[-1].set_parent(self)
     self._n_links = len(self._links)
     self._unit_link = self._n_links == 1
-    self._links[-1].set_creation(creation, *args, **kwds)
-    self._links[-1].set_parent(self)
     return self._links[-1]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     self._inp = inp
     self._out = inp
     if self._links is None: return
@@ -93,7 +132,7 @@ class chain (stem):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     # Create chain instance if necessary
     if other is None:
       other = chain()
@@ -113,4 +152,3 @@ class chain (stem):
     return other
 
 #-------------------------------------------------------------------------------
-

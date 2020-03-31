@@ -34,13 +34,13 @@ class stack (stem):
   # protected
   _spec_type = list        # specification type
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     stem.__init__(self, name, dev)
     self.set_arch()   # defaults to an identity
     self.set_skipcv() # sets scv_args and scv_kwds
 
 #-------------------------------------------------------------------------------
-  def set_arch(self, arch = None):
+  def set_arch(self, arch=None):
     self.arch = arch
     if self.arch is None: return
     if type(self.arch) is not list:
@@ -69,7 +69,7 @@ class stack (stem):
     return self.type_arch
 
 #-------------------------------------------------------------------------------
-  def add_arch(self, arch = None):
+  def add_arch(self, arch=None):
     arch_tuple = False
     if type(arch) is list:
       for _arch in arch:
@@ -102,7 +102,7 @@ class stack (stem):
     return self.arch
 
 #-------------------------------------------------------------------------------
-  def set_skipcv(self, scv = None, *scv_args, **scv_kwds):
+  def set_skipcv(self, scv=None, *scv_args, **scv_kwds):
     """
     scv is a vergence specification that unites outputs across levels. When
     referring to level outputs, this would be _post_ any output vergences 
@@ -159,28 +159,28 @@ class stack (stem):
 
 
 #-------------------------------------------------------------------------------
-  def set_ipverge(self, spec = None, *args, **kwds):
+  def set_ipverge(self, spec=None, *args, **kwds):
     """
     spec = ipv is the vergence specification for stream inputs within levels.
     """
     return self._set_spec(self._subobject.set_ipverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_is_training(self, spec = None, *args, **kwds):
+  def set_is_training(self, spec=None, *args, **kwds):
     """
     spec = is_training must be set to handle some operations (e.g. batch normalisation)
     """
     return self._set_spec(self._subobject.set_is_training, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_order(self, spec = None, *args, **kwds):
+  def set_order(self, spec=None, *args, **kwds):
     """
     spec = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
     return self._set_spec(self._subobject.set_order, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_biases(self, spec = None, *args, **kwds):
+  def set_biases(self, spec=None, *args, **kwds):
     """
     spec enables/disables biases and initialisation. Valid inputs are:
     None (default bias settings), False/True, disable/enable biases,
@@ -189,7 +189,7 @@ class stack (stem):
     return self._set_spec(self._subobject.set_biases, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_weights(self, spec = None, *args, **kwds):
+  def set_weights(self, spec=None, *args, **kwds):
     """
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
@@ -197,7 +197,7 @@ class stack (stem):
     return self._set_spec(self._subobject.set_weights, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_dropout(self, spec = None, *args, **kwds):
+  def set_dropout(self, spec=None, *args, **kwds):
     """
     spec = None: No dropout
     spec = 0.: Full dropout (i.e. useless)
@@ -206,7 +206,7 @@ class stack (stem):
     return self._set_spec(self._subobject.set_dropout, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_transfn(self, spec = None, *args, **kwds):
+  def set_transfn(self, spec=None, *args, **kwds):
     """
     spec = 'relu': ReLU
     spec = 'elu': ELU
@@ -217,42 +217,42 @@ class stack (stem):
     return argout
 
 #-------------------------------------------------------------------------------
-  def set_window(self, spec = None, *args, **kwds):
+  def set_window(self, spec=None, *args, **kwds):
     """
     spec = 'same' or 'valid'
     """
     return self._set_spec(self._subobject.set_window, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_kernfn(self, spec = None, *args, **kwds):
+  def set_kernfn(self, spec=None, *args, **kwds):
     """
     spec = 'max' or 'avg'
     """
     return self._set_spec(self._subobject.set_kernfn, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_normal(self, spec = None, *args, **kwds):
+  def set_normal(self, spec=None, *args, **kwds):
     """
     spec = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
     return self._set_spec(self._subobject.set_normal, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, spec = None, *args, **kwds):
+  def set_reguln(self, spec=None, *args, **kwds):
     """
     spec = 'l1_reg' or 'l2_reg' with accompanying keywords (scale) required.
     """
     return self._set_spec(self._subobject.set_reguln, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def set_opverge(self, spec = None, *args, **kwds):
+  def set_opverge(self, spec=None, *args, **kwds):
     """
     spec = opc is the vergence specification for stream outputs within levels.
     """
     return self._set_spec(self._subobject.set_opverge, spec, *args, **kwds)
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = stack()
     elif not isinstance(other, stack) and not issubclass(other, stack):
@@ -282,7 +282,7 @@ class stack (stem):
     return other
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     # stack really doesn't care about nursemaiding inputs and outputs
     # because that's the job of levels. But we have to deal with skip
     # connection vergences.

@@ -14,10 +14,10 @@ batch_size = 60
 learning_rate = 0.01
 
 input_dims = [28, 28, 1]
-arch = ("5", "5")
-transfn = 'sigmoid'
+arch = [[20], "10"]
+transfn = [None, 'softmax']
 
-net_name = 'sigmoid_layers'
+net_name = 'recurrent_net'
 write_dir = '/tmp/dn_logs/'
 
 def main():
@@ -30,10 +30,9 @@ def main():
 
   # SPECIFY ARCHITECTURE 
 
-  mod = dn.level()
+  mod = dn.stack()
   mod.set_arch(arch)
   mod.set_transfn(transfn)
-  mod.set_opverge(True)
 
   # SPECIFY NETWORK
 
@@ -46,7 +45,6 @@ def main():
   sup = dn.supervisor()
   sup.set_work(net)
   sup.add_schedule(learning_rate)
-  sup.set_costfn('mse')
 
   # TRAIN AND TEST
 

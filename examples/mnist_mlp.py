@@ -14,7 +14,7 @@ learning_rate = 0.01
 epochs_per_schedule = 5
 
 input_dims = [28, 28, 1]
-arch = [100, 100, 10]
+arch = ["100", 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 dropout = [None] * (len(arch)-1) + [0.5]
 reguln = 2

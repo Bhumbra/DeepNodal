@@ -12,7 +12,7 @@ from deepnodal.python.concepts.structure import *
 DEFAULT_STREAM_ORDER = 'dant' # over-ruled to only 'a' for absent architectures.
 DEFAULT_BIASES = True
 DEFAULT_TRANSFER_FUNCTION = None
-DEFAULT_RECURRENT_KERNEL_FUNCTION = 'rec'   # others: 'gru', 'lstm'
+DEFAULT_RECURRENT_KERNEL_FUNCTION = 'rec'     # others: 'gru', 'lstm'
 DEFAULT_CONVOLUTION_KERNEL_FUNCTION = 'xcorr' # others: 'tconv' 'sconv'
 DEFAULT_POOLING_KERNEL_FUNCTION = 'max'       # other: 'avg'
 DEFAULT_PADDING_WINDOW = 'same'               # other: 'valid'
@@ -68,12 +68,12 @@ class stream (chain):
   _reguln = None      # dictionary of regularisation contributions
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = 'stream', dev = None):
+  def __init__(self, name='stream', dev = None):
     chain.__init__(self, name, dev)
     self.set_arch() # defaults to 'none'
 
 #-------------------------------------------------------------------------------
-  def set_arch(self, arch = None):
+  def set_arch(self, arch=None, *arch_args, **arch_kwds):
     """
     arch = None or []:  identity
     arch = integer:     dense
@@ -88,6 +88,7 @@ class stream (chain):
     # the stream.setup(inp) stage.
 
     self.arch = arch # arch = None is the default signifying a 'none'
+    self.set_arch_args(*arch_args, **arch_kwds)
     self.arch_link = None
     self.type_arch = None
     self.type_adim = None
@@ -100,6 +101,9 @@ class stream (chain):
     elif type(self.arch) is int:
       self.type_arch = 'dense'
       self.type_adim = self.type_arch
+    elif type(self.arch) is str:
+      self.type_arch = 'dense'
+      self.type_adim = 'dense1'
     elif type(self.arch) is set:
       self.type_arch = 'dense'
       self.type_adim = 'dense2map'
@@ -130,7 +134,7 @@ class stream (chain):
         raise ValueError("Unknown architecture specification")
       else:
         if type(self.arch[1]) is not list:
-          raise ValueError("Unknown architecture specification")
+          raise ValueError("Unknown architecture specification: {}".format(self.arch))
         self.type_arch = 'pool' if type(self.arch[0]) is list else 'conv'
         self.type_adim = self.type_arch + str(len(self.arch[1])) + "d"
         if self.type_arch == 'conv': # default to unit stride
@@ -158,14 +162,14 @@ class stream (chain):
     raise AttributeError("Method stream.add_arch() not supported by stream class.")
 
 #-------------------------------------------------------------------------------
-  def set_is_training(self, ist = None):
+  def set_is_training(self, ist=None):
     """
     ist = is_training must be set to handle some operations (e.g. batch normalisation)
     """
     self.ist = ist
 
 #-------------------------------------------------------------------------------
-  def set_order(self, order = None):
+  def set_order(self, order=None):
     """
     order = 'datn' means order of: `dropout' `architecture', 'transfer function', 'normalisation'
     """
@@ -180,7 +184,7 @@ class stream (chain):
     self.arch_kwds = kwds
 
 #-------------------------------------------------------------------------------
-  def set_biases(self, bia = None, *bia_args, **bia_kwds):
+  def set_biases(self, bia=None, *bia_args, **bia_kwds):
     """
     bia enables/disables biases and initialisation. Valid inputs are:
     None (default bias settings), False/True, disable/enable biases,
@@ -197,7 +201,7 @@ class stream (chain):
     self.bia_kwds.update({'use_bias': self.bia})
 
 #-------------------------------------------------------------------------------
-  def set_weights(self, wgt = None, *wgt_args, **wgt_kwds):
+  def set_weights(self, wgt=None, *wgt_args, **wgt_kwds):
     """
     Sets initialiser for weights
     wgt = None or 'vs' (variance scaling)
@@ -206,17 +210,19 @@ class stream (chain):
     self.wgt_args = wgt_args
     self.wgt_kwds = dict(wgt_kwds)
     if self.wgt is None: return
-    if 'kernel' not in self.wgt_kwds:
-        self.wgt_kwds.update({'kernel_initializer': Creation(self.wgt)})
     if type(self.wgt) is list or type(self.wgt) is tuple or type(self.wgt) is Creation('var'):
+      self.wgt_kwds.update({'kernel_weights': wgt})
+      self.wgt = None
       if 'kernel_transpose' not in self.wgt_kwds:
         if 'transpose' in self.wgt_kwds:
           self.wgt_kwds['kernel_transpose']= self.wgt_kwds.pop('transpose')
         else:
           self.wgt_kwds.update({'kernel_transpose': False})
+    elif 'kernel' not in self.wgt_kwds:
+      self.wgt_kwds.update({'kernel_initializer': Creation(self.wgt)})
 
 #-------------------------------------------------------------------------------
-  def set_dropout(self, dro = None, *dro_args, **dro_kwds):
+  def set_dropout(self, dro=None, *dro_args, **dro_kwds):
     """
     dro = None: No dropout
     dro = 0.: Full dropout (i.e. useless)
@@ -242,7 +248,7 @@ class stream (chain):
     self.dro_kwds = dict(dro_kwds)
 
 #-------------------------------------------------------------------------------
-  def set_transfn(self, tfn = None, *tfn_args, **tfn_kwds):
+  def set_transfn(self, tfn=None, *tfn_args, **tfn_kwds):
     """
     tfn = 'relu': ReLU
     tfn = 'elu': ELU
@@ -255,7 +261,7 @@ class stream (chain):
     self.trans_fn = self.tfn
 
 #-------------------------------------------------------------------------------
-  def set_window(self, win = None, *win_args, **win_kwds):
+  def set_window(self, win=None, *win_args, **win_kwds):
     """
     win = 'same' or 'valid'
     """
@@ -275,7 +281,7 @@ class stream (chain):
       self.win_kwds.update({'padding': self.win})
 
 #-------------------------------------------------------------------------------
-  def set_kernfn(self, kfn = None, *kfn_args, **kfn_kwds):
+  def set_kernfn(self, kfn=None, *kfn_args, **kfn_kwds):
     """
     kfn = 'xcorr' or 'sconv' or 'tconv' for convolution layers
     kfn = 'max' or 'avg' for pooling layers
@@ -292,7 +298,7 @@ class stream (chain):
       self.kfn = DEFAULT_CONVOLUTION_KERNEL_FUNCTION
 
 #-------------------------------------------------------------------------------
-  def set_normal(self, nor = None, *nor_args, **nor_kwds):
+  def set_normal(self, nor=None, *nor_args, **nor_kwds):
     """
     nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
@@ -301,7 +307,7 @@ class stream (chain):
     self.nor_kwds = dict(nor_kwds)
 
 #-------------------------------------------------------------------------------
-  def set_reguln(self, reg = None, *reg_args, **reg_kwds):
+  def set_reguln(self, reg=None, *reg_args, **reg_kwds):
     """
     nor = 'batch_norm' or 'lresp_norm' with accompanying keywords required.
     """
@@ -310,7 +316,7 @@ class stream (chain):
     self.reg_kwds = dict(reg_kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     """
     inp must be a single tensor.
 
@@ -368,7 +374,7 @@ class stream (chain):
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def _call_input(self, inp = None):
+  def _call_input(self, inp=None):
     # stream claims no ownership over input
     self._inp = inp
     self._out = None
@@ -376,9 +382,11 @@ class stream (chain):
     if type(self._inp) is not Dtype('tensor'):
       raise TypeError("Input type must be a tensor.")
 
-    # but will claim ownership over any needed flattening operation
-    if len(Shape(self._inp)) > 2 and self.type_arch == 'dense':
+    # but will claim ownership over any needed flattening/squeezing operation
+    if len(Shape(self._inp)) > 2 and self.type_adim == 'dense1':
       self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
+    if len(Shape(self._inp)) == 4 and self.type_arch == 'recurrent':
+      self.add_link(Creation('squeeze'), axis=-1, name=self.name+"/input_flatten")
     elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
       self.add_link(Creation('expand_dims'), name = self.name+"/input_expand_dims", axis = -1)
     return inp
@@ -422,7 +430,7 @@ class stream (chain):
     if maybe_biases:
       if self.bia is None: self.set_biases()
     if maybe_weights:
-      if self.wgt is None: self.set_weights()
+      if self.wgt is None and not self.wgt_kwds: self.set_weights()
       if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
         vsi_kwds = dict(self.wgt_kwds)
         vsi_kwds.pop('kernel_initializer')
@@ -435,18 +443,26 @@ class stream (chain):
 
     # Call layers
     type_adim = self.type_adim if self.type_arch != 'callable' else self.type_arch
-    kwds = {'name': self.name + "/" + type_adim}
+    kwds = dict(self.arch_kwds) 
+    kwds.update({'name': self.name + "/" + type_adim})
     if self.type_arch == 'callable':
       kwds.update(dict(arch_kwds))
       self.arch_link = self.add_link(self.type_adim, *self.arch_args, **kwds)
     elif self.type_arch == 'dense':
-      kwds.update({'units': self.arch})
+      kwds.update({'units': int(self.arch)})
       kwds.update({'activation': None})
       kwds.update(self.bia_kwds)
       kwds.update(self.wgt_kwds)
-      self.arch_link = self.add_link(Creation(self.type_adim), **kwds)
+      self.arch_link = self.add_link(Creation(self.type_arch), **kwds)
     elif self.type_arch == 'recurrent':
-      pass
+      kfn_kwds = dict(self.kfn_kwds)
+      kfn_kwds.update({'units': self.arch[0]})
+      kwds['var_scope'] = kwds.pop('name')
+      self.arch_link = self.add_link(set([Creator(self.type_adim)]),
+                                     [Creation(self.kfn)(*self.kfn_args, **kfn_kwds), 
+                                      list(self.win_args) + [dict(self.win_kwds)]],
+                                      list(self.arch_args) + [kwds])
+                                      
     elif self.type_arch == 'conv':
       kwds.update({'filters': self.arch[0], 'kernel_size': self.arch[1], 'strides': self.arch[2]})
       kwds.update({'activation': None})
@@ -479,6 +495,8 @@ class stream (chain):
 #-------------------------------------------------------------------------------
   def _call_norm(self):
     if self.nor is None: return self.ret_out()
+    """
+    NATIVE TF VERSION (REPLACED BY TF.KERAS VERSION)
     kwds = dict(self.nor_kwds)
     if Creation(self.nor) == Creation('batch_norm'):
       if 'is_training' not in kwds:
@@ -492,6 +510,20 @@ class stream (chain):
       if 'name' not in kwds:
         kwds.update({'name': self.name + "/batch_norm"})
     self.add_link(Creation(self.nor), *self.nor_args, **kwds)
+    """
+    kwds = dict(self.nor_kwds)
+    call_kwds = {}
+    if Creator(self.nor) == Creator('batch_norm'):
+      if 'is_training' not in kwds:
+        if self.ist is None:
+          raise ValueError("Cannot setup batch_norm before setting training flag.")
+        else:
+          call_kwds.update({'training': self.ist})
+      else:
+        call_kwds.update({'training': self.kwds['is_training']})
+        kwds.pop('is_training')
+    call_kwds.update({'var_scope': self.name + "/batch_norm"})
+    self.add_link(set([Creator(self.nor)]), list(self.nor_args) + [dict(kwds)], [dict(call_kwds)])
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
@@ -545,7 +577,7 @@ class stream (chain):
     return self._reguln
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = stream()
     elif not isinstance(other, stream) and not issubclass(other, stream):

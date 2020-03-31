@@ -26,30 +26,63 @@ class link (leaf):
   # protected 
   _inp = None
   _out = None
+  _creator = None
+  _creator_args = None
+  _creator_kwds = None
+  _creator = None
   _creation = None
-  _args = None
-  _kwds = None
+  _creation_args = None
+  _creation_kwds = None
+  _prototype = None
+  _call_function = None
   _aux = None
 
   # private
   __var_scope = None
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     leaf.__init__(self, name, dev)
+    self.set_creator()
     self.set_creation()
 
 #-------------------------------------------------------------------------------
-  def set_creation(self, creation = None, *args, **kwds):
-    self._creation = Creation(creation)
-    self._args = args
-    self._kwds = dict(kwds)
+  def set_creator(self, creator=None, *args, **kwds):
+    self._creator = Creation(creator)
+    self._creator_args = args
+    self._creator_kwds = dict(kwds)
+ 
+#-------------------------------------------------------------------------------
+  def set_creation(self, creation=None, *args, **kwds):
+    self._creation = Creation(creation) if self._creator is None else creation
+    self._creation_args = args
+    self._creation_kwds = dict(kwds)
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
+    self._call_creator()
+    self._call_creation(inp)
+    self.set_called(_called)
+    self._map_params()
+    self._map_moments()
+    self._map_updates()
+    return self.ret_out()
+
+#-------------------------------------------------------------------------------
+  def _call_creator(self):
+    self._prototype = None
+    if self._creator is None: return self._prototype
+    args = tuple(self._creator_args)
+    kwds = dict(self._creator_kwds)
+    args, kwds = structuref2unique(*args, **kwds)
+    self._prototype = self._creator(*args, **kwds)
+    return self._prototype
+
+#-------------------------------------------------------------------------------
+  def _call_creation(self, inp=None):
     inp = self.set_inp(inp)
-    args = tuple(self._args)
-    kwds = dict(self._kwds)
+    args = tuple(self._creation_args)
+    kwds = dict(self._creation_kwds)
     self.__var_scope = None
     if 'var_scope' in kwds:
       self.__var_scope = kwds['var_scope']
@@ -60,27 +93,25 @@ class link (leaf):
       self.__var_scope = kwds['scope']
     if self._inp is None or self._creation is None: return self.ret_out()
     args, kwds = structuref2unique(*args, **kwds)
-    if 'var_scope' in self._kwds:
+    self._call_function = self._creation
+    if self._prototype is not None:
+      self._call_function = getattr(self._prototype, self._creation)
+    if 'var_scope' in self._creation_kwds:
       if self.dev is None:
         with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
-          self._out = self._creation(self._inp, *args, **kwds)
+          self._out = self._call_function(self._inp, *args, **kwds)
       else:
         with Device(self.dev):
           with Scope('var', self.__var_scope, reuse=Flag('auto_reuse')):
-            self._out = self._creation(self._inp, *args, **kwds)
+            self._out = self._call_function(self._inp, *args, **kwds)
     else:
       if self.dev is None:
-        self._out = self._creation(self._inp, *args, **kwds)
+        self._out = self._call_function(self._inp, *args, **kwds)
       else:
         with Device(self.dev):
-          self._out = self._creation(self._inp, *args, **kwds)
+          self._out = self._call_function(self._inp, *args, **kwds)
     if isinstance(self._out, (list, tuple)):
       self._out, self._aux = self._out[0], self._out[1:]
-    self.set_called(_called)
-    self._map_params()
-    self._map_moments()
-    self._map_updates()
-    return self.ret_out()
 
 #-------------------------------------------------------------------------------
   def _map_params(self):
@@ -141,7 +172,7 @@ class link (leaf):
     return self._updates
 
 #-------------------------------------------------------------------------------
-  def clone(self, other = None):
+  def clone(self, other=None):
     if other is None:
       other = link()
     elif not isinstance(other, link) and not issubclass(other, link):

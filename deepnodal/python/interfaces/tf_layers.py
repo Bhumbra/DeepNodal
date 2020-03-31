@@ -28,7 +28,8 @@ class tf_Dense(tf.compat.v1.layers.Dense):
                kernel_constraint=None,
                bias_constraint=None,
                trainable=True,
-               kernel_transpose = False,
+               kernel_weights=None,
+               kernel_transpose=False,
                name=None,
                **kwargs):
     tf.layers.Dense.__init__(self, units, activation, use_bias, 
@@ -36,6 +37,7 @@ class tf_Dense(tf.compat.v1.layers.Dense):
                              kernel_regularizer, bias_regularizer, activity_regularizer, 
                              kernel_constraint, bias_constraint, 
                              trainable=trainable, name=name)
+    self.kernel_weights = kernel_weights
     self.kernel_transpose = kernel_transpose
 
 #------------------------------------------------------------------------------- 
@@ -47,14 +49,14 @@ class tf_Dense(tf.compat.v1.layers.Dense):
     self.input_spec = base.InputSpec(min_ndim=2,
                                      axes={-1: input_shape[-1].value})
     kernel_initializer = self.kernel_initializer
-    if isinstance(kernel_initializer, OrderedDict) or type(kernel_initializer) is tf.Tensor:
-      if isinstance(kernel_initializer, OrderedDict):
-        kernel_name = list(kernel_initializer)[0]
-        kernel = kernel_initializer[kernel_name]
+    if isinstance(self.kernel_weights, OrderedDict) or type(self.kernel_weights) is tf.Tensor:
+      if isinstance(self.kernel_weights, OrderedDict):
+        kernel_name = list(self.kernel_weights)[0]
+        kernel = self.kernel_weights[kernel_name]
       else:
-        kernel, kernel_name = kernel_initialiser, kernel_initialiser.name
+        kernel, kernel_name = self.kernel_weights, self.kernel_weights.name
       if self.kernel_transpose:
-        self.kernel = tf.transpose(kernel, name = kernel_name + "_transpose")
+        self.kernel = tf.transpose(kernel, name=kernel_name + "_transpose")
       else:
         self.kernel = kernel
     else:
@@ -96,6 +98,7 @@ def tf_dense(
   activity_regularizer=None,
   kernel_constraint=None,
   bias_constraint=None,
+  kernel_weights=None,
   kernel_transpose=False,
   trainable=True,
   name=None,
@@ -110,6 +113,7 @@ def tf_dense(
                 activity_regularizer=activity_regularizer,
                 kernel_constraint=kernel_constraint,
                 bias_constraint=bias_constraint,
+                kernel_weights=None,
                 kernel_transpose=kernel_transpose,
                 trainable=trainable,
                 name=name,
