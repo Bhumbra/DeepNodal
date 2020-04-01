@@ -65,7 +65,13 @@ will be improved to include support for recurrent architectures and reinforcemen
 
 Python 3 and a recent TensorFlow version for Python 3 should be the only requirements. DeepNodal has been developed on
 GNU/Linux systems and therefore might not work in Windows or MacOS. Since DeepNodal is in its infancy, there is
-currently no manual or pip installer. The working path is simply the immediately directory that contains this
+currently no comprehensive manual or pip installer, but the follwoing should suffice:
+
+```
+$ pip3 install --user deepnodal
+```
+
+. The working path is simply the immediately directory that contains this
 QUICKSTART.md file.  As long as this directory is the current directly within a shell, DeepNodal can be imported using a
 single import line. 
 
@@ -93,7 +99,7 @@ the code is self-explanatory, the critical lines are:
 ```python
 ...
 input_dims = [28, 28, 1]
-arch = 10
+arch = "10"
 transfn = 'softmax'
 ...
   mod = dn.stream()
@@ -110,7 +116,8 @@ What is a DeepNodal `stream`? It is the simplest model in DeepNodal, comprising 
 data. These transformations may include dropout, an architectural layer with or without trainable parameters, a
 normalisation routine (such as batch-normalisation or local response normalisation), and a transfer function, in _any_
 order (by default in the order just listed). A stream has a single input tensor and single output tensor. Here, the
-stream comprises of a simple 10-unit dense layer, with a softmax transfer function.
+stream comprises of a simple 10-unit dense layer, with a softmax transfer function. Since the inputs are
+multidimensional, then `"10"` units are specified as a string to denote a literal single-dimension specification.
 
 A DeepNodal `network` is a collection of inter-connected models and their associated inputs. Each of these models is
 considered a subnet of the network. A subnet may be a `stream`, but it may also be a more sophisticated structure such
@@ -126,7 +133,7 @@ squared error cost function. Here, the critical lines are:
 
 ```python
 ...
-arch = (5, 5)
+arch = ("5", "5")
 transfn = 'sigmoid'
 ...
   mod = dn.level()
@@ -145,7 +152,7 @@ default `vergence_fn='con'` for convergence) specifies whether the inputs or out
 `vergence_fn='sum'`). 
 
 In the example above, a single input is shared by two streams in parallel. The parallel architectures of the two streams
-are specified by the tuple argument (5, 5). The vergence at the output stage is specified by the line
+are specified by the tuple argument ("5", "5"). The vergence at the output stage is specified by the line
 `mod.set_opverge(True)`. If desired, the `stream` components can be accessed in code: `mod[i]`, where `i` is the index.
 
 By default, a DeepNodal `supervisor` adopts a mean-cross entropy `('mce')` cost function, but notice how here it has been
@@ -162,7 +169,7 @@ lines are:
 
 ```python
 ...
-arch = [100, 100, 100, 10]
+arch = ["100", 100, 100, 10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 skipcv = [None] * (len(arch)-2) + [-2, None]
 ...
@@ -193,8 +200,8 @@ the nature of the concatenation.
 If desired, the `level` components can be accessed in code: `mod[i]`, where `i` is the index. Note however how the
 architecture specification comprises a list of integers in this case with no tuples in sight despite in the previous
 example where a level architecture is expressed as a tuple. DeepNodal is able to interpret this architecture
-specification as a series of single-stream levels. In effect `arch = [100, 100, 100, 10]` is equivalent to `arch =
-[(100), (100), (100), (10)]`. However if a design includes multiple parallel streams, then tuples are required for those
+specification as a series of single-stream levels. In effect `arch = ["100", 100, 100, 10]` is equivalent to `arch =
+[("100"), (100), (100), (10)]`. However if a design includes multiple parallel streams, then tuples are required for those
 multi-stream levels.
 
 ## Parallel split multi-layer perceptron example
@@ -204,7 +211,7 @@ is evident only in one line of the code:
 
 ```python
 ...
-arch = [100, (100, 100, None), (100, 100, None), 10]
+arch = ["100", (100, 100, None), (100, 100, None), 10]
 ...
 ```
 
@@ -223,6 +230,8 @@ batch normalisation specifications as well as multiple training schedules. The r
 
 ```python
 ...
+arch = ["100", 100, 10]
+transfn = ['relu'] * (len(arch)-1) + ['softmax']
 dropout = [None] * (len(arch)-1) + [0.5]
 reguln = 2
 reguln_kwds = {'scale': 0.001}
@@ -272,17 +281,18 @@ can be seen from the architectural specification:
 
 ```python
 ...
-arch = [[16, [5, 5], [1, 1]], [[3, 3], [2, 2]], [16, [3, 3], [1, 1]], [[3, 3], [2, 2]], 100, 10]
+arch = [[16, [5, 5], [1, 1]], [[3, 3], [2, 2]], [16, [3, 3], [1, 1]], [[3, 3], [2, 2]], "100", 10]
 ...
 ```
 
 Since again there are no tuples in sight, it is clear that every level comprises a single stream. A convolution stream
 architecture specification takes the form `[number_of_feature_maps, [kernel_size], [stride]]` whereas for pooling layers
-it is: `[[pooling_size], [stride]]`. The last two level architectures are single integers and therefore regular dense
-layers as shown in previous examples. The existence of convolution and pooling layers is nowhere evident elsewhere in
-the code as this is all that is sufficient for DeepNodal. If you are not convinced, please inspect the corresponding
-TensorBoard graph. Notice how Deepnodal automatically flattens the output of the last pooling layer give provide an
-acceptable input to the first dense layer.
+it is: `[[pooling_size], [stride]]`. The last two level architectures are single integers, the first within string
+delimiters to denote a literal unidimensional pre-flattening; both levels comprise regular dense layers as shown in
+previous examples. The existence of convolution and pooling layers is nowhere evident elsewhere in the code as this is
+all that is sufficient for DeepNodal. If you are not convinced, please inspect the corresponding TensorBoard graph.
+Notice how Deepnodal automatically flattens the output of the last pooling layer give provide an acceptable input to the
+first dense layer.
 
 ## LeNet convolutional network example
 
@@ -295,7 +305,7 @@ additional specifications:
 arch = [ [6, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
          [16, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
          [120, [5, 5], [1, 1]], [[2, 2], [2, 2]], 
-         84, 
+         "84", 
          10]
 transfn = ['relu'] * (len(arch)-1) + ['softmax']
 kernfn = ['xcorr', 'avg'] * 3 + [None, None]
@@ -375,7 +385,7 @@ arch = [ [ 16, [3, 3], [1, 1]] ]                        +\
        [([k64, [3, 3], [1, 1]], [k64, [1, 1], [2, 2]])] +\
        [ [k64, [3, 3], [1, 1]] ] * (N2 - 2)             +\
        [ [[8, 8], [1, 1]], 
-         10 ]
+         "10" ]
 ...
 ```
 
