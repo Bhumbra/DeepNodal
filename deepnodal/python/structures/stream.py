@@ -385,7 +385,8 @@ class stream (chain):
 
     # but will claim ownership over any needed flattening/squeezing operation
     if len(Shape(self._inp)) > 2 and self.type_adim == 'dense1':
-      self.add_link(Creation('flatten'), name = self.name+"/input_flatten")
+      #self.add_link(Creation('flatten'), name=self.name+"/input_flatten")
+      self.add_link(set([Creator('flatten')]), var_scope=self.name+"/input_flatten")
     if len(Shape(self._inp)) == 4 and self.type_arch == 'recurrent':
       self.add_link(Creation('squeeze'), axis=-1, name=self.name+"/input_flatten")
     elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
@@ -398,19 +399,25 @@ class stream (chain):
     # Here dropout graph scalars are created
     if self.dev is None:
       self.dropout_quotient = Creation(self.dro)(*self.dro_args,
-                              name = self.name + "/dropout/quotient", trainable=False)
+                              name=self.name + "/dropout/quotient", trainable=False)
     else:
       with Device(self.dev):
         self.dropout_quotient = Creation(self.dro)(*self.dro_args,
-                                name = self.name + "/dropout/quotient", trainable=False)
+                                name=self.name + "/dropout/quotient", trainable=False)
     kwds = dict(self.dro_kwds)
     if 'training' not in kwds:
       if self.ist is None:
         raise ValueError("Cannot setup dropout before setting training flag.")
       else:
         kwds.update({'training': self.ist})
+    """
     return self.add_link(Creation('dropout'), rate = self.dropout_quotient,
                          name = self.name + "/dropout", **kwds)
+    """
+    kwds.update({'var_scope': self.name + "/dropout"})
+    return self.add_link(set([Creator('dropout')]), 
+                         [self.dropout_quotient], 
+                         [dict(kwds)])
 
 #-------------------------------------------------------------------------------
   def _call_arch(self):

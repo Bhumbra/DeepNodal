@@ -81,16 +81,20 @@ class chain (stem):
         creat = {list(creat)[0]: '__call__'}
       creator = list(creat.keys())[0]
       creation = list(creat.values())[0]
-      if kwds:
-        raise ValueError("Prototyped creations require tuple args not kwds")
-      assert len(args) <= 2, "Prototyped creations require <=2 arguments"
       creator_args, creation_args = [], []
       creator_kwds, creation_kwds = {}, {}
-      if len(args) == 1:
-        creation_args, creation_kwds = _parse_args(args[0])
-      elif len(args) == 2:
-        creator_args, creator_kwds = _parse_args(args[0])
-        creation_args, creation_kwds = _parse_args(args[1])
+      if kwds:
+        creation_args = list(args)
+        creation_kwds = dict(kwds)
+      else:
+        assert len(args) <= 2, "Prototyped creations require <=2 arguments"
+        if len(args) == 0 and len(kwds) > 0:
+          creation_kwds = dict(kwds)
+        elif len(args) == 1:
+          creation_args, creation_kwds = _parse_args(args[0])
+        elif len(args) == 2:
+          creator_args, creator_kwds = _parse_args(args[0])
+          creation_args, creation_kwds = _parse_args(args[1])
       kwds = creation_kwds
       if 'name' in kwds:
         name = kwds['name']
