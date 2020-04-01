@@ -1,6 +1,6 @@
 # Introduction
 
-DeepNodal is a high level Python framework for TensorFlow intended for rapid deep learning development with
+DeepNodal is a high level Python framework for TensorFlow 1.X intended for rapid deep learning development with
 automated distribution of computations across multiple devices.
 
 ## Motivation
@@ -63,8 +63,8 @@ will be improved to include support for recurrent architectures and reinforcemen
 
 # Installation
 
-Python 3 and a recent TensorFlow version for Python 3 should be the only requirements. DeepNodal has been developed on
-GNU/Linux systems and therefore might not work in Windows or MacOS. Since DeepNodal is in its infancy, there is
+Python 3 and a recent TensorFlow 1.X version for Python 3 should be the only requirements. DeepNodal has been developed
+on GNU/Linux systems and therefore might not work in Windows or MacOS. Since DeepNodal is in its infancy, there is
 currently no comprehensive manual or pip installer, but the follwoing should suffice:
 
 ```
@@ -360,7 +360,7 @@ The simple MNIST examples above really only scratch the surface of DeepNodal sin
 more advanced functions of DeepNodal is provided in the CIFAR examples. The CIFAR examples download and extract (as
 necessary) the CIFAR data to /tmp/cifar/ and save their logs and models to /tmp/dn_logs/. Depending on your hardware,
 you may be at risk of running out of GPU memory, but the examples are highly tweakable (e.g. adjusting the number of GPU
-devices to use, or the complexity of architecture.
+devices to use or the complexity of architecture).
 
 ## Wide ResNet CIFAR10 example
 
