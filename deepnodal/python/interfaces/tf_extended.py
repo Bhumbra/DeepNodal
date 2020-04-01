@@ -13,12 +13,12 @@ from tensorflow.python.ops.init_ops import Initializer, _compute_fans
 
 #-------------------------------------------------------------------------------
 def tf_l1_loss(t, name=None, scale = 1.):
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     return tf.multiply(tf.reduce_sum(tf.abs(t)), scale)
 
 #-------------------------------------------------------------------------------
 def tf_l2_loss(t, name=None, scale = 1.):
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     #return tf.multiply(tf.nn.l2_loss(t), scale) # Cannot replicate
     return tf.multiply(tf.divide(tf.reduce_sum(tf.square(t)), 2), scale)
 
@@ -29,24 +29,24 @@ def tf_weight_decay(t, scale=1., name='weight_decay'):
 
 #-------------------------------------------------------------------------------
 def tf_max_norm(weights, clip_norm, axes=1., name='max_norm'):
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     return tf.clipped(weights, clip_norm=clip_norm, axes=axes)
 
 #-------------------------------------------------------------------------------
 def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))
 
 #-------------------------------------------------------------------------------
 def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
   func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
                tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
 
 #-------------------------------------------------------------------------------
 def tf_cosine_similarity(data, weights, name=None):
-  with variable_scope(name, reuse=tf.AUTO_REUSE):
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     normalised_weights = weights / tf.sqrt(tf.reduce_sum(tf.square(weights), 1, keepdims=True))
     data_map2dense = tf.nn.embedding_lookup(normalised_weights, data)
     return tf.matmul(data_map2dense, normalised_weights, tranpose_b=True)

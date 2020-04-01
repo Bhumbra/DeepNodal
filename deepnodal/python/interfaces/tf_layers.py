@@ -32,11 +32,11 @@ class tf_Dense(tf.compat.v1.layers.Dense):
                kernel_transpose=False,
                name=None,
                **kwargs):
-    tf.layers.Dense.__init__(self, units, activation, use_bias, 
-                             kernel_initializer, bias_initializer,
-                             kernel_regularizer, bias_regularizer, activity_regularizer, 
-                             kernel_constraint, bias_constraint, 
-                             trainable=trainable, name=name)
+    super().__init__(units, activation, use_bias, 
+                     kernel_initializer, bias_initializer,
+                     kernel_regularizer, bias_regularizer, activity_regularizer, 
+                     kernel_constraint, bias_constraint, 
+                     trainable=trainable, name=name)
     self.kernel_weights = kernel_weights
     self.kernel_transpose = kernel_transpose
 

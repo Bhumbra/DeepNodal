@@ -153,7 +153,7 @@ def Scope(spec, *args, **kwds):
 keys_dict = {'reg': tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES}
 
 def Keys(arg, *args, **kwds):
-  return tf.get_collection(keys_dict[arg], *args, **kwds)
+  return tf.compat.v1.get_collection(keys_dict[arg], *args, **kwds)
 
 #-------------------------------------------------------------------------------
 # Flags 
@@ -193,7 +193,7 @@ Regularisation = {'loss': [Creation('l1_reg'), Creation('l2_reg')],
 
 #-------------------------------------------------------------------------------
 def Updates(scope=None):
-  return tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=scope)
+  return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, scope=scope)
 
 #-------------------------------------------------------------------------------
 # Logits list
@@ -224,6 +224,6 @@ def Shape(X):
 #-------------------------------------------------------------------------------
 # Random seeed
 def Seed(n):
-  return tf.set_random_seed(n)
+  return tf.compat.v1.set_random_seed(n)
 
 #-------------------------------------------------------------------------------
