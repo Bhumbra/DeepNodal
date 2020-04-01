@@ -22,6 +22,8 @@ except AttributeError:
 creator_dict = {
                  'batch_norm': tf.keras.layers.BatchNormalization,
                  'recurrent': tf.keras.layers.RNN,
+                 'flatten': tf.keras.layers.Flatten,
+                 'dropout': tf.keras.layers.Dropout,
                }
 
 #-------------------------------------------------------------------------------
@@ -74,7 +76,6 @@ creation_dict = {'identity': tf.identity,
                  'pool3d': {'max':tf.layers.max_pooling3d,
                             'avg':tf.layers.average_pooling3d},
                  'recurrent': tf.keras.layers.RNN,
-                 'flatten': tf.layers.flatten,
                  'squeeze': tf.squeeze,
                  'dense2card': tf_dense2card,
                  'card2dense': tf_card2dense,
@@ -83,7 +84,6 @@ creation_dict = {'identity': tf.identity,
                  'gru': tf.keras.layers.GRUCell,
                  'lstm': tf.keras.layers.LSTMCell,
                  'lresp_norm': tf.nn.local_response_normalization,
-                 'dropout': tf.layers.dropout,
                  'l1_reg': tf_l1_loss,
                  'l2_reg': tf_l2_loss,
                  'weight_decay': tf_weight_decay,
