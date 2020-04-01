@@ -5,7 +5,7 @@ development with automated distribution of computations across multiple devices.
 Installation:
 
 ```
-$ pip3 install deepnodal
+$ pip3 install --user deepnodal
 ```
 
 Since currently there is no manual, please refer to the QUICKSTART.md documentation.
