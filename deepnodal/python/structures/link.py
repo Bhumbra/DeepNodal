@@ -131,14 +131,11 @@ class link (leaf):
           self.add_param(mapping({self.__var_scope+"/"+Param_Dict[Param]: param}))
      
     # Add parameters belonging to normalisation
-    for Norm in list(Norm_Dict):
-      with Scope('var', self.__var_scope, reuse=True):
-        try:
-          param = Creation('ret_var')(Norm)
-        except ValueError:
-          param = None
-        if param is not None:
-          self.add_param(mapping({self.__var_scope+"/"+Norm_Dict[Norm]: param}))
+    scope = self.__var_scope if self._prototype is None else self._prototype.variables
+    for key in list(Norm_Dict.keys()):
+      param = Ret_Var(scope, key)
+      if param is not None:
+        self.add_param(mapping({self.__var_scope+"/"+Norm_Dict[key]: param}))
 
     # Add auxilliary parameters
     if self._aux:
@@ -151,24 +148,23 @@ class link (leaf):
   def _map_moments(self):
     self._moments = []
     self._n_moments = 0
-    for Moment in Norm_Moments:
-      with Scope('var', self.__var_scope, reuse=True):
-        try:
-          moment = Creation('ret_var')(Moment)
-        except ValueError:
-          moment = None
-        if moment is not None:
-          self.add_moment(mapping({self.__var_scope+"/"+Moment: moment}))
+    scope = self.__var_scope if self._prototype is None else self._prototype.variables
+    for key in Norm_Moments:
+      moment = Ret_Var(scope, key)
+      if moment is not None:
+        self.add_moment(mapping({self.__var_scope+"/"+key: moment}))
     return self._moments
 
 #-------------------------------------------------------------------------------
   def _map_updates(self):
     self._updates = []
     self._n_updates = 0
-    updates = Updates(scope=self.name)
+    scope = self.name if self._prototype is None else self._prototype.updates
+    updates = Updates(scope=scope)
     for update in updates:
       if update is not None:
-        self.add_update(mapping({self.name+"/"+str(update): update}))
+        update_name = str(update) if not hasattr(update, 'name') else update.name
+        self.add_update(mapping({self.name+"/"+update_name: update}))
     return self._updates
 
 #-------------------------------------------------------------------------------

@@ -79,6 +79,7 @@ creation_dict = {'identity': tf.identity,
                  'squeeze': tf.squeeze,
                  'dense2card': tf_dense2card,
                  'card2dense': tf_card2dense,
+                 'dropout': tf.layers.dropout,
                  'batch_norm': tf.layers.batch_normalization,
                  'rec': tf.keras.layers.SimpleRNNCell,
                  'gru': tf.keras.layers.GRUCell,
@@ -149,6 +150,24 @@ def Scope(spec, *args, **kwds):
   return scope_dict[spec](*args, **kwds)
 
 #-------------------------------------------------------------------------------
+# Return variable withins cope if exists
+def Ret_Var(scope, name):
+  var = None
+  if isinstance(scope, str):
+    with Scope('var', scope, reuse=True):
+      try:
+        var = Creation('ret_var')(name)
+      except ValueError:
+        return var
+    return var
+  assert isinstance(scope, (list, tuple)), "Scope must be str, list or tuple"
+  for variable in scope:
+    if name in variable.name:
+      assert var is None, "Mutiple variables found in scope for {}".format(name)
+      var = variable
+  return var
+
+#-------------------------------------------------------------------------------
 # Keys (not yet in use in deepnodal)
 keys_dict = {'reg': tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES}
 
@@ -193,7 +212,9 @@ Regularisation = {'loss': [Creation('l1_reg'), Creation('l2_reg')],
 
 #-------------------------------------------------------------------------------
 def Updates(scope=None):
-  return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, scope=scope)
+  if isinstance(scope, str):
+    return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, scope=scope)
+  return scope
 
 #-------------------------------------------------------------------------------
 # Logits list
