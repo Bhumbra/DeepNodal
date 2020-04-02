@@ -397,6 +397,8 @@ class stream (chain):
   def _call_dropout(self):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
+    if self.dro_args[0] is None:
+      return
     if self.dev is None:
       self.dropout_quotient = Creation('var')(*self.dro_args,
                               name=self.name + "/dropout/quotient", trainable=False)
