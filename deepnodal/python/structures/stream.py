@@ -240,7 +240,7 @@ class stream (chain):
       else:
         raise ValueError("Unknown dropout change specification")
     if type(dro) is float and not(len(dro_args)) and not(len(dro_kwds)):
-      dro, dro_args = 'var', (dro,)
+      dro, dro_args = 'dropout', (dro,)
     if dro is not None and not(len(dro_args)):
       raise ValueError("Unknown dropout specification")
 
@@ -398,11 +398,11 @@ class stream (chain):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
     if self.dev is None:
-      self.dropout_quotient = Creation(self.dro)(*self.dro_args,
+      self.dropout_quotient = Creation('var')(*self.dro_args,
                               name=self.name + "/dropout/quotient", trainable=False)
     else:
       with Device(self.dev):
-        self.dropout_quotient = Creation(self.dro)(*self.dro_args,
+        self.dropout_quotient = Creation('var')(*self.dro_args,
                                 name=self.name + "/dropout/quotient", trainable=False)
     kwds = dict(self.dro_kwds)
     if 'training' not in kwds:
@@ -410,14 +410,21 @@ class stream (chain):
         raise ValueError("Cannot setup dropout before setting training flag.")
       else:
         kwds.update({'training': self.ist})
-    """
-    return self.add_link(Creation('dropout'), rate = self.dropout_quotient,
-                         name = self.name + "/dropout", **kwds)
-    """
+    if self.dro == 'dropout': # Standard call
+      """ Non-Keras version
+      return self.add_link(Creation(self.dro), rate=self.dropout_quotient,
+                           name=self.name + "/dropout", **kwds)
+      """
+      kwds.update({'var_scope': self.name + "/dropout"})
+      return self.add_link(Creator(self.dro), 
+                           [self.dropout_quotient], 
+                           [dict(kwds)])
+
+    # Custom call
     kwds.update({'var_scope': self.name + "/dropout"})
-    return self.add_link(Creator('dropout'), 
-                         [self.dropout_quotient], 
-                         [dict(kwds)])
+    if not inspect.isclass(self.dro):
+      return self.add_link(self.dro, self.dropout_quotient, **kwds)
+    return self.add_link(self.dro, [self.dropout_quotient], [dict(kwds)])
 
 #-------------------------------------------------------------------------------
   def _call_arch(self):
