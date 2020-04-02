@@ -149,6 +149,11 @@ class link (leaf):
     self._moments = []
     self._n_moments = 0
     scope = self.__var_scope if self._prototype is None else self._prototype.variables
+    if not isinstance(scope, str):
+      scope = list(scope)
+      for var in self._prototype.trainable_variables:
+        if var in scope:
+          scope.remove(var)
     for key in Norm_Moments:
       moment = Ret_Var(scope, key)
       if moment is not None:

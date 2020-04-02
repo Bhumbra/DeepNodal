@@ -386,7 +386,7 @@ class stream (chain):
     # but will claim ownership over any needed flattening/squeezing operation
     if len(Shape(self._inp)) > 2 and self.type_adim == 'dense1':
       #self.add_link(Creation('flatten'), name=self.name+"/input_flatten")
-      self.add_link(set([Creator('flatten')]), var_scope=self.name+"/input_flatten")
+      self.add_link(Creator('flatten'), var_scope=self.name+"/input_flatten")
     if len(Shape(self._inp)) == 4 and self.type_arch == 'recurrent':
       self.add_link(Creation('squeeze'), axis=-1, name=self.name+"/input_flatten")
     elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
@@ -415,7 +415,7 @@ class stream (chain):
                          name = self.name + "/dropout", **kwds)
     """
     kwds.update({'var_scope': self.name + "/dropout"})
-    return self.add_link(set([Creator('dropout')]), 
+    return self.add_link(Creator('dropout'), 
                          [self.dropout_quotient], 
                          [dict(kwds)])
 
@@ -466,7 +466,7 @@ class stream (chain):
       kfn_kwds = dict(self.kfn_kwds)
       kfn_kwds.update({'units': self.arch[0]})
       kwds['var_scope'] = kwds.pop('name')
-      self.arch_link = self.add_link(set([Creator(self.type_adim)]),
+      self.arch_link = self.add_link(Creator(self.type_adim),   
                                      [Creation(self.kfn)(*self.kfn_args, **kfn_kwds), 
                                       list(self.win_args) + [dict(self.win_kwds)]],
                                       list(self.arch_args) + [kwds])
@@ -533,7 +533,7 @@ class stream (chain):
         call_kwds.update({'training': self.kwds['is_training']})
         kwds.pop('is_training')
     call_kwds.update({'var_scope': self.name + "/batch_norm"})
-    self.add_link(set([Creator(self.nor)]), list(self.nor_args) + [dict(kwds)], [dict(call_kwds)])
+    self.add_link(Creator(self.nor), list(self.nor_args) + [dict(kwds)], [dict(call_kwds)])
     return self.ret_out()
     #"""
 

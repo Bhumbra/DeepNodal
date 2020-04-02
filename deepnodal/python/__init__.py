@@ -6,3 +6,4 @@ from deepnodal.python.functions import *
 from deepnodal.python.helpers import *
 from deepnodal.python.loaders import *
 from deepnodal.python.devices import *
+from deepnodal.python.cloud import *

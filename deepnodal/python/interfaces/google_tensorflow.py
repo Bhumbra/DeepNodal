@@ -149,6 +149,15 @@ scope_dict = {'name': name_scope,
 def Scope(spec, *args, **kwds):
   return scope_dict[spec](*args, **kwds)
 
+
+#-------------------------------------------------------------------------------
+def Parse_Name(name, delim_pre='/', delim_suf=':'):
+  if delim_pre not in name and  delim_suf not in name:
+    return '', name, ''
+  pref = name.split(delim_pre)
+  suff = pref[-1].split(delim_suf)
+  return delim_pre.join(pref[:-1]), delim_suf.join(suff[:-1]), suff[-1]
+
 #-------------------------------------------------------------------------------
 # Return variable withins cope if exists
 def Ret_Var(scope, name):
@@ -162,8 +171,10 @@ def Ret_Var(scope, name):
     return var
   assert isinstance(scope, (list, tuple)), "Scope must be str, list or tuple"
   for variable in scope:
-    if name in variable.name:
-      assert var is None, "Mutiple variables found in scope for {}".format(name)
+    _, variable_name, _ = Parse_Name(variable.name)
+    if name == variable_name:
+      assert var is None, "Multiple variables found in scope for {} in scope {}".\
+                          format(name, scope)
       var = variable
   return var
 

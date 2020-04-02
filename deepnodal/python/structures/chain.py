@@ -4,6 +4,7 @@
 # Gary Bhumbra
 
 #-------------------------------------------------------------------------------
+import inspect
 from deepnodal.python.concepts.stem import *
 from deepnodal.python.structures.link import *
 
@@ -75,7 +76,9 @@ class chain (stem):
       return
     if isinstance(creat, link) and not(len(args)) and not(len(kwds)):
       self._links.append(creat)
-    elif isinstance(creat, (set, dict)):
+    elif isinstance(creat, (set, dict)) or inspect.isclass(creat):
+      if inspect.isclass(creat):
+        creat = set([creat])
       assert len(creat) == 1, "Prototyped creations have a single element"
       if isinstance(creat, set):
         creat = {list(creat)[0]: '__call__'}
