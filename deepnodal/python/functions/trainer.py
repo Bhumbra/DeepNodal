@@ -31,7 +31,7 @@ class trainer (recorder):
 
   """
   def_name = 'trainer'
-  def_write_intervals = [10, 1000, False] # write intervals [scalar, distro, model]
+  def_write_intervals = [100, 10000, False] # write intervals [scalar, distro, model]
   progress = None                  # progress list: [number of batch_updates, sum(batch_sizes)] 
   gst = None                       # global_step
   ist = None                       # is training flag
