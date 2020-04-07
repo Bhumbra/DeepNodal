@@ -157,6 +157,8 @@ class stem (structure): # we inherit structure because a stem is never a leaf
       if len(spec) > 0:
         if isinstance(spec[0], structure):
           return [func(subobject, spec, *args, **kwds) for subobject in self._subobjects]
+    if isinstance(spec, (dict, set)):
+      return [func(subobject, spec, *args, **kwds) for subobject in self._subobjects]
     if self._spec_type is None:
       return [func(subobject, spec, *args, **kwds) for i, subobject in enumerate(self._subobjects)]
     if type(spec) is not self._spec_type:

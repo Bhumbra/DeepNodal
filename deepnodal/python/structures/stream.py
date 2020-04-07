@@ -397,14 +397,24 @@ class stream (chain):
   def _call_dropout(self):
     if self.dro is None or not(len(self.dro_args)): return
     # Here dropout graph scalars are created
-    if self.dro_args[0] is None:
+    dro_arg = self.dro_args
+    while isinstance(dro_arg, (list,tuple)):
+      dro_arg, dro_kwd = dro_arg[0], dro_arg[1:]
+    dro_kwds = {}
+    if dro_kwd:
+      if isinstance(dro_kwd, dict):
+        dro_kwds = dict(dro_kwd)
+      elif isinstance(dro_kwd, (list, tuple)):
+        if isinstance(dro_kwd[0], dict):
+          dro_kwds = dict(dro_kwd[0])
+    if dro_arg is None:
       return
     if self.dev is None:
-      self.dropout_quotient = Creation('var')(*self.dro_args,
+      self.dropout_quotient = Creation('var')(*tuple([dro_arg]),
                               name=self.name + "/dropout/quotient", trainable=False)
     else:
       with Device(self.dev):
-        self.dropout_quotient = Creation('var')(*self.dro_args,
+        self.dropout_quotient = Creation('var')(*tuple([dro_arg]),
                                 name=self.name + "/dropout/quotient", trainable=False)
     kwds = dict(self.dro_kwds)
     if 'training' not in kwds:
@@ -423,10 +433,10 @@ class stream (chain):
                            [dict(kwds)])
 
     # Custom call
-    kwds.update({'var_scope': self.name + "/dropout"})
-    if not inspect.isclass(self.dro):
-      return self.add_link(self.dro, self.dropout_quotient, **kwds)
-    return self.add_link(self.dro, [self.dropout_quotient], [dict(kwds)])
+    if not inspect.isclass(self.dro) or isinstance(self.dro, (set, dict)):
+      kwds.update({'var_scope': self.name + "/dropout"})
+      return self.add_link(self.dro, [self.dropout_quotient, dro_kwds], [kwds])
+    return self.add_link(self.dro, [self.dropout_quotient, dro_kwds], [dict(kwds)])
 
 #-------------------------------------------------------------------------------
   def _call_arch(self):
