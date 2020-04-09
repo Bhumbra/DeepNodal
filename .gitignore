@@ -8,3 +8,4 @@ sdist/
 *.egg
 *.egg-info
 *.tar.gz
+*.sh
