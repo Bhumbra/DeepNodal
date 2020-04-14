@@ -1,10 +1,13 @@
 # A module to handle Google Cloud Storage
 
 import os
+import csv
 import google.cloud.storage
 from googleapiclient import discovery
 
+#-------------------------------------------------------------------------------
 TMP_DIR = '/tmp'
+CLEAR_TMP = True
 
 #-------------------------------------------------------------------------------
 class GCS:
@@ -16,13 +19,26 @@ class GCS:
     self.set_project(project, *args, **kwds)
 
 #-------------------------------------------------------------------------------
+  def _maybe_unprefix(self, path):
+    if path[:5] == 'gs://':
+      path = path[5:]
+    else:
+      if path[0] != '/':
+        path = '/' + path
+      return path
+    split_path = path.split('/')
+    composite_path = '/'.join(split_path[1:])
+    if path[-1] == '/': return composite_path + '/'
+    return composite_path
+
+#-------------------------------------------------------------------------------
   def set_project(self, project=None, *args, **kwds):
     self.project = project
     self.prefix = None
     self.bucket = None
     if not self.project: return self.bucket
     if self.project[:5] == 'gs://':
-      self.project = self.project[:5].split('/')[0]
+      self.project = self.project[5:].split('/')[0]
     self.prefix = 'gs://{}'.format(self.project)
     client = google.cloud.storage.Client(*args, **kwds)
     self.bucket = client.get_bucket(self.project)
@@ -55,34 +71,37 @@ class GCS:
         return out
       return function(args[0], **kwds)
     
-    if path[0] != '/':
-      path = '/' + path
+    path, spec = self._maybe_unprefix(args[0]), args[1]
     directory, filename = os.path.split(path)
     tmp_dir = self.ret_tmp_dir(directory + '/')
-    tmp_path = os.join(tmp_dir, filename)
+    tmp_path = os.path.join(tmp_dir, filename)
     if not os.path.isdir(tmp_dir):
       os.mkdir(tmp_dir)
 
     # Download then read
-    if args[1] in ['rb', 'read']:
-      self.download(args[0], tmp_dir)
-      if args[1] == 'rb':
-        with open(tmp_path, args[1]) as read_bin:
+    if spec in ['rb', 'read']:
+      self.download(path, tmp_dir)
+      if spec == 'rb':
+        with open(tmp_path, spec) as read_bin:
           out = function(read_bin, **kwds)
-        return out
-      return function(tmp_path,  **kwds)
+      else:
+        out = function(tmp_path,  **kwds)
 
     # Write then upload
-    if args[1] in ['wb', 'write']:
-      if args[1] == 'wb':
-        with open(tmp_path, args[1]) as write_bin:
+    elif spec in ['wb', 'write']:
+      if spec == 'wb':
+        with open(tmp_path, spec) as write_bin:
           out = function(write_bin, **kwds)
       else:
         out = function(tmp_path, **kwds)
       self.upload(tmp_dir, filename, directory)
-      return out
 
-    raise ValueError("Unknown args[1] spec: {}".format(args[1]))
+    # Otherwise unknown read/write spec
+    else:
+      raise ValueError("Unknown args[1] spec: {}".format(spec))
+
+    if CLEAR_TMP: os.remove(tmp_path)
+    return out
 
 #-------------------------------------------------------------------------------
   def upload(self, source_dir, filenames, dest_dir=None):
@@ -105,9 +124,8 @@ class GCS:
 
 #-------------------------------------------------------------------------------
   def download(self, source, dest_dir, command='gsutil -m cp -r'):
-    if source[:4] != 'gs:/':
-      if source[0] == '/': source = source[1:]
-      source = self.prefix + source
+    source = self._maybe_unprefix(source)
+    source = self.prefix + source
     if dest_dir[-1] != '/': dest_dir += '/'
     com = '{} {} {}'.format(command, source, dest_dir)
     os.system(com)

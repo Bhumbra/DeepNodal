@@ -17,6 +17,8 @@ import numpy as np
 from deepnodal.python.structures.network import *
 from deepnodal.python.functions.recorder import *
 from deepnodal.python.interfaces.calls import *
+from deepnodal.python.cloud.gs import *
+
 
 #-------------------------------------------------------------------------------
 class trainer (recorder):
@@ -43,6 +45,7 @@ class trainer (recorder):
   variable_names = None            # list of variable names          
   distros = None                   # list of summary distributions
   write_dir = None                 # write directory
+  write_gcs = None                 # write google cloud storage
   logger = None                    # log writer creation
   saver = None                     # model saver creation
   session = None                   # training session
@@ -318,11 +321,12 @@ class trainer (recorder):
     return self.distros
 
 #-------------------------------------------------------------------------------
-  def set_write_dir(self, write_dir = None):
+  def set_write_dir(self, write_dir=None):
     """
     This creates no graph objects but should be called from new_session()
     """
     self.write_dir = write_dir
+    self.write_gcs = None if write_dir[:5] != 'gs://' else GCS(self.write_dir)
     return self.write_dir
 
 #-------------------------------------------------------------------------------
@@ -366,13 +370,20 @@ class trainer (recorder):
     self.logger = Creation(logger)(self.write_dir, Creation('defaults')())
 
 #-------------------------------------------------------------------------------
-  def _call_saver(self, saver = 'saver'):
+  def _call_saver(self, saver='saver'):
     # This will create a saver whether or not a write directory is given
     self.saver = None
-    self.saver = Creation(saver)(name = self.name + "/saver")
+    self.saver = Creation(saver)(name=self.name + "/saver")
 
 #-------------------------------------------------------------------------------
   def _init_variables(self, seed=None):
+    def _read_csv(path, *, delimiter='\t', newline='', permission='rt'):
+      data = []
+      with open(path, permission, newline=newline) as csv_read:
+        csv_reader = csv.reader(csv_read, delimiter=delimiter)
+        for row_read in csv_reader:
+          data.append(row_read)
+      return data
     if self.session is None:
       raise AttributeError("Cannot initialise variables before calling new_session")
     with Scope('name', self.name):
@@ -382,18 +393,13 @@ class trainer (recorder):
       if self.saver is None:
         raise AttributeError("Cannot load restore seed without saver created")
       self.saver.restore(self.session, seed)
-      np_random_state = []
       load_path = seed + '.tab'
-      with open(load_path, 'rt') as tab_file:
-        tab_reader = csv.reader(tab_file, delimiter = '\t')
-        progress = []
-        for i, row in enumerate(tab_reader):
-          if not i:
-            if not progress:
-              progress = row
-          else:
-            np_random_state.append(row)
-      self.progress = [int(progress[0]), int(progress[1])]
+      if self.write_gcp:
+        data = self.write_gcp(_read_csv, load_path)
+      else:
+        data = _read_csv(load_path)
+      self.progress = [int(data[0][0]), 'read', int(data[0][1])]
+      np_random_state = data[1:]
       if len(np_random_state) == 5:
         np_random_state[0] = np_random_state[0][0]
         np_random_state[1] = np.array([int(element) for element in np_random_state[1]])
@@ -404,25 +410,31 @@ class trainer (recorder):
 
 #-------------------------------------------------------------------------------
   def save(self, *args, **kwds):
+    def _write_csv(path, *, data=None, delimiter='\t', newline='', permission='wt'): 
+      if data is None: return
+      with open(path, permission, newline=newline) as csv_write:
+        csv_writer = csv.writer(csv_write, delimiter=delimiter)
+        for datum in data:
+          if isinstance(datum, list):
+            csv_writer.writerow(datum)
+          else:
+            csv_writer.writerow([str(data)])
     """
     self.save(path) save self.session model to path
     """
-    self.saver.save(self.session, *args, global_step = self.gst, **kwds)
+    self.saver.save(self.session, *args, global_step=self.gst, **kwds)
     if not(len(args)): return
     # Could not successfully save batch progress to TensorFlow MetaGraph save points
     # so we save it manually.
     save_path = args[0] + "-" + str(int(self.gst.eval())) + ".tab"
-    progress = [str(self.progress[0]), str(self.progress[1])]
+    data = [str(self.progress[0]), str(self.progress[1])]
     np_random_state = list(np.random.get_state())
     np_random_state[1] = [str(element) for element in np_random_state[1]]
-    with open(save_path, 'wt', newline="") as tab_file:
-      tab_writer = csv.writer(tab_file, delimiter = '\t')
-      tab_writer.writerow(progress)
-      for row_data in np_random_state:
-        if isinstance(row_data, list):
-          tab_writer.writerow(row_data)
-        else:
-          tab_writer.writerow([str(row_data)])
+    data += np_random_state
+    if self.write_gcp:
+      self.write_gcp(_write_csv, save_path, 'write', data=data)
+    else:
+      _write_csv(save_path, 'write', data=data)
 
 #-------------------------------------------------------------------------------
   def _add_logs(self, logs_str):
