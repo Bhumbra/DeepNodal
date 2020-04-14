@@ -11,11 +11,11 @@ class GCS:
 
 #-------------------------------------------------------------------------------
   def __init__(self, project=None, *args, **kwds):
-    self.set_project(project=None, *args, **kwds)
+    self.set_project(project, *args, **kwds)
 
 #-------------------------------------------------------------------------------
   def set_project(self, project=None, *args, **kwds):
-    self.project = bucket
+    self.project = project
     self.prefix = None
     self.bucket = None
     if not self.project: return self.bucket
@@ -44,9 +44,9 @@ class GCS:
     for filename in filenames:
       source_path = os.path.join(source_dir, filename)
       print("Uploading {} to gs://{}/{}".format(
-            source_path, self.project, target_dir))
-      dest_paths.append(target_directory + filename)
-      blob = self.bucket(dest_paths[-1])
+            source_path, self.project, dest_dir))
+      dest_paths.append(dest_dir + filename)
+      blob = self.bucket.blob(dest_paths[-1])
       with open(source_path, 'rb') as bin_read:
         blob.upload_from_file(bin_read)
     return dest_paths
