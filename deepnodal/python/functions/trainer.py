@@ -394,8 +394,8 @@ class trainer (recorder):
         raise AttributeError("Cannot load restore seed without saver created")
       self.saver.restore(self.session, seed)
       load_path = seed + '.tab'
-      if self.write_gcp:
-        data = self.write_gcp(_read_csv, load_path)
+      if self.write_gcs:
+        data = self.write_gcs(_read_csv, load_path)
       else:
         data = _read_csv(load_path)
       self.progress = [int(data[0][0]), 'read', int(data[0][1])]
@@ -431,8 +431,8 @@ class trainer (recorder):
     np_random_state = list(np.random.get_state())
     np_random_state[1] = [str(element) for element in np_random_state[1]]
     data += np_random_state
-    if self.write_gcp:
-      self.write_gcp(_write_csv, save_path, 'write', data=data)
+    if self.write_gcs:
+      self.write_gcs(_write_csv, save_path, 'write', data=data)
     else:
       _write_csv(save_path, 'write', data=data)
 
