@@ -5,6 +5,7 @@ import struct
 import subprocess
 import numpy as np
 import tarfile
+from deepnodal.python.cloud.gs import *
 
 #-------------------------------------------------------------------------------
 CIFAR_DIRECTORY = '/tmp/'
@@ -44,6 +45,7 @@ def maybe_download_and_extract(directory, _subdir, zipextension=CIFAR_ZIP_EXTENS
 
 #-------------------------------------------------------------------------------
 class cifar10 (imager):
+  read_gcs = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, set_names=[], 
@@ -52,15 +54,18 @@ class cifar10 (imager):
                      directory=CIFAR_DIRECTORY, 
                      dims=CIFAR10_DIMS,
                      depth_last_dim=True):
-    maybe_download_and_extract(directory, CIFAR10_SOURCE)
-    if type(CIFAR10_SOURCE) is dict:
-      directory += CIFAR10_SOURCE[list(CIFAR10_SOURCE)[0]] + '/'
+    if directory[:5] == 'gs://':
+      self.read_gcs = GCS(directory)
     else:
-      directory += CIFAR10_SOURCE
-    if directory[-1] != '/':
-      directory += '/'
+      maybe_download_and_extract(directory, CIFAR10_SOURCE)
+      if type(CIFAR10_SOURCE) is dict:
+        directory += CIFAR10_SOURCE[list(CIFAR10_SOURCE)[0]] + '/'
+      else:
+        directory += CIFAR10_SOURCE
+      if directory[-1] != '/':
+        directory += '/'
     super().__init__(set_names, set_spec, files, directory,
-                    dims, depth_last_dim)
+                     dims, depth_last_dim)
 
 #-------------------------------------------------------------------------------
   def read_data(self, *args, gcn=False, zca=False, gcn_within_depth=True):

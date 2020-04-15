@@ -398,6 +398,7 @@ class trainer (recorder):
         data = self.write_gcs(_read_csv, load_path, 'read')
       else:
         data = _read_csv(load_path)
+      import pdb; pdb.set_trace()
       self.progress = [int(data[0][0]), int(data[0][1])]
       np_random_state = data[1:]
       if len(np_random_state) == 5:
@@ -427,7 +428,7 @@ class trainer (recorder):
     # Could not successfully save batch progress to TensorFlow MetaGraph save points
     # so we save it manually.
     save_path = args[0] + "-" + str(int(self.gst.eval())) + ".tab"
-    data = [str(self.progress[0]), str(self.progress[1])]
+    data = [[str(self.progress[0]), str(self.progress[1])]]
     np_random_state = list(np.random.get_state())
     np_random_state[1] = [str(element) for element in np_random_state[1]]
     data += np_random_state
