@@ -398,7 +398,6 @@ class trainer (recorder):
         data = self.write_gcs(_read_csv, load_path, 'read')
       else:
         data = _read_csv(load_path)
-      import pdb; pdb.set_trace()
       self.progress = [int(data[0][0]), int(data[0][1])]
       np_random_state = data[1:]
       if len(np_random_state) == 5:
