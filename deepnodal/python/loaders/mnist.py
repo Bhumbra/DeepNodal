@@ -4,6 +4,7 @@ import urllib
 import struct
 import subprocess
 import numpy as np
+from deepnodal.python.cloud.gs import *
 
 #-------------------------------------------------------------------------------
 MNIST_GZIP_COMMAND = "gunzip"
@@ -55,6 +56,8 @@ def read_idx3(file_path):
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 class mnist (imager):
+  read_gcs = None
+
 #-------------------------------------------------------------------------------
   def __init__(self, set_names=[], 
                      set_spec=[],
@@ -62,8 +65,11 @@ class mnist (imager):
                      directory=MNIST_DIRECTORY, 
                      dims=MNIST_DIMS,
                      depth_last_dim=True):
-    for data_file in files:
-      maybe_download_and_extract(data_file, directory)
+    if directory[:5] == 'gs://':
+      self.read_gcs = GCS(directory)
+    else:
+      for data_file in files:
+        maybe_download_and_extract(data_file, directory)
     super().__init__(set_names, set_spec, files, directory,
                     dims, depth_last_dim)
 
@@ -77,10 +83,19 @@ class mnist (imager):
     labels = []
     counts = []
     for data_file in self.files:
+      data_path = self.directory + data_file
       if data_file.find('idx3') >= 0:
-        inputs.append(read_idx3(self.directory + data_file))
+        if self.read_gcs:
+          data = self.read_gcs(read_idx3, data_path, 'read')
+        else:
+          data = read_idx3(data_path)
+        inputs.append(data)
       else:
-        labels.append(read_idx1(self.directory + data_file))
+        if self.read_gcs:
+          data = self.read_gcs(read_idx1, data_path, 'read')
+        else:
+          data = read_idx1(data_path)
+        labels.append(data)
         counts.append(len(labels[-1]))
     self._counts = counts
     return super().read_data(np.concatenate(inputs, axis=0)/255., 
