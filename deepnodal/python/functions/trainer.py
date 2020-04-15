@@ -367,6 +367,7 @@ class trainer (recorder):
   def _call_logger(self, logger='logger'):
     self.logger = None
     if self.write_dir is None: return self.logger
+    return
     self.logger = Creation(logger)(self.write_dir, Creation('defaults')())
 
 #-------------------------------------------------------------------------------
@@ -395,10 +396,10 @@ class trainer (recorder):
       self.saver.restore(self.session, seed)
       load_path = seed + '.tab'
       if self.write_gcs:
-        data = self.write_gcs(_read_csv, load_path)
+        data = self.write_gcs(_read_csv, load_path, 'read')
       else:
         data = _read_csv(load_path)
-      self.progress = [int(data[0][0]), 'read', int(data[0][1])]
+      self.progress = [int(data[0][0]), int(data[0][1])]
       np_random_state = data[1:]
       if len(np_random_state) == 5:
         np_random_state[0] = np_random_state[0][0]
@@ -434,7 +435,7 @@ class trainer (recorder):
     if self.write_gcs:
       self.write_gcs(_write_csv, save_path, 'write', data=data)
     else:
-      _write_csv(save_path, 'write', data=data)
+      _write_csv(save_path, data=data)
 
 #-------------------------------------------------------------------------------
   def _add_logs(self, logs_str):

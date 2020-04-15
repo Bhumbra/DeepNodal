@@ -1,13 +1,27 @@
 # A module to handle Google Cloud Storage
 
 import os
+import subprocess
 import csv
 import google.cloud.storage
+import deepnodal
 from googleapiclient import discovery
 
 #-------------------------------------------------------------------------------
 TMP_DIR = '/tmp'
 CLEAR_TMP = True
+GCML_TRAINING_INPUT_KEYWORDS = {
+                                'masterType',
+                                'packageURIs', 
+                                'pythonModule',
+                                'region',
+                                'args',
+                                'jobDir',
+                                'runtimeVersion',
+                                'pythonVersion',
+                                'jobId',
+                                'trainingInput'
+                               }
 
 #-------------------------------------------------------------------------------
 class GCS:
@@ -132,15 +146,52 @@ class GCS:
     return com
 
 #-------------------------------------------------------------------------------
-  def read(self, filename):
-    pass
-
-#-------------------------------------------------------------------------------
   def package(self, modules, dest_dir):
-    pass
+    def _setup(directory, 
+               python_path='/usr/bin/python3',
+               setup_py='setup.py',
+               sdist='sdist'):
+      cwd = os.getcwd()
+      os.chdir(directory)
+      subprocess.call([python_path, setup_py, sdist])
+      dist_dir = directory if not sdist else os.path.join(directory, 'dist')
+      list_dir = os.listdir(dist_dir)
+      os.chdir(cwd)
+      return os.path.join(dist_dir, list_dir[0])
+
+    assert self.prefix, "Project path needed"
+    if not isinstance(modules, dict):
+      mod_path = lambda module: '/'.join(module.__path__[0].split('/')[:-1]) 
+      if isinstance(modules, (list, tuple)):
+        modules = {module: mod_path(module) for module in modules}
+      else:
+        modules = {modules: mod_path(modules)}
+    uris = {}
+    for module, path in modules.items():
+      dist = os.path.join(path, _setup(path))
+      dist_dir, dist_file = os.path.split(dist)
+      uris.update({module: os.path.join(self.prefix, dest_dir, dist_file)})
+      self.upload(dist_dir, dist_file, dest_dir)
+    return uris
 
 #-------------------------------------------------------------------------------
-  def cloudml(self, proj_dir, *args, **kwds):
-    pass
+  def package_dn(self, dest_dir='deepnodal'):
+    return self.package(deepnodal, dest_dir)
+
+#-------------------------------------------------------------------------------
+  def cloud_ml(self, proj_dir, *args, **kwds):
+    args = tuple(args) or 'ml', 'v1'
+    kwds = dict(kwds)
+    assert 'body' not in kwds, "cloudml requires body={} keyword"
+    body = kwds['body']
+    assert 'jobId' in body, "Input body dictionary must contain jobId"
+    assert 'trainingInput' in body, "Input body dictionary must contain trainingInput"
+    missing = []
+    for kwd in GCML_TRAINING_INPUT_KEYWORDS:
+      if kwd not in body['trainingInput']:
+        missing.append(kwd)
+    assert not missing, "Following trainingInput keys missing: {}".\
+        format(','.join(missing))
+    return discovery(*args).projects().jobs().create(**kwds)
 
 #-------------------------------------------------------------------------------
