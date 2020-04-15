@@ -11,16 +11,15 @@ from googleapiclient import discovery
 TMP_DIR = '/tmp'
 CLEAR_TMP = True
 GCML_TRAINING_INPUT_KEYWORDS = {
+                                'scaleTier',
                                 'masterType',
-                                'packageURIs', 
+                                'packageUris', 
                                 'pythonModule',
                                 'region',
                                 'args',
                                 'jobDir',
                                 'runtimeVersion',
                                 'pythonVersion',
-                                'jobId',
-                                'trainingInput'
                                }
 
 #-------------------------------------------------------------------------------
@@ -179,10 +178,11 @@ class GCS:
     return self.package(deepnodal, dest_dir)
 
 #-------------------------------------------------------------------------------
-  def cloud_ml(self, proj_dir, *args, **kwds):
+  def cloud_ml(self, *args, **kwds):
     args = tuple(args) or 'ml', 'v1'
     kwds = dict(kwds)
-    assert 'body' not in kwds, "cloudml requires body={} keyword"
+    assert 'body' in kwds, "cloud_ml requires body={} keyword"
+    assert 'parent' in kwds, "cloud_ml requires parent=GS_DIR keyword"
     body = kwds['body']
     assert 'jobId' in body, "Input body dictionary must contain jobId"
     assert 'trainingInput' in body, "Input body dictionary must contain trainingInput"
@@ -192,6 +192,7 @@ class GCS:
         missing.append(kwd)
     assert not missing, "Following trainingInput keys missing: {}".\
         format(','.join(missing))
-    return discovery(*args).projects().jobs().create(**kwds)
+    build = discovery.build(*args)
+    return build.projects().jobs().create(**kwds)
 
 #-------------------------------------------------------------------------------

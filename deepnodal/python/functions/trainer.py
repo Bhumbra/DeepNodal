@@ -367,7 +367,6 @@ class trainer (recorder):
   def _call_logger(self, logger='logger'):
     self.logger = None
     if self.write_dir is None: return self.logger
-    return
     self.logger = Creation(logger)(self.write_dir, Creation('defaults')())
 
 #-------------------------------------------------------------------------------
