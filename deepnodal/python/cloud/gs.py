@@ -5,6 +5,7 @@ import subprocess
 import csv
 import google.cloud.storage
 import deepnodal
+import pathlib
 from googleapiclient import discovery
 
 #-------------------------------------------------------------------------------
@@ -88,8 +89,7 @@ class GCS:
     directory, filename = os.path.split(path)
     tmp_dir = self.ret_tmp_dir(directory + '/')
     tmp_path = os.path.join(tmp_dir, filename)
-    if not os.path.isdir(tmp_dir):
-      os.mkdir(tmp_dir)
+    pathlib.Path(tmp_dir).mkdir(parents=True, exist_ok=True)
 
     # Download then read
     if spec in ['rb', 'read']:

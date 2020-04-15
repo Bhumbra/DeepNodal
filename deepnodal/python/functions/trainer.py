@@ -437,11 +437,13 @@ class trainer (recorder):
       _write_csv(save_path, data=data)
 
 #-------------------------------------------------------------------------------
-  def _add_logs(self, logs_str):
+  def _add_logs(self, logs_str, flush=False):
     if self.logger is None: return
     if type(logs_str) is str: logs_str = [log_str]
     for log_str in logs_str:
       self.logger.add_summary(log_str, self.progress[1])
+    if flush:
+      self.logger.flush()
 
 #-------------------------------------------------------------------------------
   def summarise(self):

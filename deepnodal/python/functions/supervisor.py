@@ -458,6 +458,10 @@ class supervisor (overseer):
     if calc_distros or force_log:
       distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
       self._add_logs(distros_log)
+    if self.logger:
+      if force_log or (calc_scalars or calc_distros):
+        self.logger.flush()
+
     return scalars_val, sublabels
 
 #-------------------------------------------------------------------------------
@@ -479,7 +483,7 @@ class supervisor (overseer):
     for i in range(num_scalars):
       self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict = {})
     scalars_log = self.session.run(self.test_scalars)
-    self._add_logs(scalars_log)
+    self._add_logs(scalars_log, flush=True)
     summary_strs = [name + "=" + str(obj) for name, obj in zip(
       self.test_scalar_sublabels, test_obj)]
     self.test_summary_str = ', '.join(summary_strs)
