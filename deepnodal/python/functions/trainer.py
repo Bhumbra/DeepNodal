@@ -418,7 +418,7 @@ class trainer (recorder):
           if isinstance(datum, list):
             csv_writer.writerow(datum)
           else:
-            csv_writer.writerow([str(data)])
+            csv_writer.writerow([str(datum)])
     """
     self.save(path) save self.session model to path
     """
