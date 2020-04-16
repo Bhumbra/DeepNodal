@@ -45,7 +45,6 @@ def maybe_download_and_extract(directory, _subdir, zipextension=CIFAR_ZIP_EXTENS
 
 #-------------------------------------------------------------------------------
 class cifar10 (imager):
-  read_gcs = None
 
 #-------------------------------------------------------------------------------
   def __init__(self, set_names=[], 
@@ -54,9 +53,7 @@ class cifar10 (imager):
                      directory=CIFAR_DIRECTORY, 
                      dims=CIFAR10_DIMS,
                      depth_last_dim=True):
-    if directory[:5] == 'gs://':
-      self.read_gcs = GCS(directory)
-    else:
+    if directory[:5] != 'gs://':
       maybe_download_and_extract(directory, CIFAR10_SOURCE)
       if type(CIFAR10_SOURCE) is dict:
         directory += CIFAR10_SOURCE[list(CIFAR10_SOURCE)[0]] + '/'
@@ -83,13 +80,14 @@ class cifar100 (imager):
                      directory=CIFAR_DIRECTORY, 
                      dims=CIFAR100_DIMS,
                      depth_last_dim=True):
-    maybe_download_and_extract(directory, CIFAR100_SOURCE)
-    if type(CIFAR100_SOURCE) is dict:
-      directory += CIFAR100_SOURCE[list(CIFAR100_SOURCE)[0]] + '/'
-    else:
-      directory += CIFAR100_SOURCE
-    if directory[-1] != '/':
-      directory += '/'
+    if directory[:5] != 'gs://':
+      maybe_download_and_extract(directory, CIFAR100_SOURCE)
+      if type(CIFAR100_SOURCE) is dict:
+        directory += CIFAR100_SOURCE[list(CIFAR100_SOURCE)[0]] + '/'
+      else:
+        directory += CIFAR100_SOURCE
+      if directory[-1] != '/':
+        directory += '/'
     super().__init__(set_names, set_spec, files, directory,
                     dims, depth_last_dim)
 

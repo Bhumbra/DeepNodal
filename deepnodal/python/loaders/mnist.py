@@ -37,19 +37,6 @@ def maybe_download_and_extract(filename, directory, zipextension=MNIST_ZIP_EXTEN
     gzip_process = subprocess.Popen(gzip_command.split(), stdout=subprocess.PIPE)
     gzip_process.communicate()
 
-#-------------------------------------------------------------------------------
-def read_idx1(file_path):
-  with open(file_path, 'rb') as f:
-    magic, count = struct.unpack('>2I', f.read(8))
-    data = np.fromstring(f.read(), dtype=MNIST_UINT8_DTYPE)
-  return data
-
-#-------------------------------------------------------------------------------
-def read_idx3(file_path):
-  with open(file_path, 'rb') as f:
-    magic, count, rows, cols = struct.unpack('>4I', f.read(16))
-    data = np.fromstring(f.read(), dtype=MNIST_UINT8_DTYPE)
-  return data.reshape([count, rows, cols])
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -79,6 +66,19 @@ class mnist (imager):
     # MNIST source data is not conveniently pickled so we overload here.
     if self.directory is None: raise ValueError("Directory not set")
     if self.files is None: raise ValueError("Data files not set")
+
+    def _read_idx1(file_path):
+      with open(file_path, 'rb') as bin_read:
+        magic, count = struct.unpack('>2I', bin_read.read(8))
+        data = np.fromstring(bin_read.read(), dtype=MNIST_UINT8_DTYPE)
+      return data
+
+    def _read_idx3(file_path):
+      with open(file_path, 'rb') as bin_read:
+        magic, count, rows, cols = struct.unpack('>4I', bin_read.read(16))
+        data = np.fromstring(bin_read.read(), dtype=MNIST_UINT8_DTYPE)
+      return data.reshape([count, rows, cols])
+
     inputs = []
     labels = []
     counts = []
@@ -86,15 +86,15 @@ class mnist (imager):
       data_path = self.directory + data_file
       if data_file.find('idx3') >= 0:
         if self.read_gcs:
-          data = self.read_gcs(read_idx3, data_path, 'read')
+          data = self.read_gcs(_read_idx3, data_path, 'read')
         else:
-          data = read_idx3(data_path)
+          data = _read_idx3(data_path)
         inputs.append(data)
       else:
         if self.read_gcs:
-          data = self.read_gcs(read_idx1, data_path, 'read')
+          data = self.read_gcs(_read_idx1, data_path, 'read')
         else:
-          data = read_idx1(data_path)
+          data = _read_idx1(data_path)
         labels.append(data)
         counts.append(len(labels[-1]))
     self._counts = counts

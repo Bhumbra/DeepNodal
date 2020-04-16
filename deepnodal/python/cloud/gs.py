@@ -10,7 +10,7 @@ from googleapiclient import discovery
 
 #-------------------------------------------------------------------------------
 TMP_DIR = '/tmp'
-CLEAR_TMP = True
+CLEAR_TMP = False
 GCML_TRAINING_INPUT_KEYWORDS = {
                                 'scaleTier',
                                 'masterType',

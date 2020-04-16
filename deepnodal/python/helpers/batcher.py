@@ -6,6 +6,7 @@ Class to batch data conveniently
 import pickle
 import collections
 import numpy as np
+from deepnodal.python.cloud.gs import *
 
 #-------------------------------------------------------------------------------
 DEFAULT_SET_NAME  ='train'
@@ -20,6 +21,7 @@ class batcher (object):
   directory = None
   files = None
   sets = None
+  read_gcs = None
 
   # Private
   _inputs = None
@@ -56,12 +58,17 @@ class batcher (object):
     if type(files) is str: files = [files]
     self.files = files
     self.directory = directory
+    self.read_gcs = None if self.directory[:5] != 'gs://' else GCS(directory)
 
 #-------------------------------------------------------------------------------
   def read_data(self, *args):
     """
     A Pickle reader, with no relationship to partitioning.
     """
+    def _read_pickle(path, encoding='bytes'):
+      with open(path, 'rb') as read_bin:
+        data = pickle.load(read_bin, encoding=encoding)
+      return data
     input_key, label_key = args
     if self.directory is None: raise ValueError("Directory not set")
     if self.files is None: raise ValueError("Data files not set")
@@ -69,10 +76,12 @@ class batcher (object):
     labels = []
     counts = []
     for data_file in self.files:
-      with open(self.directory + data_file, 'rb') as open_file:
-        data_dict = pickle.load(open_file, encoding = 'bytes')
-      inputs.append(data_dict[input_key])
-      labels.append(data_dict[label_key])
+      if self.read_gcs:
+        data = self.read_gcs(_read_pickle, self.directory + data_file, 'read')
+      else:
+        data = _read_pickle(self.directory + data_file)
+      inputs.append(data[input_key])
+      labels.append(data[label_key])
       counts.append(len(labels[-1]))
     self._counts = counts
     return self.set_data(np.concatenate(inputs), 
