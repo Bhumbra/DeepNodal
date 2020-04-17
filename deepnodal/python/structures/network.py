@@ -90,11 +90,21 @@ class network (stem):
     self.unit_subnet = self.n_subnets == 1
     self.type_subnets = [None] * self.n_subnets
     for i, subnet in enumerate(self.subnets):
+      """
       if isinstance(subnet, stream) or issubclass(subnet, stream):
         self.type_subnets[i] = 'stream'
       elif isinstance(subnet, level) or issubclass(subnet, level):
         self.type_subnets[i] = 'level'
       elif isinstance(subnet, stack) or issubclass(subnet, stack):
+        self.type_subnets[i] = 'stack'
+      else:
+        raise TypeError("Unknown subnet type: " + str(subnet))
+      """
+      if isinstance(subnet, stream):
+        self.type_subnets[i] = 'stream'
+      elif isinstance(subnet, level):
+        self.type_subnets[i] = 'level'
+      elif isinstance(subnet, stack):
         self.type_subnets[i] = 'stack'
       else:
         raise TypeError("Unknown subnet type: " + str(subnet))
