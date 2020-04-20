@@ -75,9 +75,10 @@ class GPUTemps:
 
 #-------------------------------------------------------------------------------
   def wait_not_above(self, max_temp=None):
+    if not max_temp: return None
     start = time.time()
     wait = start - self.__t0
-    done = wait < self._min_poll or not max_temp
+    done = wait < self._min_poll
     while not done:
       temps = list(self.ret_temps().values())
       if not temps:

@@ -220,7 +220,11 @@ class stream (chain):
         else:
           self.wgt_kwds.update({'kernel_transpose': False})
     elif 'kernel' not in self.wgt_kwds:
-      self.wgt_kwds.update({'kernel_initializer': Creation(self.wgt)})
+      kin = self.wgt
+      if isinstance(kin, str):
+        if kin == 'vs':
+          kin = Creation(kin)
+      self.wgt_kwds.update({'kernel_initializer': kin})
 
 #-------------------------------------------------------------------------------
   def set_dropout(self, dro=None, *dro_args, **dro_kwds):
@@ -458,7 +462,12 @@ class stream (chain):
       if self.bia is None: self.set_biases()
     if maybe_weights:
       if self.wgt is None and not self.wgt_kwds: self.set_weights()
-      if Creation(self.wgt) == Creation('vsi'): # create a custom initialiser
+      custom_weights = False
+      if isinstance(self.wgt, str):
+        custom_weights = self.wgt == 'vsi'
+      else:
+        custom_weights = Creation(self.wgt) == Creation('vsi')
+      if custom_weights:
         vsi_kwds = dict(self.wgt_kwds)
         vsi_kwds.pop('kernel_initializer')
         if self.dev is None:
