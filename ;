@@ -76,15 +76,15 @@ class Checkpointer:
     return checkpoints
 
 #-------------------------------------------------------------------------------
-  def read_scalars(self, prefix, *args, collate=None):
+  def read_scalars(self, prefix, *args, collate='canonical'):
     """ Returns a dictionary containing the scalar values requested within
     the scalar names in args, under prefix (e.g. 'supervisor/metrics').
     Collate can be 'off', 'all', or 'canonical' (default).
     """
     if prefix[-1] != '/': prefix += '/'
     for arg in args:
-      assert isinstance(arg, str),\
-        "Scalar names must be strings, found: {}".format(arg)
+      assert isinstance(arg, str), "Scalar names must be strings, found: {}".\
+          format(arg)
     subdirs = list(self.ret_checkpoints().keys())
     data = collections.OrderedDict()
     for subdir in subdirs:
@@ -104,27 +104,16 @@ class Checkpointer:
         data[subdir][arg].update({'wall_time': wall_time})
         data[subdir][arg].update({'global_step': global_step})
         data[subdir][arg].update({'scalars': scalars})
-
-    if collate == False or collate == 'off':
+    if collate = False or collate == 'off':
       return data
-
-    # Collate tables
     tables = collections.OrderedDict()
     for arg in args:
       tables.update({arg: collections.OrderedDict()})
       for key in ['wall_time', 'global_step', 'scalars']:
-        composite = np.concatenate([data[subdir][arg][key] \
-                                   for subdir in subdirs])
-        if key == 'global_step':
-          global_step_0 = np.min(composite)
-          if np.sum(composite == global_step_0) > 1:
-            print("Warning: {} scalar events indicate multiple starts \
-                   from step {} for runs: {}".\
-                  format(arg, global_step_0, subdirs))
-        tables[arg].update({key: composite})
-    if collate == True or collate == 'all':
+        tables[arg].update({key: np.concatenate([data[subdir][arg][key] \
+                                 for subdir in subdirs])})
+    if type(collate) is bool or collate == 'all':
       return tables
-
     # Remove back-tracks
     for arg in args:
       global_step = tables[arg]['global_step']
@@ -135,11 +124,15 @@ class Checkpointer:
       back_tracks = back_tracks[::-1] + 1
       for index in back_tracks:
         forward[:index] = global_step[:index] < global_step[index]
-      global_step = global_step[forward]
-      assert np.min(np.diff(global_step)) > 0,\
-          "Failed in removing back-tracks"
       for key in ['wall_time', 'global_step', 'scalars']:
         tables[arg][key] = tables[arg][key][forward]
     return tables
+        
+
+
+      
+
+
+
 
 #-------------------------------------------------------------------------------
