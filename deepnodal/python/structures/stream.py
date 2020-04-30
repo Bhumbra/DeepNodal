@@ -106,8 +106,8 @@ class stream (chain):
       self.type_arch = 'dense'
       self.type_adim = 'dense1'
     elif type(self.arch) is set:
-      self.type_arch = 'dense'
-      self.type_adim = 'dense2map'
+      self.type_arch = 'onehot'
+      self.type_adim = self.type_arch
       if len(self.arch) != 1:
         raise ValueError("Any dense2map archecture specification must be a single element set")
     elif type(self.arch) is dict:
@@ -515,6 +515,10 @@ class stream (chain):
       arch_val = self.arch[arch_key]
       kwds.update(self.wgt_kwds)
       self.arch_link = self.add_link(Creation(self.type_arch), arch_key, arch_val, **kwds)
+    elif self.type_arch == 'onehot':
+      arch = list(self.arch)
+      assert len(arch) == 1, "One-hot specification requires a single element set"
+      self.arch_link = self.add_link(Creation(self.type_arch), arch[0], **kwds)
     else:
       raise ValueError("Unknown architecture type: " + self.type_arch)
     return self.arch_link

@@ -123,47 +123,6 @@ def tf_dense(
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
-def tf_dense2card(
-  inputs, units,
-  activation=None,
-  use_bias=True,
-  kernel_initializer=None,
-  bias_initializer=init_ops.zeros_initializer(),
-  kernel_regularizer=None,
-  bias_regularizer=None,
-  activity_regularizer=None,
-  kernel_constraint=None,
-  bias_constraint=None,
-  kernel_transpose=False,
-  trainable=True,
-  name=None,
-  reuse=None):
-  if type(units) is not set:
-    raise TypeError("Layer dense2card units specification must of set type")
-  units = list(units)
-  if len(units) != 1:
-    raise ValueError("Layer dense2card units set specification must have one element")
-  units = units[0]
-  
-  layer = tf_Dense(units,
-                activation=activation,
-                use_bias=use_bias,
-                kernel_initializer=kernel_initializer,
-                bias_initializer=bias_initializer,
-                kernel_regularizer=kernel_regularizer,
-                bias_regularizer=bias_regularizer,
-                activity_regularizer=activity_regularizer,
-                kernel_constraint=kernel_constraint,
-                bias_constraint=bias_constraint,
-                kernel_transpose=kernel_transpose,
-                trainable=trainable,
-                name=name,
-                dtype=inputs.dtype.base_dtype,
-                _scope=name,
-                _reuse=reuse)
-  return layer.apply(inputs)
-
-#------------------------------------------------------------------------------- 
 class tf_Card2dense(base.Layer):
   """Cardinal-to-dense lookup layer class
 
