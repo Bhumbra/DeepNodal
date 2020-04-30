@@ -213,7 +213,10 @@ def Device(spec = None, number = None): # returns a string if number is not None
 #-------------------------------------------------------------------------------
 # Parameters list
 
-Param_Dict = {'kernel': 'weights',  'bias': 'biases'}
+Param_Dict = {'kernel': 'weights', 
+              'bias': 'biases',
+              'recurrent_kernel':  'recurrent_weights',
+             }
 Norm_Moments = {'moving_mean', 'moving_variance', 'renorm_mean', 'renorm_stddev'}
 Norm_Dict = {'gamma': 'scale', 'beta': 'offset', \
              'renorm_mean_weight': 'renorm_offset', 'renorm_stddev_weight': 'renorm_scale'}

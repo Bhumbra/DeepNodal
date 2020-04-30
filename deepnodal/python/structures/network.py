@@ -138,7 +138,9 @@ class network (stem):
     self.inputs_kwds = dict(inputs_kwds)
     self.type_inputs = None
     if self.inputs is None: return
-    if type(self.inputs) is not list:
+    if type(self.inputs) is int:
+      self.inputs = [[self.inputs]] * self.n_subnets
+    elif type(self.inputs) is not list:
       self.inputs = [self.inputs] * self.n_subnets
     elif len(self.inputs):
       if type(self.inputs[0]) is int: # in case of a single input specification

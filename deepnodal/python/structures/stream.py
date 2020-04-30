@@ -81,7 +81,7 @@ class stream (chain):
     arch = list of 1:   recurrent
     arch = list of 2:   pool
     arch = list of 3:   conv
-    arch = dict  {sparse_length: [outer_dim, inner_dim]}: map2dense
+    arch = dict  {sparse_length: [outer_dim, inner_dim]}: card2dense
     arch = set: dense2map
 
     """
@@ -111,7 +111,7 @@ class stream (chain):
       if len(self.arch) != 1:
         raise ValueError("Any dense2map archecture specification must be a single element set")
     elif type(self.arch) is dict:
-      self.type_arch = 'map2dense'
+      self.type_arch = 'card2dense'
       if len(self.arch) != 1:
         raise ValueError("Sparse to dense specification requires one dictionary element")
       arch_key = list(self.arch)[0]
@@ -393,7 +393,7 @@ class stream (chain):
       self.add_link(Creator('flatten'), var_scope=self.name+"/input_flatten")
     if len(Shape(self._inp)) == 4 and self.type_arch == 'recurrent':
       self.add_link(Creation('squeeze'), axis=-1, name=self.name+"/input_flatten")
-    elif len(Shape(self._inp)) == 1 and self.type_arch == 'map2dense':
+    elif len(Shape(self._inp)) == 1 and self.type_arch == 'card2dense':
       self.add_link(Creation('expand_dims'), name = self.name+"/input_expand_dims", axis = -1)
     return inp
 
@@ -457,7 +457,7 @@ class stream (chain):
 
     # Initialise biases/weights parameter settings
     maybe_biases = self.type_arch == 'dense' or self.type_arch == 'conv'
-    maybe_weights = (maybe_biases or self.type_arch == 'map2dense')
+    maybe_weights = (maybe_biases or self.type_arch == 'card2dense')
     if maybe_biases:
       if self.bia is None: self.set_biases()
     if maybe_weights:
@@ -510,7 +510,7 @@ class stream (chain):
       kwds.update({'pool_size': self.arch[0], 'strides': self.arch[1]})
       kwds.update(self.win_kwds)
       self.arch_link = self.add_link(Creation(self.type_adim, self.kfn), **kwds)
-    elif self.type_arch == 'map2dense':
+    elif self.type_arch == 'card2dense':
       arch_key = list(self.arch)[0]
       arch_val = self.arch[arch_key]
       kwds.update(self.wgt_kwds)

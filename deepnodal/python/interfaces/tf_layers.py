@@ -219,24 +219,11 @@ class tf_Card2dense(base.Layer):
   def call(self, inputs):
     if len(inputs.shape) != 2:
       raise ValueError("Lookup input must be two-dimensional")
-    unit_lookup = True if type(self.units) is int else len(self.units) == 1
-    if unit_lookup:
-      self.outputs = tf.nn.embedding_lookup(self.kernel, inputs, **self.lookup_kwds)
-      self._output = self.outputs
+    self._outputs = tf.nn.embedding_lookup(self.kernel, inputs, **self.lookup_kwds)
+    self._output = self._outputs
+    if type(self.units) is int or type(self.units) is not tuple:
       return self._output
-    n_lookups = self.units[0]
-    self.outputs = [None] * n_lookups
-    for i in range(n_lookups):
-      self.outputs[i] = tf.nn.embedding_lookup(self.kernel, inputs[:, i],
-                                               **self.lookup_kwds)
-    if type(self.units) is tuple:
-      self._outputs = [None] * n_lookups
-      for i in range(n_lookups):
-        self._outputs[i] = tf.expand_dims(self.outputs[i], axis = 0)
-      self._output = tf.reduce_sum(tf.concat(self._outputs, axis = 0), axis = 0)
-      return self._output
-    
-    self._output = tf.concat(self.outputs, axis = -1)
+    self._output = tf.reduce_sum(self._outputs, axis=[1])
     return self._output
 
 #------------------------------------------------------------------------------- 

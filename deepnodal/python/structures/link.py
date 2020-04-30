@@ -121,14 +121,21 @@ class link (leaf):
     if self.__var_scope is None: return self._params
 
     # Add parameters belonging to architecture
-    for Param in list(Param_Dict):
-      with Scope('var', self.__var_scope, reuse=True):
-        try:
-          param = Creation('ret_var')(Param)
-        except ValueError:
-          param = None
+    if self._prototype is None:
+      for Param in list(Param_Dict):
+        with Scope('var', self.__var_scope, reuse=True):
+          try:
+            param = Creation('ret_var')(Param)
+          except ValueError:
+            param = None
+          if param is not None:
+            self.add_param(mapping({self.__var_scope+"/"+Param_Dict[Param]: param}))
+    else:
+      scope = self._prototype.variables
+      for key in list(Param_Dict.keys()):
+        param = Ret_Var(scope, key)
         if param is not None:
-          self.add_param(mapping({self.__var_scope+"/"+Param_Dict[Param]: param}))
+          self.add_param(mapping({self.__var_scope+"/"+Param_Dict[key]: param}))
      
     # Add parameters belonging to normalisation
     scope = self.__var_scope if self._prototype is None else self._prototype.variables
