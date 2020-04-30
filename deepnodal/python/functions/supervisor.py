@@ -182,6 +182,7 @@ class supervisor (overseer):
   def _call_errors(self):
     self.errors = None
     if self.erq is None: return self.errors
+    if self.erq is False: return self.errors
     if not len(self.erq_args): # i.e. mse
       if self.dev is None:
         with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
