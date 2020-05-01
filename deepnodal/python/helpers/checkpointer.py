@@ -26,17 +26,19 @@ class Checkpointer:
     self.meta_extn = meta_extn or self.meta_extn
 
 #-------------------------------------------------------------------------------
-  def set_directory(self, directory=None, subprefix=None, 
-                          evts_stem=None, meta_extn=None):
+  def set_directory(self, directory=None, subprefix=None):
     self.directory = directory
-    self.subprefix = subprefix
-    return self.ret_subdirs()
+    return self.ret_subdirs(subprefix)
 
 #-------------------------------------------------------------------------------
-  def ret_subdirs(self):
-    self._subdirs = None
+  def ret_subdirs(self, subprefix=None):
+    self.subprefix = subprefix
     if not self.directory:
       return self._subdirs
+    if isinstance(self.subprefix, (list, tuple)):
+      self._subdirs  = list(self.subprefix)
+      return self._subdirs
+    self._subdirs = None
     if not self.subprefix:
       self._subdirs = ['']
       return self._subdirs
@@ -110,6 +112,8 @@ class Checkpointer:
 
     # Collate tables
     tables = collections.OrderedDict()
+    if not data:
+      return data
     for arg in args:
       tables.update({arg: collections.OrderedDict()})
       for key in ['wall_time', 'global_step', 'scalars']:
