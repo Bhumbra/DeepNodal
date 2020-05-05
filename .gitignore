@@ -10,3 +10,4 @@ sdist/
 *.egg-info
 *.tar.gz
 *.sh
+*.swp

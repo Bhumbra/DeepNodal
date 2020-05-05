@@ -326,6 +326,7 @@ class trainer (recorder):
     This creates no graph objects but should be called from new_session()
     """
     self.write_dir = write_dir
+    if self.write_dir is None: return self.write_dir
     self.write_gcs = None if write_dir[:5] != 'gs://' else GCS(self.write_dir)
     return self.write_dir
 
