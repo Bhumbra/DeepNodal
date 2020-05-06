@@ -230,7 +230,8 @@ class supervisor (overseer):
     if Creation(self.cfn) == Creation("nce"):
       # TODO: We have to retrieve the weights and biases from the last layer
       pass
-    elif Creation(self.cfn) == Creation('mce') and self.trans_fn_out in Logits_List: # pre-transfer-function value required
+    elif Creation(self.cfn) in [Creation('mce'), Creation('mlce')] \
+      and self.trans_fn_out in Logits_List: # pre-transfer-function value required
       kwds.update({'name': self.name + "/metrics/cost"})
       if self.dev is None:
         self.cost = Creation(self.cfn)(self.pre_trans, self.labels, *self.cfn_args,

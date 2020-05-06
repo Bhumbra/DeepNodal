@@ -45,6 +45,14 @@ def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
     return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
 
 #-------------------------------------------------------------------------------
+def tf_mean_log_cross_entropy(logits, labels, activation_fn, name = None):
+  func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
+               tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+    return tf.reduce_mean(tf.log(func_dict[activation_fn](logits=logits, 
+                                                          labels=labels)))
+
+#-------------------------------------------------------------------------------
 def tf_cosine_similarity(data, weights, name=None):
   with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     normalised_weights = weights / tf.sqrt(tf.reduce_sum(tf.square(weights), 1, keepdims=True))
