@@ -30,6 +30,7 @@ class supervisor (overseer):
 
   """
   def_name = 'supervisor'
+  pre = None                     # preapply function
   cfn = None                     # cost function
   lbl = None                     # labels
   erq = None                     # error quotient 
