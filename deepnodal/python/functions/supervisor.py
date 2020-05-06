@@ -49,6 +49,7 @@ class supervisor (overseer):
   lrate_ops = None               # learning-rate associated ops
   delta_ops = None               # regularisation-associated ops to gradients
   preta_ops = None               # operations before applying gradient updates
+  preap_ops = None               # pre_apply ops
   apply_ops = None               # operations to apply gradients to variables
   posta_ops = None               # operations after applying gradient updates
   train_ops = None               # training operations
@@ -79,6 +80,14 @@ class supervisor (overseer):
     if 'name' not in self.lbl_kwds:
       self.lbl_kwds.update({'name': self.name + "/batch/labels"})
     
+#-------------------------------------------------------------------------------
+  def set_preap(self, pre=None, *pre_args, **pre_kwds):
+    self.pre = pre
+    self.pre_args = pre_args
+    self.pre_kwds = pre_kwds
+    if self.pre == 'clip_gnorm':
+      assert self.pre_args, "Cannot clip_gnorm without specifying maximum"
+
 #-------------------------------------------------------------------------------
   def set_costfn(self, cfn = None, *cfn_args, **cfn_kwds):
     """
@@ -342,9 +351,24 @@ class supervisor (overseer):
   def _call_apply_ops(self):
     # Calls apply-gradient operations updates that are schedule-dependent
     self.schedule_grad_and_vars = [None] * self.n_schedules
+    self.preap_ops = [None] * self.n_schedules # pre-apply ops
     self.apply_ops = [None] * self.n_schedules # apply gradient ops
     for i in range(self.n_schedules):
       self.schedule_grad_and_vars[i] = [self.grad_and_vars[ind] for ind in self.schedule_param_indices[i]]
+      if self.pre:
+        grad_and_vars = [list(_grad_and_vars) for _grad_and_vars in self.schedule_grad_and_vars[i]]
+        grad = [_grad_and_vars[0] for _grad_and_vars in grad_and_vars]
+        if self.dev is None:
+          with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/"+self.pre, reuse=Flag('auto_reuse')):
+            preap_grad, _ = Creation(self.pre)(grad, *self.pre_args, **self.pre_kwds)
+        else:
+          with Device(self.dev):
+            with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/"+self.pre, reuse=Flag('auto_reuse')):
+              preap_grad, _ = Creation(self.pre)(grad, *self.pre_args, **self.pre_kwds)
+        for j in range(len(grad_and_vars)):
+          grad_and_vars[j][0] = preap_grad[j]
+          self.schedule_grad_and_vars[i][j] = tuple(grad_and_vars[j])
+    for i in range(self.n_schedules):
       if self.dev is None:
         with variable_scope(self.name + "/schedules/schedule_"+str(i) + "/apply", reuse=Flag('auto_reuse')):
           with Creation('deps')([self.preta_ops[i]]):
