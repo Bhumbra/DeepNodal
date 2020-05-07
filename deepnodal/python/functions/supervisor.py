@@ -513,7 +513,7 @@ class supervisor (overseer):
     return scalars_val, sublabels
 
 #-------------------------------------------------------------------------------
-  def test(self, *args, **kwds):
+  def test(self, *args, skip_log=False, **kwds):
     """
     Call using: self.test(inputs_data, labels_data)
     """
@@ -547,7 +547,8 @@ class supervisor (overseer):
     for i in range(num_scalars):
       self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict={})
     scalars_log = self.session.run(self.test_scalars)
-    self._add_logs(scalars_log, flush=True)
+    if not skip_log:
+      self._add_logs(scalars_log, flush=True)
     summary_strs = [name + "=" + str(obj) for name, obj in zip(
       self.test_scalar_sublabels, test_obj)]
     self.test_summary_str = ', '.join(summary_strs)
