@@ -76,7 +76,7 @@ class supervisor (overseer):
     self.lbl_args = lbl_args
     self.lbl_kwds = dict(lbl_kwds)
     if self.lbl is None: self.lbl = DEFAULT_LABEL
-    if 'dtype' not in self.lbl_kwds:
+    if not len(lbl_args) and 'dtype' not in self.lbl_kwds:
       self.lbl_kwds.update({'dtype': Dtype(DEFAULT_LABEL_DTYPE)})
     if 'name' not in self.lbl_kwds:
       self.lbl_kwds.update({'name': self.name + "/batch/labels"})
@@ -230,7 +230,7 @@ class supervisor (overseer):
     if Creation(self.cfn) == Creation("nce"):
       # TODO: We have to retrieve the weights and biases from the last layer
       pass
-    elif Creation(self.cfn) in [Creation('mce'), Creation('mlce')] \
+    elif Creation(self.cfn) in [Creation('mce'), Creation('sce')] \
       and self.trans_fn_out in Logits_List: # pre-transfer-function value required
       kwds.update({'name': self.name + "/metrics/cost"})
       if self.dev is None:
@@ -250,7 +250,7 @@ class supervisor (overseer):
           with Device(self.dev):
             with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
               self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
-      elif ndim_hatval == 2 and ndim_labels == 1:
+      elif (ndim_hatval == 2 and ndim_labels == 1) or (ndim_hatval == 3 and ndim_labels == 2):
         # Here we attempt to create an interface that allows sparse labels to be converted to one-hot tensors
         if self.dev is None:
           self._labels = Creation('onehot')(self.labels, int(Shape(self.hatval)[-1]),
@@ -444,20 +444,29 @@ class supervisor (overseer):
     return feed_dict
 
 #-------------------------------------------------------------------------------
-  def train(self, *args):
+  def train(self, *args, evaluate=None):
     """
     Call using: self.train(inputs_data, labels_data)
     """
     if self.session is None:
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, *args)
-    self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
+    evaluations = None
+    if evaluate is None:
+      self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
+    else:
+      evaluate = list(evaluate)
+      evaluations = self.session.run(self.train_ops[self.using_schedule] + evaluate, 
+                                     feed_dict=feed_dict)
+      evaluations = evaluations[-len(evaluate):]
     summary = self.summarise()
     save_session = self.write_intervals[2]
     save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
     if save_session and self.write_dir is not None:
       self.save(self.write_dir + "/" + self.name)
-    return summary
+    if evaluate is None:
+      return summary
+    return summary, evaluations
 
 #-------------------------------------------------------------------------------
   def summarise(self, force_log = False): # only relevent for training sets
@@ -501,14 +510,30 @@ class supervisor (overseer):
     split = 1 if 'split' not in kwds else kwds['split']
     objects, scalars, labels, sublabels = self.ret_scalar_group('tests')
     num_scalars = len(scalars)
-    tests_obj = np.empty([split, num_scalars], dtype = np.float32)
-    arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
-    for i in range(split):
-      feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
-      tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
-    test_obj = np.mean(tests_obj, axis=0)
+    length = len(args[0])
+    tests_obj = None
+    if not (length % split):
+      tests_obj = np.empty([split, num_scalars], dtype=np.float32)
+      arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
+      for i in range(split):
+        feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
+        tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
+      test_obj = np.mean(tests_obj, axis=0)
+    else:
+      max_batch_size = int(np.ceil(length / split))
+      indices = np.arange(0, length, max_batch_size)
+      indices[-1] = length 
+      num_batches = len(indices) - 1
+      tests_obj = np.empty([num_batches, num_scalars], dtype=np.float32)
+      counts = indices[1:] - indices[:-1]
+      for i in range(num_batches):
+        batch = np.arange(indices[i], indices[i+1])
+        feed_dict = self.set_feed_dict(False, args[0][batch], args[1][batch])
+        tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
+        tests_obj[i, :] *= counts[i]
+      test_obj = np.sum(tests_obj, axis=0) / length
     for i in range(num_scalars):
-      self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict = {})
+      self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict={})
     scalars_log = self.session.run(self.test_scalars)
     self._add_logs(scalars_log, flush=True)
     summary_strs = [name + "=" + str(obj) for name, obj in zip(

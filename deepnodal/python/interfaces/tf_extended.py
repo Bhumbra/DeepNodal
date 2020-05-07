@@ -38,19 +38,26 @@ def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
     return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))
 
 #-------------------------------------------------------------------------------
-def tf_mean_cross_entropy(logits, labels, activation_fn, name = None):
+def tf_sum_cross_entropy(logits, labels, activation_fn, name = None):
   func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
                tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
   with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
-    return tf.reduce_mean(func_dict[activation_fn](logits=logits, labels=labels))
+    return tf.reduce_sum(func_dict[activation_fn](logits=logits, labels=labels))
 
 #-------------------------------------------------------------------------------
-def tf_mean_log_cross_entropy(logits, labels, activation_fn, name = None):
-  func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
-               tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
-  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
-    return tf.reduce_mean(tf.log(func_dict[activation_fn](logits=logits, 
-                                                          labels=labels)))
+def tf_mean_cross_entropy(logits_or_vals, labels, activation_fn=None, name=None):
+  if activation_fn:
+    func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
+                 tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
+    with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+      return tf.reduce_mean(func_dict[activation_fn](logits=logits_or_vals, labels=labels))
+  if name:
+    with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+      entropies = tf.reduce_sum(-1.*tf.math.multiply(labels, logits_or_vals), axis=-1)
+      return tf.reduce_mean(entropies)
+  entropies = tf.reduce_sum(-1.*tf.math.multiply(labels, logits_or_vals), axis=-1)
+  return tf.reduce_mean(entropies)
+   
 
 #-------------------------------------------------------------------------------
 def tf_cosine_similarity(data, weights, name=None):
