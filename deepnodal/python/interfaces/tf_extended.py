@@ -38,11 +38,37 @@ def tf_in_top_k_error(X, labels, k = 1, dtype = tf.float32, name = None):
     return tf.subtract(1., tf.reduce_mean(tf.cast(tf.nn.in_top_k(X, labels, k), dtype)))
 
 #-------------------------------------------------------------------------------
-def tf_sum_cross_entropy(logits, labels, activation_fn, name = None):
-  func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
-               tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
+def tf_mean_sparse_nllc(loglike, targets, name=None, **kwds):
+  loglike_shape = loglike.shape
+  targets_shape = targets.shape
+  assert len(loglike_shape) == len(targets_shape) + 1, "Shapes incommensurate {} vs {}".\
+    format(loglike_shape, targets_shape)
+  if name is None:
+    if len(loglike_shape) > 2:
+      loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
+      targets = tf.reshape(targets, [-1])
+    llc = tf.gather(loglike, targets, axis=-1, **kwds)
+    return -tf.reduce_mean(llc)
   with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
-    return tf.reduce_sum(func_dict[activation_fn](logits=logits, labels=labels))
+    if len(loglike_shape) > 2:
+      loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
+      targets = tf.reshape(targets, [-1])
+    llc = tf.gather(loglike, targets, axis=-1 **kwds)
+    return -tf.reduce_mean(llc)
+  
+#-------------------------------------------------------------------------------
+def tf_sum_cross_entropy(logits_or_vals, labels, activation_fn=None, name=None):
+  if activation_fn:
+    func_dict = {tf.nn.sigmoid: tf.nn.sigmoid_cross_entropy_with_logits,
+                 tf.nn.softmax: tf.nn.sparse_softmax_cross_entropy_with_logits}
+    with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+      return tf.reduce_sum(func_dict[activation_fn](logits=logits_or_vals, labels=labels))
+  if name:
+    with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+      entropies = tf.reduce_sum(-1.*tf.math.multiply(labels, logits_or_vals), axis=-1)
+      return tf.reduce_sum(entropies)
+  entropies = tf.reduce_sum(-1.*tf.math.multiply(labels, logits_or_vals), axis=-1)
+  return tf.reduce_sum(entropies)
 
 #-------------------------------------------------------------------------------
 def tf_mean_cross_entropy(logits_or_vals, labels, activation_fn=None, name=None):

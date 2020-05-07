@@ -240,9 +240,21 @@ class supervisor (overseer):
         with Device(self.dev):
           self.cost = Creation(self.cfn)(self.pre_trans, self.labels, *self.cfn_args,
                                          activation_fn=self.trans_fn_out, **kwds)
+
     else: # we'll just use the hat values
       ndim_hatval, ndim_labels = len(Shape(self.hatval)), len(Shape(self.labels))
-      if ndim_hatval == ndim_labels:
+      if Creation(self.cfn) == Creation('nllc'):
+        if ndim_hatval != ndim_labels + 1:
+          raise ValueError("Hat values and labels dimensionality incommensurate: " +
+                           str(ndim_hatval) + "-D vs " + str(ndim_labels) + "-D")
+        if self.dev is None:
+          with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+            self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
+        else:
+          with Device(self.dev):
+            with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+              self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
+      elif ndim_hatval == ndim_labels:
         if self.dev is None:
           with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
             self.cost = Creation(self.cfn)(self.hatval, self.labels, *self.cfn_args, **self.cfn_kwds)
