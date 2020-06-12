@@ -74,7 +74,7 @@ class GPUTemps:
     return temps
 
 #-------------------------------------------------------------------------------
-  def wait_not_above(self, max_temp=None):
+  def wait_not_above(self, max_temp=None, gpu_id=None):
     if not max_temp: return None
     start = time.time()
     wait = start - self.__t0
@@ -83,7 +83,8 @@ class GPUTemps:
       temps = list(self.ret_temps().values())
       if not temps:
         return wait
-      done = max(temps) <= max_temp
+      done = max(temps) <= max_temp if gpu_id is None \
+             else temps[gpu_id] <= max_temp
       wait = time.time() - start
       if not done:
         if self._max_wait:

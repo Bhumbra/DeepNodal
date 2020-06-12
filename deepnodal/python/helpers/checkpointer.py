@@ -5,6 +5,7 @@ import os
 import glob
 import collections
 import numpy as np
+from tensorboard.backend.event_processing.event_file_loader import EventFileLoader
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
 #-------------------------------------------------------------------------------
@@ -145,6 +146,35 @@ class Checkpointer:
       for key in ['wall_time', 'global_step', 'scalars']:
         tables[arg][key] = tables[arg][key][forward]
     return tables
+
+#-------------------------------------------------------------------------------
+  def read_distros(self, prefix, *args):
+    if prefix[-1] != '/': prefix += '/'
+    for arg in args:
+      assert isinstance(arg, str),\
+        "Scalar names must be strings, found: {}".format(arg)
+    subdirs = list(self.ret_checkpoints().keys())
+    data = collections.OrderedDict()
+    for subdir in subdirs:
+      evts_path = os.path.join(self.directory, subdir, self.evts_stem+'*')
+      evts_file  = glob.glob(evts_path)
+      if not evts_file: continue
+      assert len(evts_file) == 1, "Multiple events file found: {}".format(evts_file)
+      evts_file = evts_file[0]
+      print("Reading: {}".format(evts_file))
+      EvtAcc = EventAccumulator(evts_file, size_guidance={'histograms': 0})
+      EvtAcc.Reload()
+      data.update({subdir: collections.OrderedDict()})
+      for arg in args:
+        data[subdir].update({arg: collections.OrderedDict()})
+        wall_time, global_step, histogram = zip(*EvtAcc.Histograms(prefix + arg))
+        distros = [hist[5:] for hist in histogram]
+        scalar_dict = collections.OrderedDict()
+        data[subdir][arg].update({'wall_time': wall_time})
+        data[subdir][arg].update({'global_step': global_step})
+        data[subdir][arg].update({'histogram': histogram})
+        data[subdir][arg].update({'distros': distros})
+    return data
 
 #-------------------------------------------------------------------------------
 

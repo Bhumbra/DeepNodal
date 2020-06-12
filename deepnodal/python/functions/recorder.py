@@ -24,19 +24,19 @@ class recorder (slave):
   scalar_group = None              # spec-keyed dictionary of above
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     slave.__init__(self, name, dev)
     self.set_metrics()
 
 #-------------------------------------------------------------------------------
-  def set_metrics(self, metrics = None):
+  def set_metrics(self, metrics=None):
     self.metrics = metrics
     if self.metrics is None:
       self.metrics = []
     self.n_metrics = len(self.metrics)
 
 #-------------------------------------------------------------------------------
-  def add_metric(self, creation = None, *args, **_kwds):
+  def add_metric(self, creation=None, *args, **_kwds):
     kwds = dict(_kwds)
     name = self.name + "/metrics"
     dev = self.dev
@@ -76,7 +76,7 @@ class recorder (slave):
 
 #-------------------------------------------------------------------------------
   def _call_scalars(self, specs='train'):
-    """ Returns appended objects, scalars, labels, sublabels """
+    """ Returns a dictionary of appended objects, scalars, labels, sublabels """
 
     if type(specs) is str: specs = [specs]
 
@@ -106,13 +106,15 @@ class recorder (slave):
     if self.scalar_group is None:
       self.scalar_group = {}
 
-    self.scalar_group.update({spec: [self.scalar_objects[n:], self.scalars[n:], 
-      self.scalar_labels[n:], self.scalar_sublabels[n:]]})
+    self.scalar_group.update({spec: {'objects': self.scalar_objects[n:], 
+                                     'scalars': self.scalars[n:], 
+                                     'labels': self.scalar_labels[n:], 
+                                     'sublabels': self.scalar_sublabels[n:]}})
 
     return self.scalar_group[spec]
 
 #-------------------------------------------------------------------------------
-  def ret_scalar_group(self, spec = 'train'):
+  def ret_scalar_group(self, spec='train'):
     if spec not in self.scalar_group:
       return None
     return self.scalar_group[spec]

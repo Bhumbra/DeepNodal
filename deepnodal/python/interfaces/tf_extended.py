@@ -46,15 +46,34 @@ def tf_mean_sparse_nllc(loglike, targets, name=None, **kwds):
   if name is None:
     if len(loglike_shape) > 2:
       loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
-      targets = tf.reshape(targets, [-1])
-    llc = tf.gather(loglike, targets, axis=-1, **kwds)
-    return -tf.reduce_mean(llc)
+      targets = tf.reshape(targets, [-1, 1])
+    nllc = tf.negative(tf.gather(loglike, targets, axis=-1, batch_dims=1, **kwds))
+    return tf.reduce_mean(nllc)
   with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
     if len(loglike_shape) > 2:
       loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
       targets = tf.reshape(targets, [-1])
-    llc = tf.gather(loglike, targets, axis=-1 **kwds)
-    return -tf.reduce_mean(llc)
+    nllc = tf.negative(tf.gather(loglike, targets, axis=-1, batch_dims=1, **kwds))
+    return tf.reduce_mean(nllc)
+
+#-------------------------------------------------------------------------------
+def tf_sum_sparse_nllc(loglike, targets, name=None, **kwds):
+  loglike_shape = loglike.shape
+  targets_shape = targets.shape
+  assert len(loglike_shape) == len(targets_shape) + 1, "Shapes incommensurate {} vs {}".\
+    format(loglike_shape, targets_shape)
+  if name is None:
+    if len(loglike_shape) > 2:
+      loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
+      targets = tf.reshape(targets, [-1, 1])
+    nllc = tf.negative(tf.gather(loglike, targets, axis=-1, batch_dims=1, **kwds))
+    return tf.reduce_sum(nllc)
+  with variable_scope(name, reuse=tf.compat.v1.AUTO_REUSE):
+    if len(loglike_shape) > 2:
+      loglike = tf.reshape(loglike, [-1, loglike_shape[-1]])
+      targets = tf.reshape(targets, [-1])
+    nllc = tf.negative(tf.gather(loglike, targets, axis=-1, batch_dims=1, **kwds))
+    return tf.reduce_sum(nllc)
   
 #-------------------------------------------------------------------------------
 def tf_sum_cross_entropy(logits_or_vals, labels, activation_fn=None, name=None):

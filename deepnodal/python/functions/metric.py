@@ -43,10 +43,10 @@ class metric (function):
 
   # private
   __var_scope = None
-  __deimiter = None
+  __delimiter = None
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     """ Regular initialisation """
     self.set_name(name)
     self.set_dev(dev)
@@ -55,15 +55,15 @@ class metric (function):
     self.set_label()
 
 #-------------------------------------------------------------------------------
-  def set_name(self, name = None):
+  def set_name(self, name=None):
     self.name = name
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev=None):
     self.dev = dev
 
 #-------------------------------------------------------------------------------
-  def set_creation(self, creation = None, *args, **kwds):
+  def set_creation(self, creation=None, *args, **kwds):
     """ Allow metric to be a custom-called value """
     self._creation = Creation(creation)
     self._args = tuple(args)
@@ -80,7 +80,7 @@ class metric (function):
           raise TypeError("Any dtype specification must relate to a list argument.")
 
 #-------------------------------------------------------------------------------
-  def set_label(self, label = None, *args, delimiter='/'):
+  def set_label(self, label=None, *args, delimiter='/'):
     """ Set metric label according the keys in args (default empty) """
     self._label = label
     keys = tuple(args)
@@ -96,11 +96,12 @@ class metric (function):
       self._label = self.name + "/" + self._label
 
 #-------------------------------------------------------------------------------
-  def set_inp(self, inp = None):
+  def set_inp(self, inp=None):
     self._inp = inp
     self._out = None
     return self._inp
     
+
 #-------------------------------------------------------------------------------
   def ret_inp(self):
     return self._inp
