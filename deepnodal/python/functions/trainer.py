@@ -59,7 +59,7 @@ class trainer (recorder):
   learning_rate = None             # learning rate
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     slave.__init__(self, name, dev)
     self.set_global_step()
     self.set_is_training()
@@ -69,15 +69,15 @@ class trainer (recorder):
     self.set_write_intervals()
 
 #-------------------------------------------------------------------------------
-  def set_global_step(self, gst = None):
+  def set_global_step(self, gst=None):
     self.gst = gst
 
 #-------------------------------------------------------------------------------
-  def set_is_training(self, ist = None):
+  def set_is_training(self, ist=None):
     self.ist = ist
 
 #-------------------------------------------------------------------------------
-  def set_work(self, work = None):
+  def set_work(self, work=None):
     self.work = work
     if self.work is None: return
     if not isinstance(self.work, network) and not issubclass(self.work, network):
@@ -86,14 +86,14 @@ class trainer (recorder):
       self.work.set_dev(self.dev)
 
 #-------------------------------------------------------------------------------
-  def set_progress(self, progress = None):
+  def set_progress(self, progress=None):
     self.progress = progress
     if self.progress is None:
       self.progress = [-1, 0] # [number of batch_updates, sum(batch_sizes)]
     return self.progress
 
 #-------------------------------------------------------------------------------
-  def set_write_intervals(self, write_intervals = None):
+  def set_write_intervals(self, write_intervals=None):
     """
     write_intervals = [interval for scalar update,
                        interval for distro update,
@@ -103,7 +103,7 @@ class trainer (recorder):
     if self.write_intervals is None: self.write_intervals = self.def_write_intervals
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_summaries = False, _called = True):
+  def __call__(self, ist=None, gst=None, skip_summaries=False, _called=True):
     if self.work is None: return 
 
     # Call is_training and network
@@ -128,7 +128,7 @@ class trainer (recorder):
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _call_summaries(self, skip_summaries = False):
+  def _call_summaries(self, skip_summaries=False):
 
     # Setup the scalar and distribution summaries
     if skip_summaries: return
@@ -169,14 +169,15 @@ class trainer (recorder):
     # At the time of coding, batch_size evaluation is not GPU-compatible
     self.batch_size_metric = self.add_metric('var', 0, trainable=False, 
         name=self.name+"/metrics/batch_size") 
-    self.batch_size_metric.set_label("BATCH_SIZE", 'train')
+    self.batch_size_metric.set_label("BATCH_SIZE")
+    self.batch_size_metric.set_groups('batch')
     self.batch_size = self.batch_size_metric.__call__()
     with Scope('var', self.name+"/batch/batch_size_update", reuse=False):
-      self.batch_size_op = self.batch_size_metric.call_assign(
-          Creation('shape')(self.inputs[0])[0], reuse=None)
+      self.batch_size_op = self.batch_size_metric.assign_op(
+          Creation('shape')(self.inputs[0])[0])
 
 #-------------------------------------------------------------------------------
-  def _call_learning_rate(self, gst = None): # this sets up self.learning_rate
+  def _call_learning_rate(self, gst=None): # this sets up self.learning_rate
     # Setup global_step first
     if self.gst is None: 
       if gst is None:
@@ -220,7 +221,8 @@ class trainer (recorder):
           with Device(self.dev):
             self.learning_rate = lrn(*lrn_args, global_step = self.gst, **kwds)
       self.learning_rate_metric = self.add_metric()
-      self.learning_rate_metric.set_label('LEARNING_RATE', 'train')
+      self.learning_rate_metric.set_label('LEARNING_RATE')
+      self.learning_rate_metric.set_groups('batch')
       self.learning_rate_metric.__call__(self.learning_rate)
 
 #-------------------------------------------------------------------------------
@@ -308,7 +310,7 @@ class trainer (recorder):
     return self.outputs
 
 #-------------------------------------------------------------------------------
-  def _call_distros(self, distros = None, distro_names = None):
+  def _call_distros(self, distros=None, distro_names=None):
     if distros is None:
       distros = self.outputs + self.variables + self.gradients 
     if distro_names is None:
@@ -331,7 +333,7 @@ class trainer (recorder):
     return self.write_dir
 
 #-------------------------------------------------------------------------------
-  def set_session(self, session = None):
+  def set_session(self, session=None):
     """
     This creates no graph objects but should be called from new_session()
     """
@@ -457,7 +459,7 @@ class trainer (recorder):
     calc_scalars = self.write_intervals[0]
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
     if calc_scalars:
-      scalars_obj_log = self.session.run(self.scalar_objects + self.scalars, feed_dict = self.feed_dict)
+      scalars_obj_log = self.session.run(self.scalar_objects + self.scalars, feed_dict=self.feed_dict)
       n_scalars = len(self.scalars)
       scalars_obj, scalars_log = scalars_obj_log[:n_scalars], scalars_obj_log[n_scalars:]
       self._add_logs(scalars_logs)
@@ -466,13 +468,13 @@ class trainer (recorder):
     calc_distros = self.write_intervals[1]
     calc_distros = calc_distros if type(calc_distros) is bool else not(self.progress[0] % calc_distros)
     if calc_distros:
-      distros_log = self.session.run(self.distro_logs, feed_dict = self.feed_dict)
+      distros_log = self.session.run(self.distro_logs, feed_dict=self.feed_dict)
       self._add_logs(distros_log)
 
     return scalars_num
 
 #-------------------------------------------------------------------------------
-  def set_feed_dict(self, is_training = False, feed_inputs = None):
+  def set_feed_dict(self, is_training=False, feed_inputs=None):
     
     # This feed_dictionary supports only inputs
     feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs}
@@ -488,11 +490,11 @@ class trainer (recorder):
 
 #-------------------------------------------------------------------------------
   @abstractmethod
-  def train(self, session = None, *args, **kwds):
+  def train(self, session=None, *args, **kwds):
     pass
     
 #-------------------------------------------------------------------------------
-  def ret_params(self, return_names = True):
+  def ret_params(self, return_names=True):
     """
     Returns a list of parameters as numpy arrays
     if return_names is True, returns parameter_names, parameter_values

@@ -13,6 +13,7 @@ DEFAULT_COST_FUNCTION = 'mce'
 DEFAULT_LABEL = 'tensor'
 DEFAULT_LABEL_DTYPE = 'int64'
 DEFAULT_ERROR_QUOTIENT = 'in_top_k_error'
+DEFAULT_CACHE_SIZE = 200
 
 #------------------------------------------------------------------------------- 
 class supervisor (overseer):
@@ -45,8 +46,6 @@ class supervisor (overseer):
   loss_metric = None             # loss metric
   errors = None                  # list of errors
   error_metrics = None           # list of error metrics
-  train_summary_str = None       # list of train summary string
-  test_summary_str = None        # list of train summary string
   lrate_ops = None               # learning-rate associated ops
   delta_ops = None               # regularisation-associated ops to gradients
   preta_ops = None               # operations before applying gradient updates
@@ -54,6 +53,8 @@ class supervisor (overseer):
   apply_ops = None               # operations to apply gradients to variables
   posta_ops = None               # operations after applying gradient updates
   train_ops = None               # training operations
+  train_summary_str = None       # summary string at train time
+  test_summary_str = None        # summary string at test time
   eval_caches = None             # flag for continuous caching of training metric evaluations
 
 #-------------------------------------------------------------------------------
@@ -129,8 +130,9 @@ class supervisor (overseer):
         self.erq_args = [self.erq_args[0]],
 
 #-------------------------------------------------------------------------------
-  def set_eval_caches(self, eval_caches=True):
+  def set_eval_caches(self, eval_caches=True, cache_sizes=DEFAULT_CACHE_SIZE):
     self.eval_caches = eval_caches
+    self.cache_sizes = cache_sizes
 
 #-------------------------------------------------------------------------------
   def __call__(self, ist = None, gst = None, skip_metrics = False, _called = True, **kwds):
@@ -220,7 +222,10 @@ class supervisor (overseer):
     self.error_metrics = [None] * len(self.errors)
     for i in range(len(self.errors)):
       self.error_metrics[i] = self.add_metric()
-      self.error_metrics[i].set_label('ERROR' + K[i], 'train', 'batch', 'tests')
+      self.error_metrics[i].set_label('ERROR' + K[i])
+      self.error_metrics[i].set_groups({'train': self.cache_sizes,
+                                        'batch': 0,
+                                        'test': self.cache_sizes})
       self.error_metrics[i].__call__(self.errors[i])
 
     return self.errors
@@ -291,7 +296,10 @@ class supervisor (overseer):
                          str(ndim_hatval) + "-D vs " + str(ndim_labels) + "-D")
 
     self.cost_metric = self.add_metric()
-    self.cost_metric.set_label('COST', 'train', 'batch', 'tests')
+    self.cost_metric.set_label('COST')
+    self.cost_metric.set_groups({'train': self.cache_sizes,
+                                 'batch': 0,
+                                 'test': self.cache_sizes})
     self.cost_metric.__call__(self.cost)
     return self.cost
 
@@ -310,7 +318,10 @@ class supervisor (overseer):
         with Device(self.dev):
           self.loss = Creation('add_ewise')([self.cost,  self.reg_loss], name = self.name + "/metrics/loss")
     self.loss_metric = self.add_metric()
-    self.loss_metric.set_label('LOSS', 'train', 'batch', 'tests')
+    self.loss_metric.set_label('LOSS')
+    self.loss_metric.set_groups({'train': self.cache_sizes,
+                                 'batch': 0,
+                                 'test': self.cache_sizes})
     self.loss_metric.__call__(self.loss)
     return self.loss
 
@@ -422,26 +433,15 @@ class supervisor (overseer):
   def _call_scalars(self):
 
     # Call trainer metrics
-    self.train_scalars = overseer._call_scalars(self, 'train')
+    self.train_group = overseer._call_scalars(self, 'train')
 
     # Call batch metrics
-    self.batch_scalars = overseer._call_scalars(self, 'batch')
+    self.batch_group = overseer._call_scalars(self, 'batch')
 
-    # Call tests metrics
-    self.tests_scalars = overseer._call_scalars(self, 'tests')
+    # Call test metrics
+    self.test_group = overseer._call_scalars(self, 'test')
 
-    # Test metrics are the averages of tests metrics
-    self.test_scalar_labels = [lbl.replace('TESTS', 'TEST') \
-        for lbl in self.tests_scalar['labels']]
-    self.test_scalar_sublabels = [lbl.replace('TESTS', 'TEST') \
-        for lbl in self.tests_scalar['labels']]
-    self.test_scalars = []
-    self.test_scalar_objects = []
-    for i, tests_scalar in enumerate(self.tests_scalars['scalars']):
-      if tests_scalars[i] is not None:
-        self.test_scalar_objects.append(Creation('var')(0., name=self.name+"/metrics/test_scalar_"+str(i)))
-        self.test_scalars.append(Summary('scalar')(self.test_scalar_labels[i], self.test_scalar_objects[-1]))
-    return self.train_scalars, self.batch_scalars, self.tests_scalars, self._test_scalars
+    return self.train_group, self.batch_group, self.test_group
 
 #-------------------------------------------------------------------------------
   def set_feed_dict(self, is_training = False, feed_inputs = None, feed_labels = None):
@@ -471,25 +471,25 @@ class supervisor (overseer):
       raise AttributeError("Cannot train without first invoking new_session")
     feed_dict = self.set_feed_dict(True, *args)
     evaluations = None
-    train_evals = None
     training_ops = self.train_ops[self.using_schedule]
     if evaluate is None and not self.eval_caches:
       self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
     elif evaluate is None:
-      train_evals = self.session.run([self.train_ops[self.using_schedule]] + 
-                                      self.train_scalars['scalars'], 
-                                      feed_dict=feed_dict)
-      train_evals = train_evals[-len(self.train_scalars['scalars']):]
+      metric_obj, metric_ops, metric_means, metric_used = self.ret_obj_ops_means('train', reset=False, ret_used=True)
+      self.session.run([self.train_ops[self.using_schedule]] + 
+                        metric_obj + metric_ops,
+                        feed_dict=feed_dict)
     else:
       evaluate = list(evaluate)
-      evaluations = self.session.run(self.train_ops[self.using_schedule] +
-                                     self.train_scalars['scalars'] + evaluate, 
+      evaluations = self.session.run([self.train_ops[self.using_schedule]] +
+                                     self.train_group['objects'] + evaluate, 
                                      feed_dict=feed_dict)
-      train_evals = evaluations[1:(len(self.train_scalars['scalars'])+1)]
+      train_evals = evaluations[1:(len(self.train_group['objects'])+1)]
       evaluations = evaluations[-len(evaluate):]
     summary = self.summarise()
     save_session = self.write_intervals[2]
-    save_session = save_session if type(save_session) is bool else not(self.progress[0] % save_session)
+    save_session = save_session if type(save_session) is bool \
+                   else not(self.progress[0] % save_session)
     if save_session and self.write_dir is not None:
       self.save(self.write_dir + "/" + self.name)
     if evaluate is None:
@@ -501,20 +501,17 @@ class supervisor (overseer):
     """
     Outputs numeric scalars
     """
-
     # Scalars 
     calc_scalars = self.write_intervals[0]
     calc_scalars = calc_scalars if type(calc_scalars) is bool else not(self.progress[0] % calc_scalars)
     scalars_val, sublabels = None, None
     if calc_scalars or force_log:
-      objects, scalars, labels, sublabels = self.ret_scalar_group('batch')
-      scalars_obj_log = self.session.run(objects + scalars, feed_dict = self.feed_dict)
-      num_scalars = len(scalars)
-      scalars_obj, scalars_log = scalars_obj_log[:num_scalars], scalars_obj_log[num_scalars:]
-      self._add_logs(scalars_log)
-      summary_strs = [name + "=" + str(num) for name, num in zip(
-        sublabels, scalars_obj)]
-      self.train_summary_str = ', '.join(summary_strs)
+      assert self.feed_dict[self.ist] is True, "Corrupted feed dictionary for batch sampling"
+      train_str = ''
+      if self.eval_caches:
+        train_str = self.eval_log_scalars(self.session, 'train', feed_dict=self.feed_dict, flush=True)
+      batch_str = self.eval_log_scalars(self.session, 'batch', feed_dict=self.feed_dict)
+      self.train_summary_str = ', '.join([batch_str, train_str])
 
     # Distros
     calc_distros = self.write_intervals[1]
@@ -526,7 +523,7 @@ class supervisor (overseer):
       if force_log or (calc_scalars or calc_distros):
         self.logger.flush()
 
-    return scalars_val, sublabels
+    return self.train_summary_str
 
 #-------------------------------------------------------------------------------
   def test(self, *args, skip_log=False, **kwds):
@@ -536,38 +533,14 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot test without first invoking new_session")
     split = 1 if 'split' not in kwds else kwds['split']
-    objects, scalars, labels, sublabels = self.ret_scalar_group('tests')
-    num_scalars = len(scalars)
+    metric_obj, metric_ops, metric_means, metric_used = self.ret_obj_ops_means('test', reset=False, ret_used=True)
     length = len(args[0])
-    tests_obj = None
-    if not (length % split):
-      tests_obj = np.empty([split, num_scalars], dtype=np.float32)
-      arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
-      for i in range(split):
-        feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
-        tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
-      test_obj = np.mean(tests_obj, axis=0)
-    else:
-      max_batch_size = int(np.ceil(length / split))
-      indices = np.arange(0, length, max_batch_size)
-      indices[-1] = length 
-      num_batches = len(indices) - 1
-      tests_obj = np.empty([num_batches, num_scalars], dtype=np.float32)
-      counts = indices[1:] - indices[:-1]
-      for i in range(num_batches):
-        batch = np.arange(indices[i], indices[i+1])
-        feed_dict = self.set_feed_dict(False, args[0][batch], args[1][batch])
-        tests_obj[i, :] = self.session.run(objects, feed_dict=feed_dict)
-        tests_obj[i, :] *= counts[i]
-      test_obj = np.sum(tests_obj, axis=0) / length
-    for i in range(num_scalars):
-      self.session.run(self.test_scalar_objects[i].assign(test_obj[i]), feed_dict={})
-    scalars_log = self.session.run(self.test_scalars)
-    if not skip_log:
-      self._add_logs(scalars_log, flush=True)
-    summary_strs = [name + "=" + str(obj) for name, obj in zip(
-      self.test_scalar_sublabels, test_obj)]
-    self.test_summary_str = ', '.join(summary_strs)
+    arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
+    self.test_summary_str = ''
+    for i in range(split):
+      feed_dict = self.set_feed_dict(False, arg0[i], arg1[i])
+      self.session.run(metric_obj + metric_ops, feed_dict=feed_dict)
+    self.test_summary_str = self.eval_log_scalars(self.session, 'test', feed_dict=feed_dict, flush=True)
     return ', '.join([self.train_summary_str, self.test_summary_str])
 
 #-------------------------------------------------------------------------------

@@ -35,33 +35,33 @@ class overseer (trainer):
   schedule_index_metric = None       # Metric for schedule_index
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     trainer.__init__(self, name, dev)
     self.set_schedules()
 
 #-------------------------------------------------------------------------------
-  def set_name(self, name = None):
+  def set_name(self, name=None):
     self.name = name if name is not None else self.def_name
     if self.schedules is None: return
     for i, _schedules in enumerate(self.schedules):
       _schedules.set_name(self.name+"/schedule_"+str(i))
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev=None):
     self.dev = dev
     if self.schedules is None: return
     for _schedules in self.schedules:
       _schedules.set_dev(self.dev)
 
 #-------------------------------------------------------------------------------
-  def set_global_step(self, gst = None):
+  def set_global_step(self, gst=None):
     self.gst = gst
     if self.schedules is None: return
     for _schedules in self.schedules:
       _schedules.set_global_step(self.gst)
 
 #-------------------------------------------------------------------------------
-  def set_schedules(self, schedules = None):
+  def set_schedules(self, schedules=None):
     self.schedules = schedules
     if self.schedules is None:
       self.schedules = []
@@ -69,7 +69,7 @@ class overseer (trainer):
     self.use_schedule() # initialises to -1
 
 #-------------------------------------------------------------------------------
-  def add_schedule(self, lrn = None, *lrn_args, **lrn_kwds):
+  def add_schedule(self, lrn=None, *lrn_args, **lrn_kwds):
     """
     New schedule is created on the basis on learning rate specifications.
     The index of the new schedule is returned.
@@ -80,7 +80,7 @@ class overseer (trainer):
     return self.n_schedules - 1
 
 #-------------------------------------------------------------------------------
-  def set_schedule(self, schedule_index = None, dro = None, par = None):
+  def set_schedule(self, schedule_index=None, dro=None, par=None):
     """
     dro is the dropout specification
     par is the parameter specification
@@ -91,7 +91,7 @@ class overseer (trainer):
     return self.schedules[schedule_index]
 
 #-------------------------------------------------------------------------------
-  def __call__(self, ist = None, gst = None, skip_summaries = False, _called = True):
+  def __call__(self, ist=None, gst=None, skip_summaries=False, _called=True):
 
     # Call the schedules
     gst = self._call_schedules(gst)
@@ -114,7 +114,7 @@ class overseer (trainer):
     return self.ist, self.gst
 
 #-------------------------------------------------------------------------------
-  def _call_schedules(self, gst = None): # this sets up the schedule learning rate graph objects
+  def _call_schedules(self, gst=None): # this sets up the schedule learning rate graph objects
 
     # Establish the global-step flag
     if self.gst is None: self.set_global_step(gst)
@@ -123,7 +123,8 @@ class overseer (trainer):
     # Set up the schedule index scalar - at the time of coding, not GPU-compatible
     self.schedule_index_metric = self.add_metric('var', self.using_schedule, trainable=False, 
                                  name=self.name+"/metrics/schedule_index")
-    self.schedule_index_metric.set_label("SCHEDULE_INDEX", 'train')
+    self.schedule_index_metric.set_label("SCHEDULE_INDEX")
+    self.schedule_index_metric.set_groups('batch')
     self.schedule_index = self.schedule_index_metric.__call__()
 
     # We need at least one schedule
@@ -142,7 +143,7 @@ class overseer (trainer):
     return self.gst
 
 #-------------------------------------------------------------------------------
-  def set_feed_dict(self, is_training = False, feed_inputs = None):
+  def set_feed_dict(self, is_training=False, feed_inputs=None):
     
     # This feed_dictionary supports only inputs
     feed_dict = {self.ist: is_training, self.inputs[0]: feed_inputs}
@@ -162,11 +163,11 @@ class overseer (trainer):
    
 #-------------------------------------------------------------------------------
   @abstractmethod
-  def train(self, session = None, *args, **kwds):
+  def train(self, session=None, *args, **kwds):
     pass
 
 #-------------------------------------------------------------------------------
-  def use_schedule(self, using_schedule = -1, _update_dropout=True): 
+  def use_schedule(self, using_schedule=-1, _update_dropout=True): 
     # This updates schedule index and learning rate
     # and returns whether the schedule must be updated online
     if self.session is None:
@@ -189,4 +190,3 @@ class overseer (trainer):
     return update_schedule
     
 #-------------------------------------------------------------------------------
-
