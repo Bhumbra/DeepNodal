@@ -13,7 +13,7 @@ DEFAULT_SET_NAME  ='train'
 DEFAULT_SETS = {0: ['train'],
                 1: ['train'],
                 2: ['train', 'test'],
-                3: ['train', 'eval', 'test']}
+                3: ['train', 'valid', 'test']}
                 
 #-------------------------------------------------------------------------------
 class batcher (object):
@@ -97,7 +97,8 @@ class batcher (object):
     return self._inputs, self._labels
 
 #-------------------------------------------------------------------------------
-  def partition(self, set_names=[], set_specs=[], randomise=True, seed=None):
+  def partition(self, set_names=[], set_specs=[], randomise=True, seed=None, 
+      default_sets=DEFAULT_SETS):
     if seed is not None:
       np.random.seed(seed)
     if set_names:
@@ -106,16 +107,18 @@ class batcher (object):
       else:
         self.add_sets(set_names, set_specs)
     elif self.sets is None:
+      assert self._counts is not None, \
+          "No predefined set counts. Call read_data() before partitioning data"
       num_counts = len(self._counts)
       if num_counts < 1:
-        set_names = DEFAULT_SETS[0]
+        set_names = default_sets[0]
         set_specs = [1.]
-      elif num_counts in DEFAULT_SETS:
-        set_names = DEFAULT_SETS[num_counts]
+      elif num_counts in default_sets:
+        set_names = default_sets[num_counts]
         set_specs = self._counts
       else:
         counts = [sum(self._counts[:-1]), self._counts[-1]]
-        set_names = DEFAULT_SETS[len(counts)]
+        set_names = default_sets[len(counts)]
         set_specs = counts
       self.add_sets(set_names, set_specs)
     elif self._inputs is None:
@@ -185,6 +188,8 @@ class batcher (object):
 
 #-------------------------------------------------------------------------------
   def next_batch(self, set_name=DEFAULT_SET_NAME, batch_size=None, randomise=None):
+
+    assert self.sets, "No sets defined. Call partition() before reading batch data"
 
     # Set defaults
     multiset = isinstance(set_name, (list, tuple))

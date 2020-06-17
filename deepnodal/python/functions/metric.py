@@ -14,6 +14,7 @@ of the structural base class link, except with the following differences:
 
 #-------------------------------------------------------------------------------
 from deepnodal.python.concepts.function import function
+from deepnodal.python.functions.accumulator import Accumulator
 from deepnodal.python.concepts.leaf import *
 from deepnodal.python.interfaces.calls import *
 
@@ -40,30 +41,35 @@ class metric (function):
   _label = None
   _scalar = None
   _scalars = None
+  _accum = None
+  _group_names = None
+  _groups = None
 
   # private
   __var_scope = None
-  __deimiter = None
+  __delimiter = None
+  __accumulators = None
 
 #-------------------------------------------------------------------------------
-  def __init__(self, name = None, dev = None):
+  def __init__(self, name=None, dev=None):
     """ Regular initialisation """
     self.set_name(name)
     self.set_dev(dev)
     self.set_creation()
     self.set_dtypes()
     self.set_label()
+    self.set_groups()
 
 #-------------------------------------------------------------------------------
-  def set_name(self, name = None):
+  def set_name(self, name=None):
     self.name = name
 
 #-------------------------------------------------------------------------------
-  def set_dev(self, dev = None):
+  def set_dev(self, dev=None):
     self.dev = dev
 
 #-------------------------------------------------------------------------------
-  def set_creation(self, creation = None, *args, **kwds):
+  def set_creation(self, creation=None, *args, **kwds):
     """ Allow metric to be a custom-called value """
     self._creation = Creation(creation)
     self._args = tuple(args)
@@ -80,34 +86,43 @@ class metric (function):
           raise TypeError("Any dtype specification must relate to a list argument.")
 
 #-------------------------------------------------------------------------------
-  def set_label(self, label = None, *args, delimiter='/'):
+  def set_label(self, label=None, delimiter='/'):
     """ Set metric label according the keys in args (default empty) """
     self._label = label
-    keys = tuple(args)
     self.__delimiter = delimiter
-    self._scalar = None
-    self._scalars = {}
-    if keys:
-      for key in keys:
-        self._scalars.update({key: None})
     if self._label is None:
       self._label = 'METRIC'
     if self.name:
       self._label = self.name + "/" + self._label
 
 #-------------------------------------------------------------------------------
-  def set_inp(self, inp = None):
+  def set_groups(self, *args):
+    """ Set metric sublabels according the keys in args (default empty) """
+    self._scalar = None
+    if len(args) == 1 and isinstance(args[0], dict):
+      self._groups = args[0]
+      self._group_names = list(args[0].keys())
+    else:
+      self._group_names = list(args)
+      self._groups = {group_name: 0 for group_name in self._group_names}
+    self._scalars = {}
+    if self._group_names:
+      for group_name in self._group_names:
+        self._scalars.update({group_name: None})
+
+#-------------------------------------------------------------------------------
+  def set_inp(self, inp=None):
     self._inp = inp
     self._out = None
     return self._inp
-    
+
 #-------------------------------------------------------------------------------
   def ret_inp(self):
     return self._inp
   
 #-------------------------------------------------------------------------------
   def ret_out(self):
-    if not(self._called): 
+    if not self._called: 
       raise ValueError("Not implemented for when not called.")
       return self, metric.ret_out
     return self._out
@@ -123,9 +138,8 @@ class metric (function):
 #-------------------------------------------------------------------------------
   def ret_label(self, spec=None):
     """ Returns the (label, sublabel) tuple for spec"""
-    delim = self.__delimiter
     label = self._label
-    sublabel = label.split(delim)[-1]
+    sublabel = label.split(self.__delimiter)[-1]
     if spec is None or len(self._scalars) < 2:
       return label, sublabel
     if spec.lower() in sublabel.lower():
@@ -135,9 +149,17 @@ class metric (function):
     return label, sublabel
 
 #-------------------------------------------------------------------------------
-  def __call__(self, inp = None, _called = True):
+  def __call__(self, inp=None, _called=True):
     if inp is not None:
       inp = self.set_inp(inp)
+      if isinstance(self._inp, str):
+        assert self._creation is None, \
+            "Calling metric with name incompatible with creation {}".format(
+             self._creation)
+        self._out = Creation('var')(0., name=self._inp)
+        self.__call__scalars(self._out)
+        self.set_called(_called)
+        return self.ret_out()
     self._out = self._inp
     args, kwds = structuref2unique(*self._args, **self._kwds)
     if self._inp is not None:
@@ -151,7 +173,8 @@ class metric (function):
     elif 'scope' in kwds:
       self.__var_scope = kwds['scope']
     if self._creation is None:
-      self._out = self._inp
+      if self._inp is not None:
+        self._out = self._inp
     else:
       if 'var_scope' in self._kwds:
         if self.dev is None:
@@ -167,16 +190,34 @@ class metric (function):
         else:
           with Device(self.dev):
             self._out = self._creation(*args, **kwds)
-    self.__call__scalars(self._out)
+    self._accum_out = self.__call__accumulators(self._out)
+    self.__call__scalars(self._accum_out)
     self.set_called(_called)
     return self.ret_out()
 
 #-------------------------------------------------------------------------------
-  def __call__scalars(self, out = None):
+  def __call__accumulators(self, out=None):
+    if max(list(self._groups.values())) == 0:
+      return out
+    self.__accumulators = {group_name: None for group_name in self._group_names}
+    accum_out = {group_name: out for group_name in self._group_names}
+    for group_name, group_dsize in self._groups.items():
+      if group_dsize:
+        self.__accumulators[group_name] = Accumulator(
+            self.name + "/" + group_name + "/accumulator", self.dev)
+        self.__accumulators[group_name].set_dsize(group_dsize)
+        accum_out[group_name] = self.__accumulators[group_name].__call__(
+                                  accum_out[group_name])
+    return accum_out
+
+#-------------------------------------------------------------------------------
+  def __call__scalars(self, out=None):
     if out is None: return None
 
     # Handle trivial case first
     if not len(self._scalars):
+      assert not isinstance(out, dict), \
+          "Group specification required if using  accumulators"                                         
       label = self._label
       if self.dev is None:
         self._scalar = Summary('scalar')(label, out)
@@ -190,26 +231,36 @@ class metric (function):
     keys = list(self._scalars.keys())
     for key in keys:
       label = self._label
+      group_out = out if not isinstance(out, dict) else out[key] 
       if len(keys) > 1:
         if key.lower() not in label_lower:
           label += "_" + key.upper()
       if self.dev is None:
-        self._scalars[key] = Summary('scalar')(label, out)
+        self._scalars[key] = Summary('scalar')(label, group_out)
       else:
         with Device(self.dev):
-          self._scalars[key] = Summary('scalar')(label, out)
-    if len(keys) == 1:
-      self._scalar = self._scalars[key]
+          self._scalars[key] = Summary('scalar')(label, group_out)
+    if len(keys) == 1: self._scalar = self._scalars[key]
     return self._scalars
 
 #-------------------------------------------------------------------------------
-  def call_assign(self, target, reuse=False):
-    with Scope('var', self.name+"_update", reuse=reuse):
-      if self.dev is None:
-        op = self._out.assign(target)
-      else:
-        with Device(self.dev):
-          op = self._out.assign(target)
-    return op
+  def ret_accumulator(self, group=None):
+    if self.__accumulators is None:
+      return None
+    if group is None:
+      return self.__accumulators
+    return self.__accumulators[group]
+
+#-------------------------------------------------------------------------------
+  def ret_accum_out(self, group=None):
+    if self.__accumulators is None:
+      return self.ret_out()
+    if group is None:
+      return self._accum_out
+    return self._accum_out[group]
+
+#-------------------------------------------------------------------------------
+  def assign_op(self, value):
+    return self._out.assign(value)
 
 #-------------------------------------------------------------------------------
