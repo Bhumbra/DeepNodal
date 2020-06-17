@@ -343,10 +343,9 @@ class trainer (recorder):
 #-------------------------------------------------------------------------------
   def call_session(self, write_dir=None, seed=None, *args, **kwds):
 
-    # Initialise seed if specified
+    # Initialise seed if specified (this is no longer reproducible from TF1.1x)
     if type(seed) is int:
       Seed(seed)
-      seed = None
 
     # Call the write_directory logger and saver.
     if self.write_dir is None: self.set_write_dir(write_dir)
