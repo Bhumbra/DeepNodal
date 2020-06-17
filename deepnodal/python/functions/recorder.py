@@ -131,12 +131,11 @@ class recorder (slave):
     return self.groups[spec]
 
 #-------------------------------------------------------------------------------
-  def ret_obj_ops_means(self, spec, reset=False, ret_used=False):
+  def ret_obj_ops_means(self, spec, reset=False):
     group = self.groups[spec]
     obj = []
     ops = []
     means = []
-    used = []
     for i, metric in enumerate(group['metrics']):
       obj.append(group['objects'][i])
       accum = metric.ret_accumulator()
@@ -145,18 +144,14 @@ class recorder (slave):
         if accum is not None:
           ops.append(accum.ret_update_ops(reset=reset))
           means.append(accum.ret_average())
-          used.append(accum._used_cache)
-    if ret_used:
-      return obj, ops, means, used
     return obj, ops, means
 
 #-------------------------------------------------------------------------------
-  def ret_scalars_ops_means(self, spec, reset=False, ret_used=False):
+  def ret_scalars_ops_means(self, spec, reset=False):
     group = self.groups[spec]
     scalars = group['scalars']
     objects = group['objects']
     means = [None] * len(scalars)
-    used = []
     ops = []
     metrics = group['metrics']
     for i, metric in enumerate(group['metrics']):
@@ -166,11 +161,8 @@ class recorder (slave):
         if accum is not None:
           ops.append(accum.ret_update_ops(reset=reset))
           means[i] = accum.ret_average()
-          used.append(accum._used_cache)
       if means[i] is None:
         means[i] = objects[i]
-    if ret_used:
-      return scalars, ops, means, used
     return scalars, ops, means
 
 #-------------------------------------------------------------------------------
@@ -184,15 +176,14 @@ class recorder (slave):
 #-------------------------------------------------------------------------------
   def eval_log_scalars(self, session, spec, feed_dict, flush=False, skip_log=False):
     sublabels = self.groups[spec]['sublabels']
-    scalars, ops, means, used = self.ret_scalars_ops_means(spec, reset=True, ret_used=True)
+    scalars, ops, means = self.ret_scalars_ops_means(spec, reset=True)
     num_scalars = len(scalars)
     scalars_log, scalars_obj = None, None
     if len(ops):
       ops = session.run(ops, feed_dict=feed_dict)
-    logs_means_used = session.run(scalars + means + used, feed_dict=feed_dict)
-    scalars_log = logs_means_used[:num_scalars]
-    scalars_obj = logs_means_used[num_scalars:(2*num_scalars)]
-    scalars_used = logs_means_used[(2*num_scalars):]
+    logs_means = session.run(scalars + means, feed_dict=feed_dict)
+    scalars_log = logs_means[:num_scalars]
+    scalars_obj = logs_means[num_scalars:(2*num_scalars)]
     if not skip_log:
       self._add_logs(scalars_log, flush=flush)
     scalars_str = [sublbl + "=" + str(obj) for sublbl, obj in zip(

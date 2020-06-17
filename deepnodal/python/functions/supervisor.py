@@ -475,16 +475,16 @@ class supervisor (overseer):
     if evaluate is None and not self.eval_caches:
       self.session.run(self.train_ops[self.using_schedule], feed_dict=feed_dict)
     elif evaluate is None:
-      metric_obj, metric_ops, metric_means, metric_used = self.ret_obj_ops_means('train', reset=False, ret_used=True)
+      metric_obj, metric_ops, _ = self.ret_obj_ops_means('train', reset=False)
       self.session.run([self.train_ops[self.using_schedule]] + 
                         metric_obj + metric_ops,
                         feed_dict=feed_dict)
     else:
+      metric_obj, metric_ops, _ = self.ret_obj_ops_means('train', reset=False)
       evaluate = list(evaluate)
       evaluations = self.session.run([self.train_ops[self.using_schedule]] +
-                                     self.train_group['objects'] + evaluate, 
-                                     feed_dict=feed_dict)
-      train_evals = evaluations[1:(len(self.train_group['objects'])+1)]
+                                      metric_obj + metric_ops + evaluate,
+                                      feed_dict=feed_dict)
       evaluations = evaluations[-len(evaluate):]
     summary = self.summarise()
     save_session = self.write_intervals[2]
@@ -533,7 +533,7 @@ class supervisor (overseer):
     if self.session is None:
       raise AttributeError("Cannot test without first invoking new_session")
     split = 1 if 'split' not in kwds else kwds['split']
-    metric_obj, metric_ops, metric_means, metric_used = self.ret_obj_ops_means('test', reset=False, ret_used=True)
+    metric_obj, metric_ops, _ = self.ret_obj_ops_means('test', reset=False)
     length = len(args[0])
     arg0, arg1 = np.split(args[0], split), np.split(args[1], split)
     self.test_summary_str = ''
