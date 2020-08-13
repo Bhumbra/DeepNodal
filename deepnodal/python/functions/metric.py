@@ -204,7 +204,7 @@ class metric (function):
     for group_name, group_dsize in self._groups.items():
       if group_dsize:
         self.__accumulators[group_name] = Accumulator(
-            self.name + "/" + group_name + "/accumulator", self.dev)
+            self._label.lower() + "/" + group_name, self.dev)
         self.__accumulators[group_name].set_dsize(group_dsize)
         accum_out[group_name] = self.__accumulators[group_name].__call__(
                                   accum_out[group_name])
