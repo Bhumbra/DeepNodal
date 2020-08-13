@@ -51,25 +51,12 @@ class Accumulator (function):
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp, _called=True):
-    if self.dev is None:
-      self._cache = Creation('var')([0.] * self._dsize, 
-                                    dtype=self._dtype, 
-                                    trainable=False,
-                                    shape = [self._dsize])
-      self._next = Creation('var')(0, dtype=dtype_dict['int32'])
-      self._prev = Creation('var')(0, dtype=dtype_dict['int32'])
-      self._assign_prev = self._prev.assign(self._next)
-      self._last = self._cache[self._prev]
-      self._assign_last = self._last.assign(inp)
-      self._update_ops = Creation('combine')(self._assign_last, self._assign_prev)
-      with Creation('deps')([self._update_ops]):
-        self._incr_next = self._next.assign_add(1)
-      with Creation('deps')([self._update_ops]):
-        self._zero_next = self._next.assign(0)
-      self._used_cache = Creation('slice')(self._cache, [0], [self._prev])
-      self._average = Creation('mean')(self._used_cache)
-    else:
-      with Device(self.dev):
+    with Scope('var', self.name, reuse=False):
+      if self.dev is None:
+        self._cache = Creation('var')([0.] * self._dsize, 
+                                      dtype=self._dtype, 
+                                      trainable=False,
+                                      shape = [self._dsize])
         self._next = Creation('var')(0, dtype=dtype_dict['int32'])
         self._prev = Creation('var')(0, dtype=dtype_dict['int32'])
         self._assign_prev = self._prev.assign(self._next)
@@ -82,6 +69,20 @@ class Accumulator (function):
           self._zero_next = self._next.assign(0)
         self._used_cache = Creation('slice')(self._cache, [0], [self._prev])
         self._average = Creation('mean')(self._used_cache)
+      else:
+        with Device(self.dev):
+          self._next = Creation('var')(0, dtype=dtype_dict['int32'])
+          self._prev = Creation('var')(0, dtype=dtype_dict['int32'])
+          self._assign_prev = self._prev.assign(self._next)
+          self._last = self._cache[self._prev]
+          self._assign_last = self._last.assign(inp)
+          self._update_ops = Creation('combine')(self._assign_last, self._assign_prev)
+          with Creation('deps')([self._update_ops]):
+            self._incr_next = self._next.assign_add(1)
+          with Creation('deps')([self._update_ops]):
+            self._zero_next = self._next.assign(0)
+          self._used_cache = Creation('slice')(self._cache, [0], [self._prev])
+          self._average = Creation('mean')(self._used_cache)
     return self._average
 
 #-------------------------------------------------------------------------------
