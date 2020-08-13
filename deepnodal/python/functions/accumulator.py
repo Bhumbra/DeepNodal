@@ -51,8 +51,8 @@ class Accumulator (function):
 
 #-------------------------------------------------------------------------------
   def __call__(self, inp, _called=True):
-    with Scope('var', self.name, reuse=False):
-      if self.dev is None:
+    if self.dev is None:
+      with Scope('var', self.name, reuse=False):
         self._cache = Creation('var')([0.] * self._dsize, 
                                       dtype=self._dtype, 
                                       trainable=False,
@@ -69,7 +69,8 @@ class Accumulator (function):
           self._zero_next = self._next.assign(0)
         self._used_cache = Creation('slice')(self._cache, [0], [self._prev])
         self._average = Creation('mean')(self._used_cache)
-      else:
+    else:
+      with Scope('var', self.name, reuse=False):
         with Device(self.dev):
           self._next = Creation('var')(0, dtype=dtype_dict['int32'])
           self._prev = Creation('var')(0, dtype=dtype_dict['int32'])
