@@ -192,8 +192,13 @@ class trainer (recorder):
     lrn = Creation(self._lrn)
     args = self._lrn_args
     kwds = dict(self._lrn_kwds)
+
+    # Since learning_rate is called here, message metric object with name
+    lrn_name = self.name + '/metrics/learning_rate'
     if 'name' not in kwds:
-      kwds.update({'name': self.name + '/metrics/learning_rate'})
+      kwds.update({'name': lrn_name})
+    else:
+      lrn_name = lrn_name['name']
 
     if not callable(lrn):
       if self.dev is None:
@@ -220,7 +225,7 @@ class trainer (recorder):
         else:
           with Device(self.dev):
             self.learning_rate = lrn(*lrn_args, global_step = self.gst, **kwds)
-      self.learning_rate_metric = self.add_metric()
+      self.learning_rate_metric = self.add_metric(name=lrn_name)
       self.learning_rate_metric.set_label('LEARNING_RATE')
       self.learning_rate_metric.set_groups('batch')
       self.learning_rate_metric.__call__(self.learning_rate)

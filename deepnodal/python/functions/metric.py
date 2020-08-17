@@ -172,6 +172,8 @@ class metric (function):
       self.__var_scope = kwds['name']
     elif 'scope' in kwds:
       self.__var_scope = kwds['scope']
+    if self.name is None and self.__var_scope:
+      self.name = self.__var_scope
     if self._creation is None:
       if self._inp is not None:
         self._out = self._inp
