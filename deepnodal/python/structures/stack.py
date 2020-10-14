@@ -213,7 +213,6 @@ class stack (stem):
     other options: 'softmax', and 'sigmoid'
     """
     argout = self._set_spec(self._subobject.set_transfn, spec, *args, **kwds)
-    self.trans_fn = self[-1].trans_fn
     return argout
 
 #-------------------------------------------------------------------------------
@@ -293,6 +292,7 @@ class stack (stem):
       inp = self._subobjects[i].__call__(inp)
       inp = self._call_skipcv(inp, i)
     self.set_called(_called)
+    self.trans_fn = self[-1].trans_fn
     self.pre_trans = self[-1].pre_trans
     self._out = inp
     self._setup_outputs() # concatenate output list of dictionaries

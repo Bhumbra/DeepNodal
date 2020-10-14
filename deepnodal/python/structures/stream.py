@@ -63,6 +63,7 @@ class stream (chain):
   wgt_kwds = None     # Weight kwds
   trans_fn = None     # trans_fn = tfn, used as a summary tf by higher objects
   trans_link = None   # transfer function link
+  trans_flag_ist = None   # Optional flag to denote optional istraining flag
   dropout_quotient = None # Graph object for the dropout coefficient
 
   # protected
@@ -264,6 +265,8 @@ class stream (chain):
     self.tfn_args = tfn_args
     self.tfn_kwds = dict(tfn_kwds)
     self.trans_fn = self.tfn
+    self.trans_flag_ist = None if 'flag_training' not in self.tfn_kwds else \
+        self.tfn_kwds.pop('flag_training')
 
 #-------------------------------------------------------------------------------
   def set_window(self, win=None, *win_args, **win_kwds):
@@ -529,6 +532,8 @@ class stream (chain):
     kwds = dict(self.tfn_kwds)
     if 'var_scope' not in kwds:
       kwds.update({'var_scope': self.name})
+    if self.trans_flag_ist:
+      kwds.update({'training': self.ist})
     self.trans_link = self.add_link(Creation(self.tfn), *self.tfn_args, **kwds)
     return self.trans_link
 
