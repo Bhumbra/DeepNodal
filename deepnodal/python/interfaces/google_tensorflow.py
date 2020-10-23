@@ -265,7 +265,10 @@ def Shape(X):
 
 #-------------------------------------------------------------------------------
 # Random seeed
-def Seed(n):
-  return tf.compat.v1.set_random_seed(n)
+def Seed(n=None):
+  if n is not None:
+    tf.reset_default_graph()
+    tf.compat.v1.set_random_seed(n)
 
 #-------------------------------------------------------------------------------
+

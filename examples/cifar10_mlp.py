@@ -31,7 +31,6 @@ rand_flip, rand_crop = [True, False], 2
 net_name = 'mlp'
 write_dir = '/tmp/dn_logs/'
 save_interval = 10
-seed = 42
 
 def main():
   seed = 42
@@ -83,7 +82,7 @@ def main():
   epoch_0 = 0
   t0 = time()
 
-  with sup.call_session(log_out, seed):
+  with sup.call_session(log_out, seed=seed):
     if restore_point is not None:
       epoch_0 = int(np.ceil(float(sup.progress[1])/float(source.sets['train']['support'])))
       for i in range(epoch_0):
