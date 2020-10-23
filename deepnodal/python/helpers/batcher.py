@@ -102,7 +102,7 @@ class batcher (object):
     if seed is not None:
       np.random.seed(seed)
     if set_names:
-      if self._sets:
+      if self.sets:
         raise AttributeError("Data set specifications already set.")
       else:
         self.add_sets(set_names, set_specs)
@@ -152,11 +152,11 @@ class batcher (object):
 
     # Float case
     elif spec_type is float:
-      intervals = np.round(np.atleast_1d(spec) * float(len(self._inputs)))
+      intervals = np.round(np.atleast_1d(set_specs) * float(len(self._inputs)))
       start = 0
       for i in range(len(set_specs)):
         finish = start + int(intervals[i])
-        self.sets[set_name[i]]['indices'] = indices[start:finish]
+        self.sets[set_names[i]]['indices'] = indices[start:finish]
         start = finish
 
     # Explicit case
@@ -164,7 +164,7 @@ class batcher (object):
       if randomise:
         raise ValueError("Cannot randomise explicit set specifications")
       for i in range(len(set_specs)):
-        self.sets[set_name[i]]['indices'] = self.sets[set_name[i]]['spec']
+        self.sets[set_names[i]]['indices'] = self.sets[set_name[i]]['spec']
 
     # Assign data
     for key, val in self.sets.items():
