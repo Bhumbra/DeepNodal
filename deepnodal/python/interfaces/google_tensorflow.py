@@ -23,7 +23,10 @@ creator_dict = {
                  'batch_norm': tf.keras.layers.BatchNormalization,
                  'recurrent': tf.keras.layers.RNN,
                  'flatten': tf.keras.layers.Flatten,
-                 'dropout': tf.keras.layers.Dropout,
+                 'dropout': {None: tf.keras.layers.Dropout,
+                             0: tf.keras.layers.Dropout,
+                             1: tf.keras.layers.SpatialDropout1D,
+                             2: tf.keras.layers.SpatialDropout2D}
                }
 
 #-------------------------------------------------------------------------------
@@ -31,7 +34,7 @@ def Creator(*args):
   if not(len(args)): return None
   creator = creator_dict
   for arg in args:
-    creator = arg if type(arg) is not str else creator[arg.lower()]
+    creator = creator[arg] if type(arg) is not str else creator[arg.lower()]
   return creator
 
 #-------------------------------------------------------------------------------
@@ -267,7 +270,7 @@ def Shape(X):
 # Random seeed
 def Seed(n=None):
   if n is not None:
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
     tf.compat.v1.set_random_seed(n)
 
 #-------------------------------------------------------------------------------

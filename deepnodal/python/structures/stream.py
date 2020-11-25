@@ -65,6 +65,7 @@ class stream (chain):
   trans_link = None   # transfer function link
   trans_flag_ist = None   # Optional flag to denote optional istraining flag
   dropout_quotient = None # Graph object for the dropout coefficient
+  dropout_dims = None     # Dropout dimensionsality
 
   # protected
   _reguln = None      # dictionary of regularisation contributions
@@ -244,6 +245,8 @@ class stream (chain):
         return dro.run(op)
       else:
         raise ValueError("Unknown dropout change specification")
+    dro_kwds = dict(dro_kwds)
+    dro_dims = dro_kwds.pop('dims') if 'dims' in dro_kwds else None
     if type(dro) is float and not(len(dro_args)) and not(len(dro_kwds)):
       dro, dro_args = 'dropout', (dro,)
     if dro is not None and not(len(dro_args)):
@@ -251,7 +254,8 @@ class stream (chain):
 
     self.dro = dro
     self.dro_args = dro_args
-    self.dro_kwds = dict(dro_kwds)
+    self.dro_kwds = dro_kwds
+    self.dropout_dims = dro_dims
 
 #-------------------------------------------------------------------------------
   def set_transfn(self, tfn=None, *tfn_args, **tfn_kwds):
@@ -435,7 +439,8 @@ class stream (chain):
                            name=self.name + "/dropout", **kwds)
       """
       kwds.update({'var_scope': self.name + "/dropout"})
-      return self.add_link(Creator(self.dro), 
+      creator = Creator(self.dro, self.dropout_dims)
+      return self.add_link(Creator(self.dro, self.dropout_dims), 
                            [self.dropout_quotient], 
                            [dict(kwds)])
 
