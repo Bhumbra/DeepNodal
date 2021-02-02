@@ -21,6 +21,7 @@ except AttributeError:
 # Creator dictionary
 creator_dict = {
                  'batch_norm': tf.keras.layers.BatchNormalization,
+                 'censca': tf_CentreScale,
                  'recurrent': tf.keras.layers.RNN,
                  'flatten': tf.keras.layers.Flatten,
                  'dropout': {None: tf.keras.layers.Dropout,

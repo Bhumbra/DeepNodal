@@ -180,7 +180,12 @@ class supervisor (overseer):
       raise ValueError('Supervisor class currently supports only a single unit stream output')
     self.hatval = self.hatval[0].ret_out()
     while type(self.hatval) is tuple or type(self.hatval) is list:
-      if len(self.hatval) != 1:
+      if isinstance(self.hatval, tuple):
+        if self.dev is None:
+          with Scope('var', self.name + "/metrics/hat_values/", reuse = Flag('auto_reuse')):
+            self.hatval = Creation('con')([Creation('expand_dims')(hatval, axis=1) \
+                                           for hatval in self.hatval], axis=1)
+      elif len(self.hatval) != 1:
         raise ValueError('Supervisor class currently supports only a single unit stream output')
       else:
         self.hatval = list(self.hatval)[0]
@@ -209,6 +214,15 @@ class supervisor (overseer):
         with Device(self.dev):
           with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
             self.errors = [Creation(self.erq)(self.hatval, self.labels, **self.erq_kwds)]
+      K = ['']
+    elif callable(self.erq):
+      if self.dev is None:
+        with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
+          self.errors = [self.erq(self.hatval, self.labels, **self.erq_kwds)]
+      else:
+        with Device(self.dev):
+          with Scope('var', self.name + "/metrics/error_quotient/", reuse = Flag('auto_reuse')):
+            self.errors = [self.erq(self.hatval, self.labels, **self.erq_kwds)]
       K = ['']
     else:
       self.errors = [None] * len(self.erq_args)
@@ -290,6 +304,16 @@ class supervisor (overseer):
           with Device(self.dev):
             with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
               self.cost = Creation(self.cfn)(self.hatval, self._labels,
+                                             *self.cfn_args, **self.cfn_kwds)
+      elif callable(self.cfn):
+        if self.dev is None:
+          with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+            self.cost = self.cfn(self.hatval, self.labels,
+                                           *self.cfn_args, **self.cfn_kwds)
+        else:
+          with Device(self.dev):
+            with Scope('var', self.name + "/metrics/cost", reuse=Flag('auto_reuse')):
+              self.cost = self.cfn(self.hatval, self.labels,
                                              *self.cfn_args, **self.cfn_kwds)
       else:
         raise ValueError("Hat values and labels dimensionality incommensurate: " +

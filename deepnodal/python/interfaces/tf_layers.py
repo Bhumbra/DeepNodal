@@ -213,4 +213,17 @@ def tf_card2dense(inputs, cardinality, units, *args, **kwds):
   return layer.apply(inputs)
 
 #------------------------------------------------------------------------------- 
+class tf_CentreScale:
+  variables=[]
+  trainable_variables=[]
+  updates=[]
+  def __init__(self, epsilon=1e-8, axis=None):
+    self.epsilon = epsilon
+    self.axis = axis
+  
+  def __call__(self, X):
+    mean = tf.math.reduce_mean(X, axis=self.axis, keepdims=True)
+    stdv = tf.math.reduce_std(X, axis=self.axis, keepdims=True)
+    return (X - mean) / (stdv + self.epsilon)
 
+#-------------------------------------------------------------------------------
