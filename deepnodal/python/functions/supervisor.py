@@ -180,7 +180,7 @@ class supervisor (overseer):
       raise ValueError('Supervisor class currently supports only a single unit stream output')
     self.hatval = self.hatval[0].ret_out()
     while type(self.hatval) is tuple or type(self.hatval) is list:
-      if isinstance(self.hatval, tuple):
+      if isinstance(self.hatval, tuple) and len(self.hatval) > 1:
         if self.dev is None:
           with Scope('var', self.name + "/metrics/hat_values/", reuse = Flag('auto_reuse')):
             self.hatval = Creation('con')([Creation('expand_dims')(hatval, axis=1) \
